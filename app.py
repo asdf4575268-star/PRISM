@@ -10,7 +10,7 @@ from datetime import date, datetime
 st.set_page_config(
     layout="wide", 
     page_title="PRISM", 
-    page_icon="🌈"  # 로고 주소가 확실치 않으면 이모지가 가장 안전합니다.
+    page_icon="🌈"
 )
 
 st.markdown(f"""
@@ -27,10 +27,6 @@ st.markdown(f"""
     }}
     .cal-img-box img {{ width:100%; height:100%; object-fit:cover; }}
     </style>
-    <head>
-        <link rel="apple-touch-icon" href="{LOGO_URL}">
-        <link rel="icon" href="{LOGO_URL}">
-    </head>
     """, unsafe_allow_html=True)
 
 DB_NAME = 'archive_prism_total_v4.db'
@@ -39,11 +35,15 @@ KOPIS_KEY = "7a919bc272204f06bbca10e2af376dea"
 
 def init_db():
     with sqlite3.connect(DB_NAME) as conn:
-        # view_date 컬럼이 포함된 테이블 생성
         conn.execute('''CREATE TABLE IF NOT EXISTS archive 
                         (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
                          rel_date TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, 
                          img_url TEXT, save_date TEXT, view_date TEXT)''')
+        # 기존 DB 사용자를 위해 view_date 컬럼이 없는 경우 추가
+        try:
+            conn.execute("ALTER TABLE archive ADD COLUMN view_date TEXT")
+        except sqlite3.OperationalError:
+            pass # 이미 컬럼이 있으면 패스
 
 init_db()
 
@@ -61,7 +61,8 @@ def show_details(item):
             with col_txt:
                 new_title = st.text_input("📌 제목", value=item['title'])
                 new_creator = st.text_input("👤 창작자", value=item['creator'])
-                new_rel_date = st.text_input("📅 날짜", value=item['rel_date'])
+                new_rel_date = st.text_input("📅 작품 날짜", value=item['rel_date'])
+                new_view_date = st.text_input("🍿 실제 관람일", value=item.get('view_date') if item.get('view_date') else item['save_date'])
                 new_brief = st.text_input("📝 요약", value=item['brief'])
                 new_summary = st.text_area("📖 줄거리", value=item['summary'], height=120)
                 new_highlights = st.text_area("✨ 인상 깊은 부분", value=item['highlights'], height=100)
@@ -70,9 +71,9 @@ def show_details(item):
                 if st.form_submit_button("💾 변경사항 저장", use_container_width=True):
                     with sqlite3.connect(DB_NAME) as conn:
                         conn.execute("""UPDATE archive SET title=?, creator=?, rel_date=?, summary=?, 
-                                        brief=?, highlights=?, note=?, img_url=? WHERE id=?""",
+                                        brief=?, highlights=?, note=?, img_url=?, view_date=? WHERE id=?""",
                                      (new_title, new_creator, new_rel_date, new_summary, 
-                                      new_brief, new_highlights, new_note, new_img, int(item['id'])))
+                                      new_brief, new_highlights, new_note, new_img, new_view_date, int(item['id'])))
                     st.rerun()
     else:
         col_img, col_txt = st.columns([0.4, 0.6])
@@ -81,7 +82,9 @@ def show_details(item):
         with col_txt:
             st.markdown(f'<p class="act-name">{item["title"]}</p>', unsafe_allow_html=True)
             st.write(f"**정보:** {item['creator']} | **작품날짜:** {item['rel_date']}")
-            st.markdown(f'<p class="date-text">기록일: {item["save_date"]}</p>', unsafe_allow_html=True)
+            # 감상일과 기록일 모두 표시
+            v_date = item.get('view_date') if item.get('view_date') else item['save_date']
+            st.markdown(f'<p class="date-text">🍿 관람일: {v_date} / 📝 기록일: {item["save_date"]}</p>', unsafe_allow_html=True)
             st.divider()
             if item['brief']: st.success(f"**📝 요약:** {item['brief']}")
             st.info(f"**📖 줄거리:**\n\n{item['summary']}")
@@ -103,7 +106,8 @@ def shift_month(delta):
     elif new_month < 1: st.session_state.cal_month = 12; st.session_state.cal_year -= 1
     else: st.session_state.cal_month = new_month
 
-# --- API 함수들 ---
+# --- API 함수들 (속도 개선을 위해 캐시 추가) ---
+@st.cache_data(ttl=3600)
 def get_tmdb_details(item_id, category):
     type_path = "movie" if category == "MOVIES" else "tv"
     url = f"https://api.themoviedb.org/3/{type_path}/{item_id}/credits?api_key={TMDB_API_KEY}&language=ko-KR"
@@ -114,6 +118,7 @@ def get_tmdb_details(item_id, category):
         return f"감독: {director} / 출연: {cast}"
     except: return "정보 없음"
 
+@st.cache_data(ttl=3600)
 def search_books(query):
     headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
     try:
@@ -121,17 +126,20 @@ def search_books(query):
         return res.json().get("documents", []) if res.status_code == 200 else []
     except: return []
 
+@st.cache_data(ttl=3600)
 def search_apple_music(query):
     url = f"https://itunes.apple.com/search?term={query}&limit=10&country=kr&entity=musicTrack,album"
     try: return requests.get(url).json().get("results", [])
     except: return []
 
+@st.cache_data(ttl=3600)
 def search_tmdb(query, category):
     search_type = "movie" if category == "MOVIES" else "tv"
     url = f"https://api.themoviedb.org/3/search/{search_type}?api_key={TMDB_API_KEY}&query={query}&language=ko-KR"
     try: return requests.get(url).json().get("results", [])
     except: return []
 
+@st.cache_data(ttl=3600)
 def search_kopis(query):
     url = f"http://www.kopis.or.kr/openApi/restful/pblprfr?service={KOPIS_KEY}&shprfnm={query}&stdate=20200101&eddate=20261231&rows=10&cpage=1"
     try:
@@ -202,7 +210,14 @@ with tab1:
         if img_url_val: st.image(img_url_val, width=300)
         title = st.text_input("제목", value=data.get('title', ''))
         creator = st.text_input("창작자/공연장", value=data.get('creator', ''))
-        rel_date = st.text_input("날짜", value=data.get('date', str(date.today())))
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            rel_date = st.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
+        with col2:
+            # 실제 감상한 날짜를 선택 (이 날짜가 달력의 기준이 됩니다)
+            view_date = st.date_input("🍿 실제 관람일", value=date.today())
+            
     with cr:
         summary = st.text_area("📖 줄거리", value=data.get('summary', ''), height=150)
         brief = st.text_input("📝 요약")
@@ -210,14 +225,16 @@ with tab1:
         note = st.text_area("💬 감상", height=100)
         if st.button("✅ 저장", key="final_save", use_container_width=True):
             with sqlite3.connect(DB_NAME) as conn:
-                conn.execute("INSERT INTO archive (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                             (category, title, creator, rel_date, summary, brief, highlights, note, img_url_val, str(date.today())))
+                conn.execute("""INSERT INTO archive 
+                                (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) 
+                                VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                             (category, title, creator, rel_date, summary, brief, highlights, note, 
+                              img_url_val, str(date.today()), str(view_date)))
             st.success("저장 완료!")
             st.session_state.api_data = {}
             st.rerun()
 
 with tab2:
-    # 카테고리 탭에 STAGE 추가
     sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
     
     with sub_tabs[0]:
@@ -225,8 +242,9 @@ with tab2:
             all_df = pd.read_sql_query("SELECT * FROM archive", conn)
         
         if not all_df.empty:
-            all_df['save_date_dt'] = pd.to_datetime(all_df['save_date'])
-            all_df['year_int'] = all_df['save_date_dt'].dt.year
+            # view_date가 비어있으면 save_date를 사용하도록 처리 (하위 호환성)
+            all_df['view_date_dt'] = pd.to_datetime(all_df['view_date'].fillna(all_df['save_date']))
+            all_df['year_int'] = all_df['view_date_dt'].dt.year
             
             year_counts = all_df['year_int'].value_counts().to_dict()
             unique_years = sorted(list(set([datetime.now().year] + list(year_counts.keys()))), reverse=True)
@@ -258,7 +276,9 @@ with tab2:
                 h_cols[i].markdown(f"<p style='text-align:center; font-weight:bold; color:{color};'>{d}</p>", unsafe_allow_html=True)
 
             cal = calendar.monthcalendar(st.session_state.cal_year, st.session_state.cal_month)
-            month_df = all_df[(all_df['save_date_dt'].dt.year == st.session_state.cal_year) & (all_df['save_date_dt'].dt.month == st.session_state.cal_month)]
+            # 캘린더 필터링 기준을 view_date_dt로 변경
+            month_df = all_df[(all_df['view_date_dt'].dt.year == st.session_state.cal_year) & 
+                              (all_df['view_date_dt'].dt.month == st.session_state.cal_month)]
 
             for week in cal:
                 cols = st.columns(7)
@@ -266,7 +286,7 @@ with tab2:
                     if day == 0: continue
                     with cols[i]:
                         st.markdown(f"<p class='num-text' style='font-size:30px; margin:0;'>{day}</p>", unsafe_allow_html=True)
-                        day_items = month_df[month_df['save_date_dt'].dt.day == day]
+                        day_items = month_df[month_df['view_date_dt'].dt.day == day]
                         if not day_items.empty:
                             first_item = day_items.iloc[0]
                             if first_item['img_url']:
@@ -289,8 +309,8 @@ with tab2:
                 for i, row in df.iterrows():
                     with cols[i % 4]:
                         if row['img_url']: st.image(row['img_url'], use_container_width=True)
-                        st.markdown(f'<p class="date-text" style="font-size:14px; text-align:center;">📅 {row["save_date"]}</p>', unsafe_allow_html=True)
+                        # 개별 리스트 탭에서도 실제 관람일(view_date) 우선 표시
+                        display_date = row.get('view_date') if row.get('view_date') else row['save_date']
+                        st.markdown(f'<p class="date-text" style="font-size:14px; text-align:center;">📅 {display_date}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
-
-
