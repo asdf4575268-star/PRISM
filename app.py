@@ -115,14 +115,42 @@ def search_kopis(query):
 def show_details(item):
     edit_mode = st.toggle("✏️ 수정 모드 켜기", key=f"tog_{item['id']}")
     if edit_mode:
-        with st.form(key=f"edit_form_{item['id']}"):
-            new_title = st.text_input("📌 제목", value=item['title'])
-            new_creator = st.text_input("👤 창작자", value=item['creator'])
-            new_summary = st.text_area("📖 줄거리", value=item['summary'])
-            if st.form_submit_button("💾 저장"):
-                with sqlite3.connect(DB_NAME) as conn:
-                    conn.execute("UPDATE archive SET title=?, creator=?, summary=? WHERE id=?", (new_title, new_creator, new_summary, item['id']))
-                st.rerun()
+        with st.form(key=f"edit_form_{item['id']}", clear_on_submit=False):
+            col_img, col_txt = st.columns([0.4, 0.6])
+            with col_img:
+                # 이미지는 확인용으로만 띄우고 URL 수정 칸은 제거 (깔끔!)
+                if item['img_url']: 
+                    st.image(item['img_url'], use_container_width=True)
+                new_img = item['img_url'] # 기존 이미지 URL 유지
+                
+            with col_txt:
+                new_title = st.text_input("📌 제목", value=item['title'])
+                new_creator = st.text_input("👤 창작자", value=item['creator'])
+                new_rel_date = st.text_input("📅 작품 날짜", value=item['rel_date'])
+                
+                # 감상일 수정 (기본값 설정 로직)
+                raw_v = item.get('view_date') or item['save_date']
+                try:
+                    cur_v = datetime.strptime(raw_v, '%Y-%m-%d').date()
+                except:
+                    cur_v = date.today()
+                new_view_date = st.date_input("🍿 감상일 수정", value=cur_v)
+
+                # --- 누락되었던 핵심 필드 추가 ---
+                new_brief = st.text_input("📝 요약", value=item.get('brief', ''))
+                new_summary = st.text_area("📖 줄거리(첫줄에 URL)", value=item.get('summary', ''), height=150)
+                new_highlights = st.text_area("✨ 인상 깊은 부분", value=item.get('highlights', ''), height=100)
+                new_note = st.text_area("💬 감상", value=item.get('note', ''), height=100)
+                
+                if st.form_submit_button("💾 변경사항 저장", use_container_width=True):
+                    with sqlite3.connect(DB_NAME) as conn:
+                        conn.execute("""UPDATE archive SET 
+                                        title=?, creator=?, rel_date=?, summary=?, 
+                                        brief=?, highlights=?, note=?, img_url=?, view_date=? 
+                                        WHERE id=?""",
+                                     (new_title, new_creator, new_rel_date, new_summary, 
+                                      new_brief, new_highlights, new_note, new_img, str(new_view_date), int(item['id'])))
+                    st.rerun()
     else:
         st.markdown(f'<p class="act-name">{item["title"]}</p>', unsafe_allow_html=True)
         content_text = item.get('summary', '')
@@ -336,6 +364,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
