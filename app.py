@@ -163,23 +163,67 @@ with tab1:
             st.session_state.api_data = {}
             st.rerun()
 
+네, 충분히 가능합니다! 카테고리 구분 없이 연도별로 모아보는 기능은 아카이브의 흐름을 한눈에 파악하기에 아주 좋은 아이디어입니다.
+
+기존의 [BOOKS, MUSIC, MOVIES, SERIES] 탭 옆에 [📅 YEARLY] 탭을 추가하여, 기록된 날짜(save_date)를 기준으로 연도를 선택하고 모든 카테고리의 기록을 통합해서 볼 수 있도록 수정해 드릴게요.
+
+📅 ARCHIVE 탭에 '연도별 통합 보기'가 추가된 코드
+Python
+# --- [4. 메인 화면 구성 수정 부분] ---
 with tab2:
-    sub_tabs = st.tabs(["📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES"])
+    # 탭 메뉴에 'YEARLY' 추가
+    sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES"])
+    
+    # 1. 연도별 통합 보기 탭 (새로 추가)
+    with sub_tabs[0]:
+        with sqlite3.connect(DB_NAME) as conn:
+            # 전체 데이터를 가져옴
+            all_df = pd.read_sql_query("SELECT * FROM archive ORDER BY save_date DESC, id DESC", conn)
+        
+        if all_df.empty:
+            st.info("기록이 없습니다.")
+        else:
+            # save_date에서 연도만 추출 (YYYY-MM-DD -> YYYY)
+            all_df['year'] = all_df['save_date'].apply(lambda x: x.split('-')[0])
+            years = sorted(all_df['year'].unique(), reverse=True)
+            
+            # 연도 선택 필터
+            selected_year = st.selectbox("📅 연도 선택", years)
+            
+            # 선택된 연도의 데이터만 필터링
+            year_df = all_df[all_df['year'] == selected_year]
+            
+            cols = st.columns(4)
+            for idx, row in year_df.reset_index().iterrows():
+                with cols[idx % 4]:
+                    if row['img_url']: st.image(row['img_url'], use_container_width=True)
+                    # 카테고리 태그와 기록일 표시
+                    st.markdown(f"""
+                        <div style="text-align:center;">
+                            <span style="background-color:#eee; padding:2px 5px; border-radius:4px; font-size:12px;">{row['category']}</span>
+                            <p class="save-date-tag">📅 {row['save_date']}</p>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    if st.button(row['title'], key=f"year_btn_{row['id']}", use_container_width=True):
+                        show_details(row)
+
+    # 2. 기존 카테고리별 탭 (동일하게 유지)
     categories = ["BOOKS", "MUSIC", "MOVIES", "SERIES"]
-    for i, tab in enumerate(sub_tabs):
-        with tab:
+    for i, category_name in enumerate(categories):
+        with sub_tabs[i+1]:
             with sqlite3.connect(DB_NAME) as conn:
-                df = pd.read_sql_query(f"SELECT * FROM archive WHERE category='{categories[i]}' ORDER BY id DESC", conn)
-            if df.empty: st.info("기록이 없습니다.")
+                df = pd.read_sql_query(f"SELECT * FROM archive WHERE category='{category_name}' ORDER BY id DESC", conn)
+            if df.empty:
+                st.info(f"{category_name} 기록이 없습니다.")
             else:
                 cols = st.columns(4)
                 for idx, row in df.iterrows():
                     with cols[idx % 4]:
                         if row['img_url']: st.image(row['img_url'], use_container_width=True)
-                        # [수정] 제목 하단에 입력 날짜(save_date) 표시
                         st.markdown(f'<p class="save-date-tag">📅 기록일: {row["save_date"]}</p>', unsafe_allow_html=True)
-                        if st.button(row['title'], key=f"btn_{row['id']}", use_container_width=True):
+                        if st.button(row['title'], key=f"cat_btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
