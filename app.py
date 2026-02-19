@@ -91,7 +91,7 @@ with tab1:
             if res:
                 opts = {f"📚 {b['title']} ({b['authors'][0]})": b for b in res if b['authors']}
                 sel = st.selectbox("검색 결과", list(opts.keys()))
-                if st.button("✨ 데이터 가져오기"):
+                if st.button("✨ 가져오기"):
                     b = opts[sel]
                     st.session_state.api_data = {'title': b['title'], 'creator': f"저자: {', '.join(b['authors'])}", 'date': b['datetime'][:10], 'img': b['thumbnail'], 'summary': b['contents']}
                     st.rerun()
@@ -100,7 +100,7 @@ with tab1:
             if res:
                 opts = {f"🎵 {m.get('trackName', m.get('collectionName'))}": m for m in res}
                 sel = st.selectbox("검색 결과", list(opts.keys()))
-                if st.button("✨ 데이터 가져오기"):
+                if st.button("✨ 가져오기"):
                     m = opts[sel]
                     st.session_state.api_data = {'title': m.get('trackName', m.get('collectionName')), 'creator': f"아티스트: {m['artistName']}", 'date': m['releaseDate'][:10], 'img': m.get('artworkUrl100', '').replace('100x100bb', '600x600bb'), 'summary': ''}
                     st.rerun()
@@ -113,7 +113,7 @@ with tab1:
                     date_v = r.get('release_date') if category == "MOVIES" else r.get('first_air_date')
                     opts[f"🎬 {name} ({date_v[:4] if date_v else '미상'})"] = r
                 sel = st.selectbox("검색 결과", list(opts.keys()))
-                if st.button("✨ 데이터 가져오기"):
+                if st.button("✨ 가져오기"):
                     selected = opts[sel]
                     credits_info = get_tmdb_details(selected['id'], category)
                     st.session_state.api_data = {
@@ -173,6 +173,7 @@ with tab2:
                         if row['img_url']: st.image(row['img_url'], use_container_width=True)
                         if st.button(row['title'], key=f"btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
