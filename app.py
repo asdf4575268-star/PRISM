@@ -126,7 +126,7 @@ with tab1:
 
 with tab2:
     st.subheader("🗂️ 전체 아카이빙 상세 보기")
-    conn = sqlite3.connect('archive_final.db')
+    conn = sqlite3.connect('archive_v4.db')
     df = pd.read_sql_query("SELECT * FROM archive ORDER BY id DESC", conn)
     conn.close()
 
@@ -137,8 +137,9 @@ with tab2:
         st.divider()
         det_l, det_r = st.columns([0.3, 0.7])
         with det_l:
+            st.caption(f"Category: {item['category']}")
             if item['img_url']: st.image(item['img_url'], use_container_width=False)
-            st.write(f"**{ '아티스트' if item.get('category') == '음악' else '작가' }:** {item['creator']}")
+            st.write(f"**정보:** {item['creator']}")
             st.write(f"**날짜:** {item['rel_date']}")
         
         with det_r:
@@ -147,10 +148,11 @@ with tab2:
             st.write(f"**💬 감상**\n\n{item['note']}")
             
             if st.button("🗑️ 삭제"):
-                conn = sqlite3.connect('archive_final.db')
+                conn = sqlite3.connect('archive_v4.db')
                 conn.execute("DELETE FROM archive WHERE id=?", (int(item['id']),))
                 conn.commit()
                 st.rerun()
     else:
         st.info("기록이 없습니다.")
+
 
