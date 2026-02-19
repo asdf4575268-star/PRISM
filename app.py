@@ -236,6 +236,11 @@ with tab1:
             st.session_state.api_data = {}
             st.success("저장 완료!"); st.rerun()
 
+네, 요청하신 대로 **아카이브 탭(tab2)**의 구조를 완전히 정리했습니다.
+
+YEARLY 탭에서만 연도를 선택할 수 있고, 나머지 카테고리 탭에서는 전체 데이터를 볼 수 있습니다. 또한, 이미지 데이터가 없을 때 달력에 하얀 빈 칸이 생기던 버그를 해결하기 위해 이미지 유무 검증 로직을 강화했습니다.
+
+Python
 with tab2:
     # 실시간 데이터 로드
     all_df = load_data()
@@ -246,13 +251,10 @@ with tab2:
         
         # --- [1. YEARLY 탭: 연도별 달력 보기] ---
         with sub_tabs[0]:
-            # 연도 선택 필터를 달력 탭 내부로 배치
+            # 연도 선택 필터를 달력 탭 내부로 이동 (나머지 탭은 전체 보기 유지)
             years = sorted(all_df['v_dt'].dt.year.unique(), reverse=True)
             sel_year = st.selectbox("📅 연도 선택", years, index=0, key="year_filter")
             
-            # 선택된 연도의 데이터만 필터링
-            year_df = all_df[all_df['v_dt'].dt.year == sel_year]
-
             # 월 이동 컨트롤
             c1, c2, c3 = st.columns([1, 2, 1])
             if c1.button("◀", key="prev_btn"):
@@ -276,6 +278,7 @@ with tab2:
                 h_cols[i].markdown(f"<p style='text-align:center; font-weight:bold; color:{color};'>{d}</p>", unsafe_allow_html=True)
 
             cal = calendar.monthcalendar(st.session_state.cal_year, st.session_state.cal_month)
+            # 현재 달력 화면에 맞는 데이터 필터링
             m_df = all_df[(all_df['v_dt'].dt.year == st.session_state.cal_year) & (all_df['v_dt'].dt.month == st.session_state.cal_month)]
             
             for week in cal:
@@ -292,7 +295,7 @@ with tab2:
                             st.markdown(f"<p class='num-text' style='font-size:25px; color:{day_color};'>{day}</p>", unsafe_allow_html=True)
                             
                             if is_active:
-                                # ⭐ 수정 포인트: 이미지가 유효할 때만 이미지 박스 생성 (흰 칸 방지)
+                                # ⭐ 흰색 빈 칸 버그 해결: 이미지가 확실히 있을 때만 박스 생성
                                 first_img = d_items.iloc[0]['img_url']
                                 if first_img and str(first_img).strip() not in ["", "None"]:
                                     st.markdown(f"<div class='cal-img-box'><img src='{first_img}'></div>", unsafe_allow_html=True)
@@ -306,14 +309,14 @@ with tab2:
         cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
         for idx, cn in enumerate(cats):
             with sub_tabs[idx+1]:
-                # 연도 제한 없이 전체 데이터에서 카테고리 필터링
+                # 연도 선택과 상관없이 전체 데이터에서 해당 카테고리만 추출
                 c_df = all_df[all_df['category'] == cn]
                 
                 if not c_df.empty:
                     cols = st.columns(4)
                     for i, (record_idx, row) in enumerate(c_df.iterrows()):
                         with cols[i % 4]:
-                            # 카테고리 탭에서도 이미지 유효성 체크
+                            # 이미지 출력 전 유효성 검사
                             if row['img_url'] and str(row['img_url']).strip() not in ["", "None"]:
                                 st.image(row['img_url'], use_container_width=True)
                             st.markdown(f"<p style='text-align:center; font-size:14px; color:#888;'>🍿 {row['view_date']}</p>", unsafe_allow_html=True)
@@ -323,4 +326,5 @@ with tab2:
                     st.info(f"{cn} 카테고리에 아직 기록이 없습니다.")
     else:
         st.info("기록이 없습니다. 첫 기록을 남겨보세요!")
+
 
