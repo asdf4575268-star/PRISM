@@ -114,29 +114,10 @@ def search_books(query):
     except: return []
 
 def search_apple_music(query):
-    url = f"https://itunes.apple.com/search?term={query}&limit=20&country=kr&entity=musicTrack,album"
-    try:
-        res = requests.get(url).json().get("results", [])
-        formatted_res = []
-        for m in res:
-            # 노래 제목이 없으면 앨범명으로 대체
-            title = m.get('trackName', m.get('collectionName', 'Unknown'))
-            # 노래 링크가 없으면 앨범 링크로 대체
-            info_url = m.get('trackViewUrl', m.get('collectionViewUrl', ''))
-            # 800x800 고화질 이미지 처리
-            img = m.get('artworkUrl100', '').replace('100x100bb', '800x800bb')
-            
-            formatted_res.append({
-                'display_name': f"🎵 {title} - {m.get('artistName', '')}",
-                'title': title,
-                'creator': m.get('artistName', ''),
-                'date': m.get('releaseDate', '')[:10],
-                'img': img,
-                'url': info_url
-            })
-        return formatted_res
-    except:
-        return []
+    url = f"https://itunes.apple.com/search?term={query}&limit=10&country=kr&entity=musicTrack,album"
+    try: return requests.get(url).json().get("results", [])
+    except: return []
+        
 def search_tmdb(query, category):
     search_type = "movie" if category == "MOVIES" else "tv"
     url = f"https://api.themoviedb.org/3/search/{search_type}?api_key={TMDB_API_KEY}&query={query}&language=ko-KR"
@@ -331,6 +312,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
