@@ -13,32 +13,38 @@ st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Kirang+Haerang&family=Jolly+Lodger&family=Lacquer&display=swap');
     
-    /* 폰트 설정 */
     .act-name {{ font-size: 90px; font-family: 'Kirang Haerang'; line-height: 1.1; margin: 0; }}
     .date-text {{ font-size: 30px; color: #666; margin: 0; }}
     .num-text {{ font-size: 50px; font-family: 'Jolly Lodger'; text-transform: lowercase; margin: 0; line-height: 1; }}
     
-    /* 달력 칸 스타일 개선 */
-    .cal-day-container {{
-        border: 1px solid #f0f0f0;
-        border-radius: 8px;
+    /* 기록이 있는 날을 위한 박스 스타일 */
+    .cal-day-active {{
+        border: 1px solid #eee;
+        border-radius: 12px;
         padding: 10px;
-        min-height: 150px;
+        min-height: 160px;
         background-color: #ffffff;
-        margin-bottom: 5px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        margin-bottom: 10px;
     }}
+    
+    /* 기록이 없는 평범한 날 스타일 */
+    .cal-day-empty {{
+        padding: 10px;
+        min-height: 160px;
+        background-color: transparent; /* 배경 투명 */
+        border: 1px solid transparent; /* 테두리 제거 */
+        margin-bottom: 10px;
+    }}
+
     .cal-img-box {{ 
         width: 100%; 
         aspect-ratio: 1/1; 
         overflow: hidden; 
-        border-radius: 6px; 
+        border-radius: 8px; 
         margin: 8px 0; 
-        border: 1px solid #eee; 
     }}
     .cal-img-box img {{ width: 100%; height: 100%; object-fit: cover; }}
-    
-    /* 버튼 간격 조정 */
-    .stButton>button {{ margin-top: 2px ! suppressed; }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -100,7 +106,7 @@ def show_details(item):
                     conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
                 st.rerun()
 
-# --- [3. 공통 함수] ---
+# --- [3. 공통 세션/함수] ---
 if 'cal_year' not in st.session_state: st.session_state.cal_year = datetime.now().year
 if 'cal_month' not in st.session_state: st.session_state.cal_month = datetime.now().month
 
@@ -188,7 +194,6 @@ with tab2:
         all_df['v_dt'] = pd.to_datetime(all_df['view_date'].fillna(all_df['save_date']))
         all_df = all_df.sort_values('v_dt', ascending=False)
         
-        # 상단 필터 영역
         f_col1, f_col2 = st.columns([1, 3])
         years = sorted(all_df['v_dt'].dt.year.unique(), reverse=True)
         sel_year = f_col1.selectbox("📅 연도", years, index=0)
@@ -197,26 +202,22 @@ with tab2:
         sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
         
         with sub_tabs[0]:
-            # 월 이동 컨트롤
             c1, c2, c3 = st.columns([1, 2, 1])
-            if c1.button("◀ 이전 달", use_container_width=True):
+            if c1.button("◀", use_container_width=True):
                 st.session_state.cal_month -= 1
                 if st.session_state.cal_month == 0: st.session_state.cal_month = 12; st.session_state.cal_year -= 1
                 st.rerun()
             c2.markdown(f"<div class='num-text' style='text-align:center;'>{st.session_state.cal_year} . {st.session_state.cal_month}</div>", unsafe_allow_html=True)
-            if c3.button("다음 달 ▶", use_container_width=True):
+            if c3.button("▶", use_container_width=True):
                 st.session_state.cal_month += 1
                 if st.session_state.cal_month == 13: st.session_state.cal_month = 1; st.session_state.cal_year += 1
                 st.rerun()
 
-            # 요일 헤더
-            days_header = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
             h_cols = st.columns(7)
-            for i, d in enumerate(days_header):
+            for i, d in enumerate(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]):
                 color = "#FF4B4B" if i == 6 else "#2E5BFF" if i == 5 else "#333"
                 h_cols[i].markdown(f"<p style='text-align:center; font-weight:bold; color:{color};'>{d}</p>", unsafe_allow_html=True)
 
-            # 달력 그리기
             cal = calendar.monthcalendar(st.session_state.cal_year, st.session_state.cal_month)
             m_df = all_df[(all_df['v_dt'].dt.year == st.session_state.cal_year) & (all_df['v_dt'].dt.month == st.session_state.cal_month)]
             
@@ -225,9 +226,13 @@ with tab2:
                 for i, day in enumerate(week):
                     if day != 0:
                         with cols[i]:
-                            st.markdown(f"<div class='cal-day-container'>", unsafe_allow_html=True)
-                            st.markdown(f"<p class='num-text' style='font-size:25px;'>{day}</p>", unsafe_allow_html=True)
                             d_items = m_df[m_df['v_dt'].dt.day == day]
+                            # 기록이 있는지에 따라 박스 디자인 변경
+                            box_class = "cal-day-active" if not d_items.empty else "cal-day-empty"
+                            
+                            st.markdown(f"<div class='{box_class}'>", unsafe_allow_html=True)
+                            st.markdown(f"<p class='num-text' style='font-size:25px;'>{day}</p>", unsafe_allow_html=True)
+                            
                             if not d_items.empty:
                                 if d_items.iloc[0]['img_url']: 
                                     st.markdown(f"<div class='cal-img-box'><img src='{d_items.iloc[0]['img_url']}'></div>", unsafe_allow_html=True)
@@ -236,7 +241,7 @@ with tab2:
                                         show_details(r)
                             st.markdown(f"</div>", unsafe_allow_html=True)
 
-        # 카테고리 탭
+        # 카테고리 탭 (BOOKS 등)
         cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
         for idx, cn in enumerate(cats):
             with sub_tabs[idx+1]:
@@ -251,4 +256,4 @@ with tab2:
                 else:
                     st.info(f"{cn} 카테고리에 기록이 없습니다.")
     else:
-        st.info("아직 기록이 없습니다. WRITE 탭에서 첫 기록을 남겨보세요!")
+        st.info("기록이 없습니다.")
