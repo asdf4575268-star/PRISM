@@ -283,149 +283,74 @@ with tab1:
 with tab2:
     sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
     
-    # 1. 공통 그리드 스타일 주입 (6열 배치 및 최적화)
+    # 1. 공통 스타일 (한 번만 선언)
     st.markdown("""
         <style>
-        .archive-grid {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr); /* 한 줄에 6개 강제 고정 */
-            gap: 8px;
-            row-gap: 15px;
-            margin-top: 10px;
-        }
-        .archive-item {
-            text-align: center;
-            cursor: pointer;
-        }
-        .archive-item .img-container {
-            width: 100%;
-            aspect-ratio: 1 / 1; /* 정사각형 유지 */
-            overflow: hidden;
-            border-radius: 8px;
-            background-color: #333;
-        }
-        .archive-item img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .archive-item p {
-            margin: 4px 0 0 0;
-            font-size: 10px !important; /* 모바일 대응 작은 글씨 */
-            line-height: 1.2;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            color: #ccc;
-        }
+        .archive-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 10px; }
+        .archive-item { text-align: center; }
+        .img-box { width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 8px; background: #333; }
+        .img-box img { width: 100%; height: 100%; object-fit: cover; }
+        .archive-item p { font-size: 10px; color: #ccc; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         </style>
     """, unsafe_allow_html=True)
 
-    with sub_tabs[0]:
-        with sqlite3.connect(DB_NAME) as conn:
-            all_df = pd.read_sql_query("SELECT * FROM archive", conn)
+    with sqlite3.connect(DB_NAME) as conn:
+        all_df = pd.read_sql_query("SELECT * FROM archive", conn)
+
+    if all_df.empty:
+        st.info("기록이 없습니다.")
+    else:
+        # 데이터 전처리 (공통)
+        all_df['v_dt'] = pd.to_datetime(all_df['view_date'].fillna(all_df['save_date']))
         
-        if not all_df.empty:
-            if 'view_date' not in all_df.columns:
-                all_df['view_date'] = all_df['save_date']
-            all_df['view_date_filled'] = all_df['view_date'].fillna(all_df['save_date'])
-            all_df['v_dt'] = pd.to_datetime(all_df['view_date_filled'])
-            all_df['year_int'] = all_df['v_dt'].dt.year
-            
-            year_counts = all_df['year_int'].value_counts().to_dict()
-            unique_years = sorted(list(set([datetime.now().year] + list(year_counts.keys()))), reverse=True)
-            year_labels = [f"{y} ({year_counts.get(y, 0)})" for y in unique_years]
-            label_to_year = {label: y for label, y in zip(year_labels, unique_years)}
-            
-            default_idx = unique_years.index(st.session_state.cal_year) if st.session_state.cal_year in unique_years else 0
-            
-            c_yr, c_nav = st.columns([1.5, 3])
-            with c_yr:
-                selected_label = st.selectbox("연도 선택", year_labels, index=default_idx)
-                selected_year = label_to_year[selected_label]
-                if selected_year != st.session_state.cal_year:
-                    st.session_state.cal_year = selected_year
-                    st.rerun()
+        # --- [탭 0: YEARLY (달력)] ---
+        with sub_tabs[0]:
+            # 연도/월 선택 및 네비게이션 (기존 로직 유지하되 간소화)
+            c1, c2, c3 = st.columns([1, 2, 1])
+            with c1: 
+                if st.button("◀", key="prev"): shift_month(-1); st.rerun()
+            with c2: 
+                st.markdown(f"<h3 style='text-align:center;'>{st.session_state.cal_year}.{st.session_state.cal_month}</h3>", unsafe_allow_html=True)
+            with c3: 
+                if st.button("▶", key="next"): shift_month(1); st.rerun()
 
-            _, n1, n2, n3, _ = st.columns([1.5, 1, 2, 1, 1.5])
-            with n1:
-                st.markdown("<div style='height:15px;'></div>", unsafe_allow_html=True)
-                if st.button("◀ 이전달", use_container_width=True): shift_month(-1); st.rerun()
-            with n2:
-                st.markdown(f"<div style='text-align:center;' class='num-text'>{st.session_state.cal_year} / {st.session_state.cal_month}</div>", unsafe_allow_html=True)
-            with n3:
-                st.markdown("<div style='height:15px;'></div>", unsafe_allow_html=True)
-                if st.button("다음달 ▶", use_container_width=True): shift_month(1); st.rerun()
-
-            days = ["월", "화", "수", "목", "금", "토", "일"]
-            h_cols = st.columns(7)
-            for i, d in enumerate(days):
-                color = "#2E5BFF" if i == 5 else "#FF4B4B" if i == 6 else "#888"
-                h_cols[i].markdown(f"<p style='text-align:center; font-weight:bold; color:{color}; font-size:12px;'>{d}</p>", unsafe_allow_html=True)
-
+            # 달력 그리드 (7열)
             cal = calendar.monthcalendar(st.session_state.cal_year, st.session_state.cal_month)
-            month_df = all_df[(all_df['v_dt'].dt.year == st.session_state.cal_year) & (all_df['v_dt'].dt.month == st.session_state.cal_month)]
-
             for week in cal:
                 cols = st.columns(7)
                 for i, day in enumerate(week):
                     if day == 0: continue
                     with cols[i]:
-                        st.markdown(f"<p class='num-text' style='font-size:14px; text-align:center; margin:0;'>{day}</p>", unsafe_allow_html=True)
-                        day_items = month_df[month_df['v_dt'].dt.day == day]
+                        st.markdown(f"<p style='text-align:center; margin:0;'>{day}</p>", unsafe_allow_html=True)
+                        day_items = all_df[(all_df['v_dt'].dt.year == st.session_state.cal_year) & 
+                                           (all_df['v_dt'].dt.month == st.session_state.cal_month) & 
+                                           (all_df['v_dt'].dt.day == day)]
                         if not day_items.empty:
-                            first_item = day_items.iloc[0]
-                            if first_item['img_url']:
-                                st.markdown(f'<div class="cal-img-box" style="height:40px; overflow:hidden; border-radius:3px;"><img src="{first_item["img_url"]}" style="width:100%; height:100%; object-fit:cover;"></div>', unsafe_allow_html=True)
-                            
-                            for _, r in day_items.iterrows():
-                                if st.button(f"•", key=f"cal_{r['id']}", use_container_width=True, help=r['title']):
-                                    show_details(r)
-        else:
-            st.info("기록이 없습니다.")
+                            img = day_items.iloc[0]['img_url']
+                            if img: st.image(img, use_container_width=True)
+                            if st.button("•", key=f"cal_{day}"): show_details(day_items.iloc[0])
 
-    # 카테고리별 탭
-    cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
-    for idx, c_name in enumerate(cats):
-        with sub_tabs[idx+1]:
-            with sqlite3.connect(DB_NAME) as conn:
-                query = f"""
-                    SELECT *, COALESCE(NULLIF(view_date, ''), save_date) as sort_date 
-                    FROM archive 
-                    WHERE category='{c_name}' 
-                    ORDER BY sort_date DESC
-                """
-                df = pd.read_sql_query(query, conn)
-            
-            if not df.empty:
-                # --- 그리드 레이아웃 시작 ---
-                # 버튼을 클릭하면 상세보기가 뜨도록 만들기 위해 리스트를 미리 준비
-                grid_items = []
-                
-                # HTML 스트링으로 그리드 생성
-                grid_html = '<div class="archive-grid">'
-                for i, row in df.iterrows():
-                    img_url = row['img_url'] if row['img_url'] else "https://via.placeholder.com/150"
-                    # 각 아이템 클릭 처리는 버튼 대신 하단에 투명 버튼 혹은 인덱스 기반 처리
-                    grid_html += f'''
-                        <div class="archive-item">
-                            <div class="img-container">
-                                <img src="{img_url}">
-                            </div>
-                            <p>{row['title'][:6]}</p>
-                        </div>
-                    '''
-                grid_html += '</div>'
-                st.markdown(grid_html, unsafe_allow_html=True)
-                
-                # 상세 보기를 위한 버튼들을 그리드 하단에 배치 (디자인상 깔끔하게 유지)
-                st.write("---")
-                with st.expander("📌 목록 상세 선택"):
-                    for i, row in df.iterrows():
-                        if st.button(f"{row['title']}", key=f"btn_{c_name}_{row['id']}", use_container_width=True):
-                            show_details(row)
-            else:
-                st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+        # --- [탭 1~5: 카테고리별 그리드] ---
+        cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
+        for idx, c_name in enumerate(cats):
+            with sub_tabs[idx+1]:
+                df = all_df[all_df['category'] == c_name].sort_values(by='v_dt', ascending=False)
+                if not df.empty:
+                    # HTML 그리드 생성
+                    grid_html = '<div class="archive-grid">'
+                    for _, row in df.iterrows():
+                        img = row['img_url'] if row['img_url'] else "https://via.placeholder.com/150"
+                        grid_html += f'<div class="archive-item"><div class="img-box"><img src="{img}"></div><p>{row["title"][:5]}</p></div>'
+                    grid_html += '</div>'
+                    st.markdown(grid_html, unsafe_allow_html=True)
+                    
+                    # 상세 선택 (간결하게)
+                    with st.expander("📖 목록에서 선택"):
+                        for _, row in df.iterrows():
+                            if st.button(f"{row['title']}", key=f"list_{row['id']}"): show_details(row)
+                else:
+                    st.info("기록이 없습니다.")
+
 
 
 
