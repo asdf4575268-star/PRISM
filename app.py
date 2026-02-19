@@ -6,23 +6,14 @@ import calendar
 from datetime import date, datetime
 
 # --- [1. 스타일 및 설정] ---
-# page_icon에 파일명을 넣으면 브라우저 탭에 로고가 뜹니다.
-st.set_page_config(
-    layout="wide", 
-    page_title="PRISM", 
-    page_icon="LOGO1.jpg"
-)
+st.set_page_config(layout="wide", page_title="PRISM")
 
 st.markdown("""
     <style>
-    /* 웹 폰트 로드: Kirang Haerang, Jolly Lodger, Lacquer */
     @import url('https://fonts.googleapis.com/css2?family=Kirang+Haerang&family=Jolly+Lodger&family=Lacquer&display=swap');
     
-    /* 활동명: 글자 크기 90 */
     .act-name { font-size: 90px; font-family: 'Kirang Haerang'; line-height: 1.1; margin: 0; }
-    /* 날짜: 글자 크기 30 */
     .date-text { font-size: 30px; color: #666; margin: 0; }
-    /* 숫자(KM, BPM 등): 글자 크기 60, 소문자 고정 */
     .num-text { font-size: 60px; font-family: 'Jolly Lodger'; text-transform: lowercase; margin: 0; line-height: 1; }
     
     .cal-img-box { 
@@ -31,11 +22,6 @@ st.markdown("""
     }
     .cal-img-box img { width:100%; height:100%; object-fit:cover; }
     </style>
-    
-    <head>
-        <link rel="apple-touch-icon" href="LOGO1.jpg">
-        <link rel="icon" href="LOGO1.jpg">
-    </head>
     """, unsafe_allow_html=True)
 
 DB_NAME = 'archive_prism_total_v4.db'
@@ -142,11 +128,6 @@ def search_tmdb(query, category):
 tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 
 # --- TAB 1: WRITE ---
-c_logo, _ = st.columns([0.1, 0.9])
-with c_logo:
-    st.image("LOGO1.jpg", use_container_width=True)
-
-tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 with tab1:
     category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES"], horizontal=True)
     search_query = st.text_input(f"🔍 {category} 검색")
@@ -283,7 +264,4 @@ with tab2:
                         st.markdown(f'<p class="date-text" style="font-size:14px; text-align:center;">📅 {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
-
-
-
 
