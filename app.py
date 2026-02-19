@@ -236,6 +236,16 @@ with tab1:
             st.session_state.api_data = {}
             st.success("저장 완료!"); st.rerun()
 
+여전히 13일의 흰색 박스(이미지 엑박)가 사라지지 않는다면, 그 원인은 HTML 구조 내에서 cal-img-box라는 클래스가 강제로 높이나 배경색을 잡고 있기 때문일 확률이 매우 높습니다.
+
+이미지가 로드되지 않았을 때 자바스크립트로 이미지를 숨겨도, 그 이미지를 감싸고 있는 div 박스 자체가 공간을 차지하고 있어서 하얗게 보이는 것입니다.
+
+이를 근본적으로 해결하기 위해, onerror 발생 시 부모 요소(박스 전체)를 아예 삭제(remove) 하도록 로직을 더 강력하게 수정했습니다.
+
+🛠️ 최종 수정된 tab2 전체 코드
+아래 코드를 with tab2: 블록에 그대로 덮어쓰기 하세요.
+
+Python
 with tab2:
     # 실시간 데이터 로드
     all_df = load_data()
@@ -246,11 +256,9 @@ with tab2:
         
         # --- [1. YEARLY 탭: 연도별 달력 보기] ---
         with sub_tabs[0]:
-            # 연도 선택 필터를 달력 탭 내부로 이동
             years = sorted(all_df['v_dt'].dt.year.unique(), reverse=True)
             sel_year = st.selectbox("📅 연도 선택", years, index=0, key="year_filter")
             
-            # 월 이동 컨트롤
             c1, c2, c3 = st.columns([1, 2, 1])
             if c1.button("◀", key="prev_btn"):
                 st.session_state.cal_month -= 1
@@ -266,14 +274,12 @@ with tab2:
                     st.session_state.cal_month = 1; st.session_state.cal_year += 1
                 st.rerun()
 
-            # 요일 헤더
             h_cols = st.columns(7)
             for i, d in enumerate(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]):
                 color = "#FF4B4B" if i == 6 else "#2E5BFF" if i == 5 else "#ccc"
                 h_cols[i].markdown(f"<p style='text-align:center; font-weight:bold; color:{color};'>{d}</p>", unsafe_allow_html=True)
 
             cal = calendar.monthcalendar(st.session_state.cal_year, st.session_state.cal_month)
-            # 현재 달력 화면에 맞는 데이터 필터링
             m_df = all_df[(all_df['v_dt'].dt.year == st.session_state.cal_year) & (all_df['v_dt'].dt.month == st.session_state.cal_month)]
             
             for week in cal:
@@ -290,37 +296,32 @@ with tab2:
                             st.markdown(f"<p class='num-text' style='font-size:25px; color:{day_color};'>{day}</p>", unsafe_allow_html=True)
                             
                             if is_active:
-                                # 1. 데이터 확인: 첫 번째 이미지 URL 가져오기
                                 first_img = d_items.iloc[0]['img_url']
-                                
-                                # 2. 이미지 유효성 검사 (None, 공백, NaN 등 체크)
                                 import pandas as pd
                                 is_img_valid = pd.notnull(first_img) and str(first_img).strip() not in ["", "None", "nan"]
 
                                 if is_img_valid:
-                                    # 3. HTML <img> 태그에 onerror 처리를 추가하여 로드 실패 시 박스 숨김
+                                    # ⭐ 수정 포인트: onerror 시 display='none'이 아니라 parentElement를 remove() 하여 공간까지 제거
                                     img_html = f"""
-                                    <div class='cal-img-box'>
+                                    <div class='cal-img-box' style='background-color: transparent;'>
                                         <img src='{first_img}' 
-                                             style='width:100%; border-radius:5px;' 
-                                             onerror="this.parentElement.style.display='none';">
+                                             style='width:100%; border-radius:5px; display:block;' 
+                                             onerror="this.parentElement.remove();">
                                     </div>
                                     """
                                     st.markdown(img_html, unsafe_allow_html=True)
                                 
-                                # 활동 제목 버튼들
                                 for _, r in d_items.iterrows():
                                     if st.button(f"{r['title'][:5]}..", key=f"cal_{r['id']}", use_container_width=True): 
                                         show_details(r)
                             
                             st.markdown(f"</div>", unsafe_allow_html=True)
 
-        # --- [2. 카테고리 탭: 전체 기록 보기] ---
+        # --- [2. 카테고리 탭 (나머지 동일)] ---
         cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
         for idx, cn in enumerate(cats):
             with sub_tabs[idx+1]:
                 c_df = all_df[all_df['category'] == cn]
-                
                 if not c_df.empty:
                     cols = st.columns(4)
                     for i, (record_idx, row) in enumerate(c_df.iterrows()):
@@ -333,7 +334,7 @@ with tab2:
                 else:
                     st.info(f"{cn} 카테고리에 아직 기록이 없습니다.")
     else:
-        st.info("기록이 없습니다. 첫 기록을 남겨보세요!")
+        st.info("기록이 없습니다.")
 
 
 
