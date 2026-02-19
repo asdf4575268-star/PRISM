@@ -54,7 +54,7 @@ init_db()
 def search_books(query):
     headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
     try:
-        res = requests.get("https://dapi.kakao.com/v3/search/book", headers=headers, params={"query": query})
+        res = requests.get("https://dapi.kakao.com/v3/search/book", headers=headers, params={"query": query, "size": 50})
         return res.json().get("documents", []) if res.status_code == 200 else []
     except: return []
 
@@ -398,5 +398,6 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
