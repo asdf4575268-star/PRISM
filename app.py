@@ -205,7 +205,6 @@ with tab1:
     search_query = st.text_input(f"🔍 {category} 검색")
     
     if search_query:
-        if search_query:
         if category == "BOOKS":
             res = search_books(search_query)
             if res:
@@ -215,7 +214,6 @@ with tab1:
                     b = opts[sel]
                     st.session_state.api_data = {'title': b['title'], 'creator': f"{', '.join(b['authors'])}", 'date': b['datetime'][:10], 'img': b.get('thumbnail', '').replace("R120x174", "R400x0"), 'summary': f"{b['url']}\n\n{b.get('contents', '')}"}
                     st.rerun()
-
 
         elif category == "MUSIC":
             res = search_apple_music(search_query)
@@ -254,7 +252,7 @@ with tab1:
     data = st.session_state.get('api_data', {})
     cl, cr = st.columns([0.4, 0.6])
     with cl:
-        img_url_val = st.text_input("🖼️ 이미지 주소(URL)", value=data.get('img', ''))
+        img_url_val = data.get('img', '') 
         if img_url_val: 
             st.image(img_url_val, use_container_width=True)
         else:
@@ -400,12 +398,4 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
-
-
-
-
-
-
-
-
 
