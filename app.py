@@ -16,11 +16,20 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# 💡 에러 해결을 위해 DB 파일명을 'archive_v4.db'로 변경했습니다.
 def init_db():
-    conn = sqlite3.connect('archive_final.db')
+    conn = sqlite3.connect('archive_v4.db')
     conn.execute('''CREATE TABLE IF NOT EXISTS archive 
-                    (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
-                     rel_date TEXT, summary TEXT, highlights TEXT, note TEXT, img_url TEXT, save_date TEXT)''')
+                    (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                     category TEXT, 
+                     title TEXT, 
+                     creator TEXT, 
+                     rel_date TEXT, 
+                     summary TEXT, 
+                     highlights TEXT, 
+                     note TEXT, 
+                     img_url TEXT, 
+                     save_date TEXT)''')
     conn.commit()
     return conn
 
@@ -31,7 +40,6 @@ def search_books(query):
     return res.json().get("documents", []) if res.status_code == 200 else []
 
 def search_apple_music(query):
-    # 곡(song)과 앨범(album)을 모두 검색하도록 설정
     url = f"https://itunes.apple.com/search?term={query}&limit=15&country=kr&entity=musicTrack,album"
     try:
         res = requests.get(url)
@@ -45,8 +53,6 @@ tab1, tab2 = st.tabs(["🖋️ 아카이빙 입력", "📂 전체 목록 및 상
 
 with tab1:
     category = st.radio("📂 카테고리 선택", ["도서", "음악"], horizontal=True)
-    
-    # 검색 및 연동부
     search_query = st.text_input(f"🔍 {category} 검색", placeholder=f"연동할 {category} 제목/아티스트를 입력하세요")
     
     if search_query:
@@ -55,17 +61,16 @@ with tab1:
             if results:
                 options = {f"📚 {b['title']} ({b['authors'][0]})": b for b in results if b['authors']}
                 sel = st.selectbox("검색 결과 선택", list(options.keys()))
-                if st.button("✨ 연동"):
+                if st.button("✨ 데이터 연동"):
                     b = options[sel]
                     st.session_state.api_data = {
                         'title': b['title'], 'creator': b['authors'][0], 
                         'date': b['datetime'][:10], 'img': b['thumbnail'], 'note': b['contents']
                     }
                     st.rerun()
-        else: # 음악/앨범 연동
+        else: 
             results = search_apple_music(search_query)
             if results:
-                # 곡명 혹은 앨범명으로 표시 분기
                 options = {}
                 for m in results:
                     name = m.get('trackName') if m.get('wrapperType') == 'track' else m.get('collectionName')
@@ -74,7 +79,7 @@ with tab1:
                     options[f"{type_label} | {name} - {artist}"] = m
                 
                 sel = st.selectbox("검색 결과 선택", list(options.keys()))
-                if st.button("✨ 연동"):
+                if st.button("✨ 애플뮤직 데이터 연동"):
                     m = options[sel]
                     name = m.get('trackName') if m.get('wrapperType') == 'track' else m.get('collectionName')
                     artwork_url = m.get('artworkUrl100', '').replace('100x100bb', '600x600bb')
@@ -90,10 +95,9 @@ with tab1:
     col_l, col_r = st.columns([0.4, 0.6])
     
     with col_l:
-        # 이미지 주소 입력창 삭제 및 이미지만 표시
         img_url = data.get('img', '')
         if img_url:
-            st.image(img_url, use_container_width=False, caption="연동된 이미지")
+            st.image(img_url, use_container_width=False)
         
         title_label = "곡명/앨범명" if category == "음악" else "활동명 (제목)"
         creator_label = "아티스트" if category == "음악" else "창작자 (작가)"
@@ -110,18 +114,17 @@ with tab1:
         highlights = st.text_area(high_label, height=150)
         note = st.text_area("💬 감상", value=data.get('note', ''), height=150)
         
-        # 하단 시각화 (90/30/60)
         st.markdown(f'<p class="act-name">{title if title else "Title"}</p>', unsafe_allow_html=True)
         st.markdown(f'<p class="date-text">{rel_date if rel_date else "2026-00-00"}</p>', unsafe_allow_html=True)
         st.markdown(f'<p class="num-text">12.5 km / 145 bpm</p>', unsafe_allow_html=True)
         
         if st.button("✅ 아카이브 최종 저장", use_container_width=True):
-            conn = sqlite3.connect('archive_final.db')
+            conn = sqlite3.connect('archive_v4.db') # 파일명 통일
             conn.execute("""INSERT INTO archive (category, title, creator, rel_date, summary, highlights, note, img_url, save_date) 
                             VALUES (?,?,?,?,?,?,?,?,?)""",
                          (category, title, creator, rel_date, summary, highlights, note, img_url, str(date.today())))
             conn.commit()
-            st.success("보관함에 저장되었습니다!")
+            st.success("새로운 보관함에 저장되었습니다!")
             st.rerun()
 
 with tab2:
@@ -154,5 +157,3 @@ with tab2:
                 st.rerun()
     else:
         st.info("기록이 없습니다.")
-
-
