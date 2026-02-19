@@ -161,7 +161,7 @@ def show_details(item):
         else:
             # --- [조회 모드] ---
             # 1. 활동명 (90px)
-           st.markdown(f'<p class="act-name">{item.get("title")}</p>', unsafe_allow_html=True)
+            st.markdown(f'<p class="act-name">{item.get("title")}</p>', unsafe_allow_html=True)
             
             # 2. URL 버튼 (summary 첫 줄에 URL이 있는 경우)
             content = str(item.get('summary', ''))
@@ -252,7 +252,7 @@ with tab1:
     data = st.session_state.get('api_data', {})
     cl, cr = st.columns([0.4, 0.6])
     with cl:
-        img_url_val = st.text_input("🖼️", value=data.get('img', ''))
+        img_url_val = data.get('img', '') 
         if img_url_val: 
             st.image(img_url_val, use_container_width=True)
         else:
@@ -398,9 +398,4 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
-
-
-
-
-
 
