@@ -80,7 +80,6 @@ with tab1:
     category = st.radio("📂 카테고리 선택", ["도서", "음악", "영화", "시리즈"], horizontal=True)
     search_query = st.text_input(f"🔍 {category} 제목 검색", placeholder="제목 입력 후 데이터 가져오기를 눌러주세요")
     
-    # API 검색 로직 (기존과 동일)
     if search_query:
         if category == "도서":
             res = search_books(search_query)
@@ -113,7 +112,7 @@ with tab1:
                     selected = opts[sel]
                     st.session_state.api_data = {
                         'title': selected.get('title') if category == "영화" else selected.get('name'),
-                        'creator': "TMDB Data", 'date': selected.get('release_date') if category == "영화" else selected.get('first_air_date'),
+                        'creator': "TMDB 연동", 'date': selected.get('release_date') if category == "영화" else selected.get('first_air_date'),
                         'img': f"https://image.tmdb.org/t/p/w500{selected.get('poster_path')}" if selected.get('poster_path') else "",
                         'summary': selected.get('overview', '')
                     }
@@ -125,15 +124,18 @@ with tab1:
     col_l, col_r = st.columns([0.4, 0.6])
     
     with col_l:
-        # 이미지 주소창을 없애고, 이미지가 있을 때만 노출
+        # 이미지 주소창을 기본적으로 숨김
         img_url = data.get('img', '')
         if img_url: 
             st.image(img_url, width=300)
-        else:
-            st.info("검색을 통해 이미지를 불러오거나, 제목을 입력해주세요.")
-            # 혹시 수동 입력이 필요할 때를 위해 아주 작게 옵션 제공
-            if st.checkbox("이미지 직접 입력"):
-                img_url = st.text_input("이미지 주소 URL 붙여넣기")
+        
+        # 주소가 없거나 수동 입력하고 싶을 때만 체크박스로 노출
+        if not img_url:
+            st.info("검색을 통해 이미지를 불러오거나 아래 체크박스를 클릭해 직접 입력하세요.")
+        
+        show_img_input = st.checkbox("이미지 주소 직접 입력/수정", value=False if img_url else True)
+        if show_img_input:
+            img_url = st.text_input("이미지 주소(URL)", value=img_url)
         
         title = st.text_input("제목", value=data.get('title', ''))
         creator = st.text_input("창작자/정보", value=data.get('creator', ''))
@@ -144,7 +146,7 @@ with tab1:
         highlights = st.text_area("✨ 하이라이트", height=100)
         note = st.text_area("💬 개인적 감상", height=100)
         
-        # 가이드 디자인
+        # 가이드 디자인 (90, 30, 60 규칙)
         st.markdown(f'<p class="act-name">{title if title else "Title"}</p>', unsafe_allow_html=True)
         st.markdown(f'<p class="date-text">{rel_date if rel_date else "2026-00-00"}</p>', unsafe_allow_html=True)
         st.markdown(f'<p class="num-text">12.5 km / 145 bpm</p>', unsafe_allow_html=True)
@@ -163,6 +165,7 @@ with tab2:
     for i, tab in enumerate(sub_tabs):
         with tab:
             with sqlite3.connect(DB_NAME) as conn:
+                # ORDER BY id DESC를 통해 최신 기록이 위로 오도록 정렬
                 df = pd.read_sql_query(f"SELECT * FROM archive WHERE category='{categories[i]}' ORDER BY id DESC", conn)
             if df.empty: st.info("아직 기록이 없습니다.")
             else:
