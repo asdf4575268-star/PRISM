@@ -113,7 +113,7 @@ with tab1:
                 sel = st.selectbox("검색 결과", list(opts.keys()))
                 if st.button("✨ 가져오기"):
                     m = opts[sel]
-                    st.session_state.api_data = {'title': m.get('trackName', m.get('collectionName')), 'creator': f"아티스트: {m['artistName']}", 'date': m['releaseDate'][:10], 'img': m.get('artworkUrl100', '').replace('100x100bb', '600x600bb'), 'summary': ''}
+                    st.session_state.api_data = {'title': m.get('trackName', m.get('collectionName')), 'creator': f"{m['artistName']}", 'date': m['releaseDate'][:10], 'img': m.get('artworkUrl100', '').replace('100x100bb', '600x600bb'), 'summary': ''}
                     st.rerun()
         else:
             res = search_tmdb(search_query, category)
@@ -212,3 +212,4 @@ with tab2:
                         st.markdown(f'<p class="save-date-tag">📅 {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
+
