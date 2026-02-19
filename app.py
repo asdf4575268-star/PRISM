@@ -122,18 +122,15 @@ def show_details(item):
     with col_txt:
         if edit_mode:
             with st.form(f"edit_{item['id']}"):
-                # 한 줄 입력 요소들
                 new_title = st.text_input("📌 제목", item['title'])
                 new_creator = st.text_input("👤 창작자", item['creator'])
                 new_rel = st.text_input("📅 작품 날짜", item['rel_date'])
                 
-                # 날짜 처리
                 raw_v = item.get('view_date') or item['save_date']
                 try: v_dt = datetime.strptime(raw_v, '%Y-%m-%d').date()
                 except: v_dt = date.today()
                 new_view = st.date_input("🍿 감상일", v_dt)
 
-                # 텍스트 영역
                 new_brief = st.text_input("📝 요약", item.get('brief', ''))
                 new_sum = st.text_area("📖 줄거리(첫줄 URL)", item.get('summary', ''), height=150)
                 new_high = st.text_area("✨ 인상 깊은 부분", item.get('highlights', ''), height=100)
@@ -146,23 +143,33 @@ def show_details(item):
                                      (new_title, new_creator, new_rel, new_sum, new_brief, new_high, new_note, str(new_view), item['id']))
                     st.rerun()
         else:
-            # --- 조회 모드 ---
+            # --- 조회 모드: 데이터 유무를 더 확실하게 체크 ---
             st.markdown(f'<p class="act-name">{item["title"]}</p>', unsafe_allow_html=True)
             
-            # URL 버튼
-            urls = re.findall(r'(https?://[^\s]+)', item.get('summary', ''))
+            urls = re.findall(r'(https?://[^\s]+)', str(item.get('summary', '')))
             if urls: st.link_button("🌐 공식 정보", urls[0], use_container_width=True)
             
             st.write(f"**정보:** {item['creator']} | **작품날짜:** {item['rel_date']}")
-            v_date = item.get('view_date') or item['save_date']
+            v_date = item.get('view_date') or item.get('save_date', '')
             st.markdown(f'<p class="date-text">🍿 감상일: {v_date}</p>', unsafe_allow_html=True)
             st.divider()
 
-            # 본문 (데이터가 있을 때만 표시)
-            if item.get('brief'): st.success(f"**📝 요약**\n\n{item['brief']}")
-            st.info(f"**📖 줄거리**\n\n{item.get('summary', '')}")
-            if item.get('highlights'): st.warning(f"**✨ 인상 깊은 부분**\n\n{item['highlights']}")
-            if item.get('note'): st.write(f"**💬 감상**\n\n{item['note']}")
+            # 데이터가 비어있지 않은지(None이 아니고 공백이 아닌지) 체크 후 출력
+            brief_val = item.get('brief', '')
+            if brief_val and str(brief_val).strip():
+                st.success(f"**📝 요약**\n\n{brief_val}")
+
+            summary_val = item.get('summary', '')
+            if summary_val and str(summary_val).strip():
+                st.info(f"**📖 줄거리**\n\n{summary_val}")
+
+            high_val = item.get('highlights', '')
+            if high_val and str(high_val).strip():
+                st.warning(f"**✨ 인상 깊은 부분**\n\n{high_val}")
+
+            note_val = item.get('note', '')
+            if note_val and str(note_val).strip():
+                st.write(f"**💬 감상**\n\n{note_val}")
             
             if st.button("🗑️ 삭제", key=f"del_{item['id']}", use_container_width=True):
                 with sqlite3.connect(DB_NAME) as conn:
@@ -370,6 +377,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
