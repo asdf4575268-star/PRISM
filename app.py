@@ -64,7 +64,7 @@ def show_details(item):
                 
                 # 수정 모드에서도 날짜 선택기(date_input) 사용
                 current_v_date = datetime.strptime(item['view_date'], '%Y-%m-%d') if item.get('view_date') else date.today()
-                new_view_date = st.date_input("🍿 실제 관람일 수정", value=current_v_date)
+                new_view_date = st.date_input("🍿 감상일 수정", value=current_v_date)
                 
                 new_brief = st.text_input("📝 요약", value=item['brief'])
                 new_summary = st.text_area("📖 줄거리", value=item['summary'], height=120)
@@ -202,7 +202,7 @@ with tab1:
             rel_date = st.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
         with col_d2:
             # 기본값은 오늘(date.today())이지만, 클릭해서 수정 가능
-            view_date = st.date_input("🍿 실제 관람일", value=date.today())
+            view_date = st.date_input("🍿 감상일", value=date.today())
             
     with cr:
         summary = st.text_area("📖 줄거리", value=data.get('summary', ''), height=150)
@@ -233,3 +233,4 @@ with tab2:
         sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
         # (각 탭별 렌더링 코드...)
         # (생략된 부분은 이전 답변의 ARCHIVE 탭 로직과 동일합니다)
+
