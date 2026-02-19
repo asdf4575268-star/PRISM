@@ -113,41 +113,42 @@ def search_kopis(query):
 # --- [3. 팝업 함수] ---
 @st.dialog("📋 기록 상세 정보", width="large")
 def show_details(item):
-    # 1. Pandas Series일 경우를 대비해 안전하게 딕셔너리로 변환
-    if isinstance(item, pd.Series):
+    # Pandas Series(행) 데이터를 딕셔너리로 확실히 변환
+    if hasattr(item, 'to_dict'):
         item = item.to_dict()
-
-    # 2. 수정 모드 토글
-    edit_mode = st.toggle("✏️ 수정 모드 켜기", key=f"tog_{item['id']}")
+    
+    # 수정/조회 모드 전환
+    edit_mode = st.toggle("✏️ 수정 모드", key=f"tog_v2_{item['id']}")
     
     col_img, col_txt = st.columns([0.4, 0.6])
 
     with col_img:
+        # 이미지가 있으면 표시, 없으면 안내
         if item.get('img_url'):
             st.image(item['img_url'], use_container_width=True)
         else:
-            st.info("이미지가 없습니다.")
+            st.info("등록된 이미지가 없습니다.")
 
     with col_txt:
         if edit_mode:
-            # --- [수정 모드 폼] ---
-            with st.form(key=f"edit_form_{item['id']}"):
-                n_title = st.text_input("📌 제목", value=item.get('title', ''))
-                n_creator = st.text_input("👤 창작자", value=item.get('creator', ''))
-                n_rel = st.text_input("📅 작품 날짜", value=item.get('rel_date', ''))
+            # --- [수정 모드] ---
+            with st.form(key=f"edit_v2_{item['id']}"):
+                n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
+                n_creator = st.text_input("👤 창작자", value=str(item.get('creator', '')))
+                n_rel = st.text_input("📅 작품 날짜", value=str(item.get('rel_date', '')))
                 
-                # 날짜 처리
-                raw_v = item.get('view_date') or item.get('save_date') or str(date.today())
-                try: 
-                    v_dt = datetime.strptime(raw_v[:10], '%Y-%m-%d').date()
-                except: 
+                # 감상일 날짜 객체 변환
+                try:
+                    raw_v = str(item.get('view_date') or item.get('save_date'))[:10]
+                    v_dt = datetime.strptime(raw_v, '%Y-%m-%d').date()
+                except:
                     v_dt = date.today()
                 n_view = st.date_input("🍿 감상일", v_dt)
 
-                n_brief = st.text_input("📝 요약", value=item.get('brief', ''))
-                n_sum = st.text_area("📖 줄거리(첫줄 URL)", value=item.get('summary', ''), height=150)
-                n_high = st.text_area("✨ 인상 깊은 부분", value=item.get('highlights', ''), height=100)
-                n_note = st.text_area("💬 감상", value=item.get('note', ''), height=100)
+                n_brief = st.text_input("📝 요약", value=str(item.get('brief', '') if item.get('brief') else ''))
+                n_sum = st.text_area("📖 줄거리(첫줄 URL)", value=str(item.get('summary', '') if item.get('summary') else ''), height=150)
+                n_high = st.text_area("✨ 인상 깊은 부분", value=str(item.get('highlights', '') if item.get('highlights') else ''), height=100)
+                n_note = st.text_area("💬 감상", value=str(item.get('note', '') if item.get('note') else ''), height=100)
 
                 if st.form_submit_button("💾 저장", use_container_width=True):
                     with sqlite3.connect(DB_NAME) as conn:
@@ -156,43 +157,46 @@ def show_details(item):
                             SET title=?, creator=?, rel_date=?, summary=?, brief=?, highlights=?, note=?, view_date=? 
                             WHERE id=?
                         """, (n_title, n_creator, n_rel, n_sum, n_brief, n_high, n_note, str(n_view), item['id']))
-                    st.success("수정되었습니다!")
                     st.rerun()
         else:
             # --- [조회 모드] ---
-            # 활동명 (Kirang Haerang 폰트 적용)
-            st.markdown(f'<p class="act-name">{item.get("title", "제목 없음")}</p>', unsafe_allow_html=True)
+            # 1. 활동명 (90px)
+            st.markdown(f'<p class="act-name">{item.get("title")}</p>', unsafe_allow_html=True)
             
-            # URL 버튼 추출 및 표시
-            urls = re.findall(r'(https?://[^\s]+)', str(item.get('summary', '')))
-            if urls: 
+            # 2. URL 버튼 (summary 첫 줄에 URL이 있는 경우)
+            content = str(item.get('summary', ''))
+            urls = re.findall(r'(https?://[^\s]+)', content)
+            if urls:
                 st.link_button("🌐 공식 정보 확인", urls[0], use_container_width=True)
             
-            st.write(f"**창작자:** {item.get('creator')} | **작품 날짜:** {item.get('rel_date')}")
+            # 3. 기본 정보
+            st.write(f"**창작자:** {item.get('creator')} | **작품날짜:** {item.get('rel_date')}")
             
-            # 감상일 (날짜 크기 30 설정 적용)
+            # 4. 감상일 (30px)
             v_date = item.get('view_date') or item.get('save_date', '')
             st.markdown(f'<p class="date-text">🍿 감상일: {v_date}</p>', unsafe_allow_html=True)
             
             st.divider()
 
-            # 상세 정보 섹션 (데이터가 있을 때만 출력)
-            def display_section(label, value, style_func):
-                if value and str(value).strip() != 'None':
-                    style_func(f"**{label}**\n\n{value}")
+            # 5. 상세 내용 (데이터가 비어있지 않으면 출력)
+            def show_box(label, val, type="write"):
+                if val and str(val).strip() not in ["None", "nan", ""]:
+                    st.markdown(f"**{label}**")
+                    if type == "success": st.success(val)
+                    elif type == "info": st.info(val)
+                    elif type == "warning": st.warning(val)
+                    else: st.write(val)
 
-            display_section("📝 요약", item.get('brief'), st.success)
-            display_section("📖 줄거리 / 상세", item.get('summary'), st.info)
-            display_section("✨ 인상 깊은 부분", item.get('highlights'), st.warning)
-            display_section("💬 감상", item.get('note'), st.write)
-            
+            show_box("📝 요약", item.get('brief'), "success")
+            show_box("📖 줄거리 / 상세", item.get('summary'), "info")
+            show_box("✨ 인상 깊은 부분", item.get('highlights'), "warning")
+            show_box("💬 감상", item.get('note'), "write")
+
             st.divider()
-            
-            if st.button("🗑️ 삭제", key=f"del_btn_{item['id']}", use_container_width=True):
+            if st.button("🗑️ 삭제", key=f"del_{item['id']}", use_container_width=True):
                 with sqlite3.connect(DB_NAME) as conn:
                     conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
                 st.rerun()
-
 # --- [4. 메인 화면 구성] ---
 tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 
@@ -394,4 +398,5 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
