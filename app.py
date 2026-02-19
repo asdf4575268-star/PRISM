@@ -58,6 +58,16 @@ def show_details(item):
                 new_title = st.text_input("📌 제목", value=item['title'])
                 new_creator = st.text_input("👤 창작자", value=item['creator'])
                 new_rel_date = st.text_input("📅 작품 날짜", value=item['rel_date'])
+                st.markdown(f'<p class="act-name">{item["title"]}</p>', unsafe_allow_html=True)
+            
+            # 만약 summary에 링크가 포함되어 있다면 클릭 가능한 버튼으로 표시
+                if "🔗 상세정보: " in item['summary']:
+                    parts = item['summary'].split("\n\n", 1)
+                    link = parts[0].replace("🔗 상세정보: ", "")
+                    st.link_button("🌐 공식 정보 확인하기", link, use_container_width=True)
+                    display_summary = parts[1] if len(parts) > 1 else ""
+                else:
+                    display_summary = item['summary']
             
             st.info(f"**📖 작품 소개:**\n\n{display_summary}")
                 
@@ -159,16 +169,12 @@ with tab1:
             if res:
                 opts = {f"📚 {b['title']}": b for b in res}
                 sel = st.selectbox("검색 결과", list(opts.keys()))
-                b = opts[sel]
-                    info_link = b.get('url', '') 
-                    
-                    st.session_state.api_data = {
-                        'title': b.get('title', ''),
-                        'creator': ", ".join(b.get('authors', [])), 
-                        'date': b.get('datetime', '')[:10], 
-                        'img': b.get('thumbnail', ''),
-                        'summary': f"🔗 상세정보: {info_link}\n\n{b.get('contents', '')}"
-                    }
+                if st.button("✨ 가져오기"):
+                    b = opts[sel]
+                    raw_img = b.get('thumbnail', '')
+                    # 썸네일 주소 뒤에 R120x174 같은 규격이 있다면 원본급으로 변경 시도
+                    high_res_img = raw_img.replace("R120x174", "R400x0") if "R120x174" in raw_img else raw_img
+                    st.session_state.api_data = {'title': b['title'], 'creator': f"{', '.join(b['authors'])}", 'date': b['datetime'][:10], 'img': b['thumbnail'], 'summary': b['contents']}
                     st.rerun()
         elif category == "MUSIC":
             res = search_apple_music(search_query)
@@ -176,8 +182,17 @@ with tab1:
                 opts = {f"🎵 {m.get('trackName', m.get('collectionName'))}": m for m in res}
                 sel = st.selectbox("검색 결과", list(opts.keys()))
                 if st.button("✨ 가져오기"):
-                    m = opts[sel]
-                    st.session_state.api_data = {'title': m.get('trackName', m.get('collectionName')), 'creator': f"아티스트: {m['artistName']}", 'date': m['releaseDate'][:10], 'img': m.get('artworkUrl100', '').replace('100x100bb', '600x600bb'), 'summary': ''}
+                    b = opts[sel]
+                    info_link = b.get('url', '') 
+                    
+                    st.session_state.api_data = {
+                        'title': b.get('title', ''),
+                        'creator': ", ".join(b.get('authors', [])), 
+                        'date': b.get('datetime', '')[:10], 
+                        'img': b.get('thumbnail', ''),
+                        # 요약 내용 맨 앞에 링크를 추가해서 저장하면 나중에 클릭하기 편해요!
+                        'summary': f"🔗 상세정보: {info_link}\n\n{b.get('contents', '')}"
+                    }
                     st.rerun()
         elif category == "STAGE":
             res = search_kopis(search_query)
@@ -349,11 +364,3 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
-
-
-
-
-
-
-
-
