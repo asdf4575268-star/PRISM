@@ -44,39 +44,31 @@ init_db()
 # --- [2. 상세 정보 및 수정 팝업] ---
 @st.dialog("📋 기록 상세 정보", width="large")
 def show_details(item):
-    # 팝업 내부에서만 동작하는 수정 모드 스위치 (창이 닫히지 않음)
     edit_mode = st.toggle("✏️ 수정 모드 켜기", key=f"tog_{item['id']}")
 
     if edit_mode:
-        # --- [수정 모드 화면] ---
         with st.form(key=f"edit_form_{item['id']}", clear_on_submit=False):
-            col_img, col_txt = st.columns([0.4, 0.6])
+            col_img, col_txt = st.columns([0.3, 0.7])
             with col_img:
-                if item['img_url']: st.image(item['img_url'], use_container_width=True)
-                new_img = st.text_input("🖼️ 이미지 URL", value=item['img_url'])
+                if item['img_url']:
+                    st.markdown(f'<div class="square-img-box"><img src="{item["img_url"]}"></div>', unsafe_allow_html=True)
+                new_img = item['img_url'] 
             with col_txt:
                 new_title = st.text_input("📌 제목", value=item['title'])
                 new_creator = st.text_input("👤 창작자", value=item['creator'])
                 new_rel_date = st.text_input("📅 작품 날짜", value=item['rel_date'])
-                st.markdown(f'<p class="act-name">{item["title"]}</p>', unsafe_allow_html=True)
-            
-            # 만약 summary에 링크가 포함되어 있다면 클릭 가능한 버튼으로 표시
-                if "🔗 상세정보: " in item['summary']:
-                    parts = item['summary'].split("\n\n", 1)
-                    link = parts[0].replace("🔗 상세정보: ", "")
-                    st.link_button("🌐 공식 정보 확인하기", link, use_container_width=True)
-                    display_summary = parts[1] if len(parts) > 1 else ""
+                
+                # --- [75라인 에러 수정 지점] ---
+                # 들여쓰기를 이전 줄과 정확히 맞췄습니다.
+                raw_v_date = item.get('view_date') or item.get('save_date')
+                if raw_v_date:
+                    cur_v = datetime.strptime(raw_v_date, '%Y-%m-%d').date()
                 else:
-                    display_summary = item['summary']
-            
-            st.info(f"**📖 작품 소개:**\n\n{display_summary}")
+                    cur_v = date.today()
                 
-                # 감상일 수정 기능 추가
-                cur_v = datetime.strptime(item.get('view_date') or item['save_date'], '%Y-%m-%d').date() if item.get('view_date') or item.get('save_date') else date.today()
                 new_view_date = st.date_input("🍿 감상일 수정", value=cur_v)
-                
                 new_brief = st.text_input("📝 요약", value=item['brief'])
-                new_summary = st.text_area("📖 줄거리", value=item['summary'], height=120)
+                new_summary = st.text_area("📖 작품 소개 및 링크", value=item['summary'], height=200)
                 new_highlights = st.text_area("✨ 인상 깊은 부분", value=item['highlights'], height=100)
                 new_note = st.text_area("💬 감상", value=item['note'], height=100)
                 
@@ -87,6 +79,29 @@ def show_details(item):
                                      (new_title, new_creator, new_rel_date, new_summary, 
                                       new_brief, new_highlights, new_note, new_img, str(new_view_date), int(item['id'])))
                     st.rerun()
+    else:
+        col_img, col_txt = st.columns([0.4, 0.6])
+        with col_img:
+            if item['img_url']: st.image(item['img_url'], use_container_width=True)
+        with col_txt:
+            st.markdown(f'<p class="act-name">{item["title"]}</p>', unsafe_allow_html=True)
+            
+            # --- [정보 URL 활용 로직] ---
+            # 요약(summary) 안에 링크가 있으면 버튼으로 추출해서 보여줍니다.
+            summary_content = item['summary']
+            if "http" in summary_content:
+                # 텍스트에서 URL만 대략 추출 (첫 번째 링크 기준)
+                import re
+                urls = re.findall(r'(https?://[^\s]+)', summary_content)
+                if urls:
+                    st.link_button("🌐 공식 정보 (상세 페이지) 열기", urls[0], use_container_width=True)
+            
+            st.write(f"**정보:** {item['creator']} | **작품날짜:** {item['rel_date']}")
+            v_date = item.get('view_date') if item.get('view_date') else item['save_date']
+            st.markdown(f'<p class="date-text">🍿 감상일: {v_date}</p>', unsafe_allow_html=True)
+            st.divider()
+            if item['brief']: st.success(f"**📝 요약:** {item['brief']}")
+            st.info(f"**📖 내용 및 소개:**\n\n{summary_content}")
     else:
         # --- [기존 상세보기 화면 (완성창)] ---
         col_img, col_txt = st.columns([0.4, 0.6])
@@ -364,3 +379,4 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
