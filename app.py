@@ -27,6 +27,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 DB_NAME = 'archive_prism_total_v4.db'
+TTB_KEY = "ttbckwntmd2101001"
 TMDB_API_KEY = "6e7c55b6259b7731655033f783f3fc5b"
 KOPIS_KEY = "7a919bc272204f06bbca10e2af376dea"
 
@@ -118,12 +119,42 @@ def get_tmdb_details(item_id, category):
         return f"감독: {director} / 출연: {cast}"
     except: return "정보 없음"
 
-def search_books(query):
-    headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
+def search_books(query, category="BOOKS"):
+    """
+    알라딘 API를 이용한 통합 검색
+    category: "BOOKS", "MUSIC", "MOVIES", "SERIES" 등에 따라 검색 대상 변경
+    """
+    ttbkey = "ttbckwntmd2101001"
+    
+    # 카테고리 매핑 (알라딘 SearchTarget 기준)
+    target = "Book"
+    if category == "MUSIC":
+        target = "Music"
+    elif category in ["MOVIES", "SERIES", "STAGE"]:
+        target = "DVD"  # 영화/공연/시리즈는 DVD 카테고리에서 검색
+    
+    url = "http://www.aladin.co.kr/ttb/api/ItemSearch.aspx"
+    params = {
+        'ttbkey': ttbkey,
+        'Query': query,
+        'QueryType': 'Title',
+        'MaxResults': 10,
+        'start': 1,
+        'SearchTarget': target,
+        'output': 'js', # JSON 형식으로 받기
+        'Version': '20131101'
+    }
+    
     try:
-        res = requests.get("https://dapi.kakao.com/v3/search/book", headers=headers, params={"query": query})
-        return res.json().get("documents", []) if res.status_code == 200 else []
-    except: return []
+        res = requests.get(url, params=params)
+        if res.status_code == 200:
+            items = res.json().get("item", [])
+            # Kakao 결과 구조와 유사하게 맞추기 위해 key값 정리 (선택사항)
+            # 알라딘은 'cover'를, 카카오는 'thumbnail'을 사용하므로 맞춰주면 좋습니다.
+            return items
+        return []
+    except:
+        return []
 
 def search_apple_music(query):
     url = f"https://itunes.apple.com/search?term={query}&limit=10&country=kr&entity=musicTrack,album"
@@ -331,6 +362,7 @@ for idx, c_name in enumerate(cats):
                     
                     if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                         show_details(row)
+
 
 
 
