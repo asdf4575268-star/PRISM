@@ -16,14 +16,10 @@ st.markdown("""
     .date-text { font-size: 30px; color: #666; margin: 0; }
     .num-text { font-size: 60px; font-family: 'Jolly Lodger'; text-transform: lowercase; margin: 0; line-height: 1; }
     
-    .img-clickable {
-        width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 4px;
-        border: 1px solid #eee; transition: transform 0.2s; cursor: pointer;
+    .cal-img-box { 
+        width:100%; aspect-ratio:1/1; overflow:hidden; border-radius:4px; 
+        margin-bottom:4px; border: 1px solid #eee; 
     }
-    .img-clickable:hover { transform: scale(1.02); border: 2px solid #FF4B4B; }
-    .img-clickable img { width: 100%; height: 100%; object-fit: cover; }
-    
-    .cal-img-box { width:100%; aspect-ratio:1/1; overflow:hidden; border-radius:4px; margin-bottom:4px; border: 1px solid #eee; }
     .cal-img-box img { width:100%; height:100%; object-fit:cover; }
     </style>
     """, unsafe_allow_html=True)
@@ -95,7 +91,7 @@ def show_details(item):
                     conn.execute("DELETE FROM archive WHERE id=?", (int(item['id']),))
                 st.rerun()
 
-# --- [3. 세션 및 이미지 클릭 로직] ---
+# --- [3. 세션 및 내비게이션] ---
 if 'cal_year' not in st.session_state: st.session_state.cal_year = datetime.now().year
 if 'cal_month' not in st.session_state: st.session_state.cal_month = datetime.now().month
 
@@ -105,16 +101,7 @@ def shift_month(delta):
     elif new_month < 1: st.session_state.cal_month = 12; st.session_state.cal_year -= 1
     else: st.session_state.cal_month = new_month
 
-q_params = st.query_params
-if "show_id" in q_params:
-    tid = q_params["show_id"]
-    with sqlite3.connect(DB_NAME) as conn:
-        res = pd.read_sql_query(f"SELECT * FROM archive WHERE id={tid}", conn)
-        if not res.empty:
-            st.query_params.clear()
-            show_details(res.iloc[0])
-
-# --- API 함수들 ---
+# --- API 함수들 (생략 없이 유지) ---
 def get_tmdb_details(item_id, category):
     type_path = "movie" if category == "MOVIES" else "tv"
     url = f"https://api.themoviedb.org/3/{type_path}/{item_id}/credits?api_key={TMDB_API_KEY}&language=ko-KR"
@@ -213,6 +200,7 @@ with tab2:
             all_df['save_date_dt'] = pd.to_datetime(all_df['save_date'])
             all_df['year_int'] = all_df['save_date_dt'].dt.year
             
+            # 연도 선택 + 통계
             year_counts = all_df['year_int'].value_counts().to_dict()
             unique_years = sorted(list(set([datetime.now().year] + list(year_counts.keys()))), reverse=True)
             year_labels = [f"{y} ({year_counts.get(y, 0)})" for y in unique_years]
@@ -236,6 +224,7 @@ with tab2:
             with n3:
                 if st.button("다음달 ▶"): shift_month(1); st.rerun()
 
+            # 요일 헤더
             days = ["월", "화", "수", "목", "금", "토", "일"]
             h_cols = st.columns(7)
             for i, d in enumerate(days):
@@ -253,13 +242,11 @@ with tab2:
                         st.markdown(f"<p class='num-text' style='font-size:30px; margin:0;'>{day}</p>", unsafe_allow_html=True)
                         day_items = month_df[month_df['save_date_dt'].dt.day == day]
                         if not day_items.empty:
+                            # 이미지 클릭 태그 제거, 순수 이미지 박스만 유지
                             first_item = day_items.iloc[0]
                             if first_item['img_url']:
-                                st.markdown(f"""
-                                    <a href="/?show_id={first_item['id']}" target="_self" style="text-decoration: none;">
-                                        <div class="img-clickable"><img src="{first_item['img_url']}"></div>
-                                    </a>
-                                """, unsafe_allow_html=True)
+                                st.markdown(f'<div class="cal-img-box"><img src="{first_item["img_url"]}"></div>', unsafe_allow_html=True)
+                            
                             for _, r in day_items.iterrows():
                                 if st.button(f"• {r['title'][:5]}", key=f"cal_{r['id']}", use_container_width=True):
                                     show_details(r)
@@ -268,6 +255,7 @@ with tab2:
         else:
             st.info("기록이 없습니다.")
 
+    # 카테고리별 탭
     cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES"]
     for idx, c_name in enumerate(cats):
         with sub_tabs[idx+1]:
@@ -278,13 +266,7 @@ with tab2:
                 for i, row in df.iterrows():
                     with cols[i % 4]:
                         if row['img_url']:
-                            st.markdown(f"""
-                                <a href="/?show_id={row['id']}" target="_self">
-                                    <div class="img-clickable"><img src="{row['img_url']}"></div>
-                                </a>
-                            """, unsafe_allow_html=True)
-                        # 에러 해결: .date() 대신 문자열 그대로 출력하거나 파싱 시도
-                        disp_date = row['save_date']
-                        st.markdown(f'<p class="date-text" style="font-size:14px; text-align:center;">📅 {disp_date}</p>', unsafe_allow_html=True)
+                            st.image(row['img_url'], use_container_width=True)
+                        st.markdown(f'<p class="date-text" style="font-size:14px; text-align:center;">📅 {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
