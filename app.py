@@ -101,6 +101,7 @@ with tab1:
                     st.session_state.api_data = {'title': m.get('trackName', m.get('collectionName')), 'creator': m['artistName'], 'date': m['releaseDate'][:10], 'img': artwork, 'note': ''}
                     st.rerun()
         if category == "영화":
+        if category == "영화":
     if search_query:
         movie_list = search_movies_kofic(search_query)
         if movie_list:
@@ -166,4 +167,5 @@ with tab2:
     with f_book: display_gallery("도서")
     with f_music: display_gallery("음악")
     with f_movie: display_gallery("영화")
+
 
