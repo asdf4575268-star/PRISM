@@ -166,7 +166,24 @@ with tab1:
             st.session_state.api_data = {}
             st.rerun()
 
-# --- [tab2 내부의 YEARLY 탭 부분만 교체] ---
+# 1. 세션 상태 초기화 (연도/월 유지)
+if 'cal_year' not in st.session_state:
+    st.session_state.cal_year = datetime.now().year
+if 'cal_month' not in st.session_state:
+    st.session_state.cal_month = datetime.now().month
+
+def shift_month(delta):
+    new_month = st.session_state.cal_month + delta
+    if new_month > 12:
+        st.session_state.cal_month = 1
+        st.session_state.cal_year += 1
+    elif new_month < 1:
+        st.session_state.cal_month = 12
+        st.session_state.cal_year -= 1
+    else:
+        st.session_state.cal_month = new_month
+
+# --- UI 구성 ---
 with sub_tabs[0]:
     with sqlite3.connect(DB_NAME) as conn:
         all_df = pd.read_sql_query("SELECT * FROM archive", conn)
@@ -174,23 +191,28 @@ with sub_tabs[0]:
     if all_df.empty:
         st.info("기록이 없습니다.")
     else:
-        # 데이터 전처리
+        # 데이터 전처리: 확실하게 datetime으로 변환
         all_df['save_date'] = pd.to_datetime(all_df['save_date'], errors='coerce')
-        all_df = all_df.dropna(subset=['save_date'])
+        all_df = all_df.dropna(subset=['save_date']) # 날짜가 잘못된 데이터 제외
         all_df['year_str'] = all_df['save_date'].dt.year.astype(str)
 
-        # 연도 선택
+        # 연도 선택창 (작품 수 포함)
         year_counts = all_df['year_str'].value_counts().sort_index(ascending=False)
         year_options = [f"{y} ({c})" for y, c in year_counts.items()]
+        
         curr_yr_str = str(st.session_state.cal_year)
         default_ix = next((i for i, s in enumerate(year_options) if s.startswith(curr_yr_str)), 0)
 
+        # 상단 제어 바
         top_col1, _ = st.columns([2, 1])
         with top_col1:
             selected_year_opt = st.selectbox("📅 연도 선택", year_options, index=default_ix, key="year_selector_main")
-            st.session_state.cal_year = int(selected_year_opt.split(' ')[0])
+            new_year = int(selected_year_opt.split(' ')[0])
+            if new_year != st.session_state.cal_year:
+                st.session_state.cal_year = new_year
+                st.rerun() # 연도 변경 시 즉시 갱신
         
-        # 월 이동
+        # 월 이동 내비게이션
         nav_col1, nav_col2, nav_col3 = st.columns([1, 2, 1])
         with nav_col1:
             if st.button("◀ 저번달", key="prev_mo_btn"): shift_month(-1); st.rerun()
@@ -199,6 +221,7 @@ with sub_tabs[0]:
         with nav_col3:
             if st.button("다음달 ▶", key="next_mo_btn"): shift_month(1); st.rerun()
 
+        # [수정] .copy()를 사용하여 독립된 데이터프레임 확보 (에러 방지 핵심)
         year_df = all_df[(all_df['save_date'].dt.year == st.session_state.cal_year) & 
                          (all_df['save_date'].dt.month == st.session_state.cal_month)].copy()
 
@@ -214,16 +237,17 @@ with sub_tabs[0]:
             cols = st.columns(7)
             for i, day in enumerate(week):
                 if day == 0:
-                    cols[i].write(""); continue
+                    cols[i].write("")
+                    continue
                 
                 with cols[i]:
                     is_today = (st.session_state.cal_year == datetime.now().year and 
                                 st.session_state.cal_month == datetime.now().month and 
                                 day == datetime.now().day)
                     
+                    # 날짜 데이터 필터링 시 .dt.day 속성 안전하게 접근
                     day_items = year_df[year_df['save_date'].dt.day == day]
                     
-                    # 날짜 색상
                     if is_today: date_color, f_weight = "#FF4B4B", "bold"
                     elif i == 5: date_color, f_weight = "#2E5BFF", "normal"
                     elif i == 6: date_color, f_weight = "#FF4B4B", "normal"
@@ -234,54 +258,20 @@ with sub_tabs[0]:
                     if not day_items.empty:
                         main_row = day_items.iloc[0]
                         if main_row['img_url']:
-                            st.markdown(f'<div style="width:100%; aspect-ratio:1/1; overflow:hidden; border-radius:4px; margin-bottom:4px;"><img src="{main_row["img_url"]}" style="width:100%; height:100%; object-fit:cover;"></div>', unsafe_allow_html=True)
+                            st.markdown(f"""
+                                <div style="width:100%; aspect-ratio:1/1; overflow:hidden; border-radius:4px; margin-bottom:4px;">
+                                    <img src="{main_row['img_url']}" style="width:100%; height:100%; object-fit:cover;">
+                                </div>
+                            """, unsafe_allow_html=True)
                         
                         for _, row in day_items.iterrows():
                             display_title = row['title'][:5] + ".." if len(row['title']) > 6 else row['title']
-                            # 사이드바에 관리 UI를 띄우기 위해 session_state 업데이트 후 rerun
-                            if st.button(f"• {display_title}", key=f"cal_v6_btn_{row['id']}", use_container_width=True):
-                                st.session_state.selected_record = row
-                                st.rerun() 
+                            # 고유 키 보장을 위해 탭 이름과 ID 결합
+                            if st.button(f"• {display_title}", key=f"cal_tab_btn_{row['id']}", use_container_width=True):
+                                show_details(row)
                     else:
+                        # 칸 크기 유지를 위한 투명 박스
                         st.markdown("<div style='width:100%; aspect-ratio:1/1;'></div>", unsafe_allow_html=True)
-
-# --- [관리 UI: 사이드바 영역] ---
-if st.session_state.get('selected_record') is not None:
-    rec = st.session_state.selected_record
-    with st.sidebar:
-        st.markdown(f"## 🛠️ 관리 창")
-        if rec['img_url']: st.image(rec['img_url'], use_container_width=True)
-        st.subheader(rec['title'])
-        st.caption(f"현재 날짜: {rec['save_date'].strftime('%Y-%m-%d')}")
-        
-        st.divider()
-        
-        # 1. 상세 보기
-        if st.button("🔍 상세 내용 보기", use_container_width=True):
-            show_details(rec)
-            
-        # 2. 날짜 이동
-        st.markdown("### 📅 날짜 이동")
-        new_d = st.date_input("변경할 날짜", value=rec['save_date'].date(), key="sidebar_date_move")
-        if st.button("확인 및 이동", use_container_width=True):
-            with sqlite3.connect(DB_NAME) as conn:
-                conn.execute("UPDATE archive SET save_date=? WHERE id=?", (new_d.strftime('%Y-%m-%d'), rec['id']))
-            st.success("이동 완료!")
-            st.session_state.selected_record = None
-            st.rerun()
-            
-        # 3. 삭제
-        st.markdown("### ⚠️ 삭제")
-        if st.button("🗑️ 기록 삭제", type="primary", use_container_width=True):
-            with sqlite3.connect(DB_NAME) as conn:
-                conn.execute("DELETE FROM archive WHERE id=?", (rec['id'],))
-            st.session_state.selected_record = None
-            st.rerun()
-            
-        if st.button("닫기", use_container_width=True):
-            st.session_state.selected_record = None
-            st.rerun()
-
     # 2. 기존 카테고리별 탭 (수정 없이 유지)
     categories = ["BOOKS", "MUSIC", "MOVIES", "SERIES"]
     for i, category_name in enumerate(categories):
@@ -298,6 +288,7 @@ if st.session_state.get('selected_record') is not None:
                         st.markdown(f'<p class="save-date-tag">📅 기록일: {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"cat_btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
