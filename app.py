@@ -252,7 +252,7 @@ with tab1:
     data = st.session_state.get('api_data', {})
     cl, cr = st.columns([0.4, 0.6])
     with cl:
-        img_url_val = st.text_input("🖼️ 이미지", value=data.get('img', ''))
+        img_url_val = st.text_input("🖼️", value=data.get('img', ''))
         if img_url_val: 
             st.image(img_url_val, use_container_width=True)
         else:
@@ -398,6 +398,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
