@@ -283,18 +283,48 @@ with tab1:
 with tab2:
     sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
     
-    # 1. 스타일 업데이트 (그리드 및 달력 간격 조정)
+    # 1. 스타일 업데이트: 모바일 6열 그리드 및 제목 텍스트 가독성 최적화
     st.markdown("""
         <style>
-        .archive-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 20px; }
-        .archive-item { text-align: center; }
-        .img-box { width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 6px; background: #222; }
+        /* 6열 그리드 스타일 */
+        .archive-grid { 
+            display: grid; 
+            grid-template-columns: repeat(6, 1fr); 
+            gap: 8px; 
+            row-gap: 15px; /* 줄 간격 확보 */
+            margin-top: 15px;
+            margin-bottom: 20px; 
+        }
+        .archive-item { text-align: center; display: flex; flex-direction: column; align-items: center; }
+        .img-box { 
+            width: 100%; 
+            aspect-ratio: 1/1; 
+            overflow: hidden; 
+            border-radius: 8px; 
+            background: #222; 
+            border: 1px solid #333;
+        }
         .img-box img { width: 100%; height: 100%; object-fit: cover; }
-        .archive-item p { font-size: 10px; color: #aaa; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
-        /* 달력 숫자와 이미지 사이 여백 강제 주입 */
-        .cal-day-num { font-size: 14px; margin-bottom: 4px; font-weight: bold; }
-        .cal-img-wrapper { margin-top: 5px; margin-bottom: 5px; border-radius: 4px; overflow: hidden; height: 35px; }
+        /* 제목 텍스트: 잘리지 않게 설정 */
+        .title-text { 
+            font-size: 10px; 
+            color: #ccc; 
+            margin-top: 4px; 
+            line-height: 1.2;
+            word-break: keep-all; /* 단어 단위 줄바꿈 */
+            overflow: visible; 
+            white-space: normal; /* 여러 줄 허용 */
+            display: -webkit-box;
+            -webkit-line-clamp: 2; /* 최대 2줄 표시 (필요시 제거 가능) */
+            -webkit-box-orient: vertical;
+        }
+        
+        /* 달력 스타일 보정 */
+        .cal-grid-item { display: flex; flex-direction: column; align-items: center; min-height: 60px; }
+        .cal-date-num { font-family: 'Jolly Lodger'; font-size: 20px; color: #fff; margin-bottom: 2px; }
+        .cal-img-wrapper { width: 100%; aspect-ratio: 1/1; border-radius: 4px; overflow: hidden; margin-bottom: 2px; }
+        .cal-img-wrapper img { width: 100%; height: 100%; object-fit: cover; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -308,12 +338,11 @@ with tab2:
         
         # --- [탭 0: YEARLY (달력)] ---
         with sub_tabs[0]:
-            # 달력 상단 네비게이션
             c1, c2, c3 = st.columns([1, 2, 1])
             with c1: 
                 if st.button("◀", key="p_mon"): shift_month(-1); st.rerun()
             with c2: 
-                st.markdown(f"<h3 style='text-align:center;'>{st.session_state.cal_year}.{st.session_state.cal_month}</h3>", unsafe_allow_html=True)
+                st.markdown(f"<h3 style='text-align:center;' class='num-text'>{st.session_state.cal_year}.{st.session_state.cal_month}</h3>", unsafe_allow_html=True)
             with c3: 
                 if st.button("▶", key="n_mon"): shift_month(1); st.rerun()
 
@@ -323,53 +352,45 @@ with tab2:
                 for i, day in enumerate(week):
                     if day == 0: continue
                     with cols[i]:
-                        # 날짜 숫자 (클래스 적용으로 간격 확보)
-                        st.markdown(f"<div class='cal-day-num'>{day}</div>", unsafe_allow_html=True)
-                        
                         day_items = all_df[(all_df['v_dt'].dt.year == st.session_state.cal_year) & 
                                            (all_df['v_dt'].dt.month == st.session_state.cal_month) & 
                                            (all_df['v_dt'].dt.day == day)]
                         
+                        img_html = ""
+                        if not day_items.empty and day_items.iloc[0]['img_url']:
+                            img_html = f'<div class="cal-img-wrapper"><img src="{day_items.iloc[0]["img_url"]}"></div>'
+                        
+                        st.markdown(f"""<div class="cal-grid-item"><div class="cal-date-num">{day}</div>{img_html}</div>""", unsafe_allow_html=True)
+                        
                         if not day_items.empty:
-                            img = day_items.iloc[0]['img_url']
-                            if img:
-                                # 이미지를 래퍼로 감싸서 높이와 간격 고정
-                                st.markdown(f'<div class="cal-img-wrapper"><img src="{img}" style="width:100%; height:100%; object-fit:cover;"></div>', unsafe_allow_html=True)
-                            
-                            # 버튼 클릭 시 상세 보기
                             if st.button("•", key=f"c_btn_{day}", use_container_width=True):
                                 show_details(day_items.iloc[0])
-                        else:
-                            # 데이터 없는 날 공간 확보
-                            st.markdown("<div style='height:45px;'></div>", unsafe_allow_html=True)
 
-        # --- [탭 1~5: 카테고리별] ---
+        # --- [탭 1~5: 카테고리별 그리드] ---
         cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
         for idx, c_name in enumerate(cats):
             with sub_tabs[idx+1]:
                 df = all_df[all_df['category'] == c_name].sort_values(by='v_dt', ascending=False)
                 if not df.empty:
-                    # 1. 목록 선택창을 위로 올림
-                    with st.expander("🔍 바로 상세 선택", expanded=False):
-                        for _, row in df.iterrows():
-                            # 날짜와 함께 표시하여 구분력 강화
-                            display_date = row['v_dt'].strftime('%m.%d')
-                            if st.button(f"[{display_date}] {row['title']}", key=f"l_btn_{row['id']}", use_container_width=True):
-                                show_details(row)
+                    # 6열 그리드 시스템 시작
+                    # Streamlit 버튼은 HTML 내부에 넣을 수 없으므로, 레이아웃을 columns로 구성합니다.
+                    # 모바일 6열을 위해 소수점 단위의 columns를 사용하거나 반복문을 최적화합니다.
                     
-                    # 2. 하단에 그리드 배치 (도감 용도)
-                    grid_html = '<div class="archive-grid">'
-                    for _, row in df.iterrows():
-                        img = row['img_url'] if row['img_url'] else "https://via.placeholder.com/150"
-                        grid_html += f'''
-                            <div class="archive-item">
-                                <div class="img-box"><img src="{img}"></div>
-                                <p>{row["title"][:5]}</p>
-                            </div>'''
-                    grid_html += '</div>'
-                    st.markdown(grid_html, unsafe_allow_html=True)
+                    rows = [df.iloc[i:i+6] for i in range(0, len(df), 6)]
+                    for row_data in rows:
+                        cols = st.columns(6)
+                        for i, (_, row) in enumerate(row_data.iterrows()):
+                            with cols[i]:
+                                # 이미지 표시
+                                img = row['img_url'] if row['img_url'] else "https://via.placeholder.com/150"
+                                st.markdown(f'''<div class="img-box"><img src="{img}"></div>''', unsafe_allow_html=True)
+                                
+                                # 제목 버튼 (잘리지 않게 스타일 적용된 버튼)
+                                if st.button(row['title'], key=f"btn_{row['id']}", use_container_width=True):
+                                    show_details(row)
                 else:
-                    st.info("기록이 없습니다.")
+                    st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
