@@ -166,6 +166,7 @@ tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 with tab1:
     category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"], horizontal=True)
     search_query = st.text_input(f"🔍 {category} 검색")
+    
     if search_query:
         if category == "BOOKS":
             res = search_books(search_query)
@@ -176,46 +177,62 @@ with tab1:
                     b = opts[sel]
                     raw_img = b.get('thumbnail', '')
                     high_res_img = raw_img.replace("R120x174", "R400x0") if "R120x174" in raw_img else raw_img
-                    # 요약(summary) 맨 처음에 URL을 넣어 저장
-                    st.session_state.api_data = {'title': b['title'], 'creator': f"{', '.join(b['authors'])}", 'date': b['datetime'][:10], 'img': high_res_img, 'summary': f"{b['url']}\n\n{b['contents']}"}
+                    st.session_state.api_data = {
+                        'title': b['title'], 
+                        'creator': f"{', '.join(b['authors'])}", 
+                        'date': b['datetime'][:10], 
+                        'img': high_res_img, 
+                        'summary': f"{b['url']}\n\n{b.get('contents', '')}"
+                    }
                     st.rerun()
+
         elif category == "MUSIC":
-            res = search_apple_music(search_query)
+            res = search_apple_music(search_query) # 앨범/싱글 구분된 def 호출
             if res:
-                # 함수가 만들어준 명확한 이름(ALBUM/SINGLE 포함)으로 목록 생성
                 opts = {m['display_name']: m for m in res}
                 sel = st.selectbox("검색 결과 선택", list(opts.keys()))
-                
                 if st.button("✨ 데이터 가져오기"):
                     m = opts[sel]
-                    # 세션에 깔끔하게 저장 (URL은 summary 첫 줄로!)
                     st.session_state.api_data = {
                         'title': m['title'],
                         'creator': m['creator'],
                         'date': m['date'],
                         'img': m['img'],
-                        'summary': f"{m['url']}\n\n" # 나중에 팝업에서 버튼으로 변신!
+                        'summary': f"{m['url']}\n\n"
                     }
                     st.rerun()
-          elif category == "STAGE":
+
+        elif category == "STAGE":
             res = search_kopis(search_query)
             if res:
                 opts = {f"🎭 {s['title']} ({s['venue']})": s for s in res}
                 sel = st.selectbox("검색 결과", list(opts.keys()))
                 if st.button("✨ 가져오기"):
                     s = opts[sel]
-                    st.session_state.api_data = {'title': s['title'], 'creator': f"공연장: {s['venue']}", 'date': s['date'], 'img': s['img'], 'summary': ''}
+                    st.session_state.api_data = {
+                        'title': s['title'], 
+                        'creator': f"공연장: {s['venue']}", 
+                        'date': s['date'], 
+                        'img': s['img'], 
+                        'summary': ''
+                    }
                     st.rerun()
-            else:
+
+        else: # MOVIES, SERIES (TMDB)
             res = search_tmdb(search_query, category)
             if res:
                 opts = {f"🎬 {r.get('title' if category=='MOVIES' else 'name')}": r for r in res}
                 sel = st.selectbox("검색 결과", list(opts.keys()))
                 if st.button("✨ 가져오기"):
                     s = opts[sel]
-                    st.session_state.api_data = {'title': s.get('title' if category=='MOVIES' else 'name'), 'creator': get_tmdb_details(s['id'], category), 'date': s.get('release_date' if category=='MOVIES' else 'first_air_date'), 'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", 'summary': s.get('overview', '')}
+                    st.session_state.api_data = {
+                        'title': s.get('title' if category=='MOVIES' else 'name'), 
+                        'creator': get_tmdb_details(s['id'], category), 
+                        'date': s.get('release_date' if category=='MOVIES' else 'first_air_date'), 
+                        'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", 
+                        'summary': s.get('overview', '')
+                    }
                     st.rerun()
-
     st.divider()
     data = st.session_state.get('api_data', {})
     cl, cr = st.columns([0.4, 0.6])
@@ -365,6 +382,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
