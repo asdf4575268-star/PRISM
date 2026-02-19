@@ -157,12 +157,16 @@ with tab1:
             if res:
                 opts = {f"📚 {b['title']}": b for b in res}
                 sel = st.selectbox("검색 결과", list(opts.keys()))
-                if st.button("✨ 가져오기"):
-                    b = opts[sel]
-                    raw_img = b.get('thumbnail', '')
-                    # 썸네일 주소 뒤에 R120x174 같은 규격이 있다면 원본급으로 변경 시도
-                    high_res_img = raw_img.replace("R120x174", "R400x0") if "R120x174" in raw_img else raw_img
-                    st.session_state.api_data = {'title': b['title'], 'creator': f"{', '.join(b['authors'])}", 'date': b['datetime'][:10], 'img': b['thumbnail'], 'summary': b['contents']}
+                b = opts[sel]
+                    info_link = b.get('url', '') 
+                    
+                    st.session_state.api_data = {
+                        'title': b.get('title', ''),
+                        'creator': ", ".join(b.get('authors', [])), 
+                        'date': b.get('datetime', '')[:10], 
+                        'img': b.get('thumbnail', ''),
+                        'summary': f"🔗 상세정보: {info_link}\n\n{b.get('contents', '')}"
+                    }
                     st.rerun()
         elif category == "MUSIC":
             res = search_apple_music(search_query)
@@ -343,6 +347,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
