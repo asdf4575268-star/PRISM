@@ -327,10 +327,11 @@ for idx, c_name in enumerate(cats):
                     
                     v_date_display = row.get('view_date') if row.get('view_date') else row.get('save_date', '')
                     # 날짜 크기 30 설정 (요청사항 반영)
-                    st.markdown(f'<p class="date-text" style="font-size:30px; text-align:center;">🍿 {v_date_display}</p>', unsafe_allow_html=True)
+                    st.markdown(f'<p class="date-text" style="font-size:15px; text-align:center;">🍿 {v_date_display}</p>', unsafe_allow_html=True)
                     
                     if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                         show_details(row)
+
 
 
 
