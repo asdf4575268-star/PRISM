@@ -8,6 +8,7 @@ from datetime import date, datetime
 
 # --- [1. 스타일 및 설정] ---
 st.set_page_config(layout="wide", page_title="PRISM")
+st.title("PRISM")
 
 st.markdown("""
     <style>
@@ -306,3 +307,4 @@ with tab2:
                         st.markdown(f'<p class="date-text" style="font-size:14px; text-align:center;">🍿 {v_date_display}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
+
