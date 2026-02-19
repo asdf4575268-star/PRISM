@@ -141,8 +141,8 @@ with tab1:
 
     with col_r:
         # 요청사항 반영: 요약 입력창 새로 만들고, 기존 요약은 줄거리로 변경
-        brief = st.text_input("📝 한 줄 요약 (직접 입력)", placeholder="이 작품을 한 마디로 정의한다면?")
-        summary = st.text_area("📖 줄거리 (API 연동)", value=data.get('summary', ''), height=150)
+        summary = st.text_area("📖 시놉시스", value=data.get('summary', ''), height=150)
+        brief = st.text_input("📝 한 줄 요약", placeholder="이 작품을 한 마디로 정의한다면?")
         highlights = st.text_area("✨ 하이라이트 (명대사/구절)", height=100)
         note = st.text_area("💬 개인적 감상", height=100)
         
@@ -173,6 +173,7 @@ with tab2:
                         if row['img_url']: st.image(row['img_url'], use_container_width=True)
                         if st.button(row['title'], key=f"btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
