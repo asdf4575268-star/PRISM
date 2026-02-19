@@ -78,7 +78,7 @@ def show_details(item):
 init_db()
 
 # --- [4. 메인 화면 구성] ---
-tab1, tab2 = st.tabs(["🖋️ 아카이빙 입력", "📂 보관함 폴더"])
+tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 
 with tab1:
     category = st.radio("📂 카테고리 선택", ["BOOKS", "MUSIC", "MOVIES", "SERIES"], horizontal=True)
@@ -173,4 +173,5 @@ with tab2:
                         if row['img_url']: st.image(row['img_url'], use_container_width=True)
                         if st.button(row['title'], key=f"btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
