@@ -11,10 +11,15 @@ st.set_page_config(layout="wide", page_title="PRISM")
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Kirang+Haerang&family=Jolly+Lodger&family=Lacquer&display=swap');
+    
+    /* 활동명(제목) 크기 90 */
     .act-name { font-size: 90px; font-family: 'Kirang Haerang'; line-height: 1.1; margin: 0; }
+    /* 날짜 크기 30 */
     .date-text { font-size: 30px; color: #666; margin: 0; }
-    .num-text { font-size: 60px; font-family: 'Jolly Lodger'; text-transform: lowercase; margin: 0; }
-    .cal-img-box { width:100%; aspect-ratio:1/1; overflow:hidden; border-radius:4px; margin-bottom:4px; border:1px solid #eee; }
+    /* 숫자 크기 60 (달력 날짜 등) */
+    .num-text { font-size: 60px; font-family: 'Jolly Lodger'; text-transform: lowercase; margin: 0; line-height: 1; }
+    
+    .cal-img-box { width:100%; aspect-ratio:1/1; overflow:hidden; border-radius:4px; margin-bottom:4px; border: 1px solid #eee; }
     .cal-img-box img { width:100%; height:100%; object-fit:cover; }
     .save-date-tag { font-size: 14px; color: #888; margin-top: -10px; margin-bottom: 10px; text-align: center; }
     </style>
@@ -31,7 +36,7 @@ def init_db():
 
 init_db()
 
-# --- [2. 세션 및 유틸리티] ---
+# --- [2. 세션 및 기능 함수] ---
 if 'cal_year' not in st.session_state: st.session_state.cal_year = datetime.now().year
 if 'cal_month' not in st.session_state: st.session_state.cal_month = datetime.now().month
 
@@ -47,9 +52,11 @@ def show_details(item):
     with col_img:
         if item['img_url']: st.image(item['img_url'], use_container_width=True)
     with col_txt:
-        st.subheader(item['title'])
+        # 활동명 크기 90 적용
+        st.markdown(f'<p class="act-name">{item["title"]}</p>', unsafe_allow_html=True)
         st.write(f"**정보:** {item['creator']} | **작품날짜:** {item['rel_date']}")
-        st.caption(f"기록일: {item['save_date']}")
+        # 날짜 크기 30 적용
+        st.markdown(f'<p class="date-text">기록일: {item["save_date"]}</p>', unsafe_allow_html=True)
         st.divider()
         if item['brief']: st.success(f"**📝 요약:** {item['brief']}")
         st.info(f"**📖 줄거리:**\n\n{item['summary']}")
@@ -60,7 +67,7 @@ def show_details(item):
                 conn.execute("DELETE FROM archive WHERE id=?", (int(item['id']),))
             st.rerun()
 
-# --- [API 함수들 (tab1 유지용)] ---
+# --- API 함수들 ---
 def get_tmdb_details(item_id, category):
     type_path = "movie" if category == "MOVIES" else "tv"
     url = f"https://api.themoviedb.org/3/{type_path}/{item_id}/credits?api_key={TMDB_API_KEY}&language=ko-KR"
@@ -92,7 +99,7 @@ def search_tmdb(query, category):
 # --- [3. 메인 화면 구성] ---
 tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 
-# --- TAB 1: 기존 WRITE 기능 ---
+# --- TAB 1: WRITE ---
 with tab1:
     category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES"], horizontal=True)
     search_query = st.text_input(f"🔍 {category} 검색")
@@ -104,7 +111,7 @@ with tab1:
                 sel = st.selectbox("검색 결과", list(opts.keys()))
                 if st.button("✨ 가져오기"):
                     b = opts[sel]
-                    st.session_state.api_data = {'title': b['title'], 'creator': f"{', '.join(b['authors'])}", 'date': b['datetime'][:10], 'img': b['thumbnail'], 'summary': b['contents']}
+                    st.session_state.api_data = {'title': b['title'], 'creator': f"저자: {', '.join(b['authors'])}", 'date': b['datetime'][:10], 'img': b['thumbnail'], 'summary': b['contents']}
                     st.rerun()
         elif category == "MUSIC":
             res = search_apple_music(search_query)
@@ -113,7 +120,7 @@ with tab1:
                 sel = st.selectbox("검색 결과", list(opts.keys()))
                 if st.button("✨ 가져오기"):
                     m = opts[sel]
-                    st.session_state.api_data = {'title': m.get('trackName', m.get('collectionName')), 'creator': f"{m['artistName']}", 'date': m['releaseDate'][:10], 'img': m.get('artworkUrl100', '').replace('100x100bb', '600x600bb'), 'summary': ''}
+                    st.session_state.api_data = {'title': m.get('trackName', m.get('collectionName')), 'creator': f"아티스트: {m['artistName']}", 'date': m['releaseDate'][:10], 'img': m.get('artworkUrl100', '').replace('100x100bb', '600x600bb'), 'summary': ''}
                     st.rerun()
         else:
             res = search_tmdb(search_query, category)
@@ -129,7 +136,10 @@ with tab1:
     data = st.session_state.get('api_data', {})
     cl, cr = st.columns([0.4, 0.6])
     with cl:
-        st.image(img_url, width=300)
+        # 이미지 URL 입력칸 제거, 가져온 이미지만 표시
+        img_url_val = data.get('img', '')
+        if img_url_val: 
+            st.image(img_url_val, width=300)
         title = st.text_input("제목", value=data.get('title', ''))
         creator = st.text_input("창작자 정보", value=data.get('creator', ''))
         rel_date = st.text_input("날짜", value=data.get('date', str(date.today())))
@@ -141,35 +151,29 @@ with tab1:
         if st.button("✅ 저장", use_container_width=True):
             with sqlite3.connect(DB_NAME) as conn:
                 conn.execute("INSERT INTO archive (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                             (category, title, creator, rel_date, summary, brief, highlights, note, img_url, str(date.today())))
+                             (category, title, creator, rel_date, summary, brief, highlights, note, img_url_val, str(date.today())))
             st.success("저장 완료!")
             st.session_state.api_data = {}
             st.rerun()
 
-# --- TAB 2: 보관함 및 달력 ---
+# --- TAB 2: ARCHIVE ---
 with tab2:
     sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES"])
     
-    # 1. 달력 서브탭
     with sub_tabs[0]:
         with sqlite3.connect(DB_NAME) as conn:
             all_df = pd.read_sql_query("SELECT * FROM archive", conn)
-        
-        if all_df.empty:
-            st.info("기록이 없습니다.")
-        else:
+        if not all_df.empty:
             all_df['save_date'] = pd.to_datetime(all_df['save_date'])
-            
-            # 내비게이션
             n1, n2, n3 = st.columns([1, 2, 1])
             with n1:
                 if st.button("◀ 이전달"): shift_month(-1); st.rerun()
             with n2:
-                st.markdown(f"<h3 style='text-align:center;'>{st.session_state.cal_year}년 {st.session_state.cal_month}월</h3>", unsafe_allow_html=True)
+                # 숫자 크기 60 적용
+                st.markdown(f"<h3 style='text-align:center;' class='num-text'>{st.session_state.cal_year} / {st.session_state.cal_month}</h3>", unsafe_allow_html=True)
             with n3:
                 if st.button("다음달 ▶"): shift_month(1); st.rerun()
 
-            # 달력 격자
             days = ["월", "화", "수", "목", "금", "토", "일"]
             h_cols = st.columns(7)
             for i, d in enumerate(days):
@@ -184,7 +188,8 @@ with tab2:
                 for i, day in enumerate(week):
                     if day == 0: continue
                     with cols[i]:
-                        st.markdown(f"<p style='margin:0; font-size:12px;'>{day}</p>", unsafe_allow_html=True)
+                        # 숫자 크기 60 적용
+                        st.markdown(f"<p class='num-text' style='font-size:30px; margin:0;'>{day}</p>", unsafe_allow_html=True)
                         day_items = month_df[month_df['save_date'].dt.day == day]
                         if not day_items.empty:
                             if day_items.iloc[0]['img_url']:
@@ -195,22 +200,16 @@ with tab2:
                         else:
                             st.markdown("<div style='height:80px;'></div>", unsafe_allow_html=True)
 
-    # 2. 나머지 카테고리 서브탭 (기존과 동일)
     cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES"]
     for idx, c_name in enumerate(cats):
         with sub_tabs[idx+1]:
             with sqlite3.connect(DB_NAME) as conn:
                 df = pd.read_sql_query(f"SELECT * FROM archive WHERE category='{c_name}' ORDER BY id DESC", conn)
-            if df.empty:
-                st.info(f"{c_name} 기록 없음")
-            else:
+            if not df.empty:
                 cols = st.columns(4)
                 for i, row in df.iterrows():
                     with cols[i % 4]:
                         if row['img_url']: st.image(row['img_url'], use_container_width=True)
-                        st.markdown(f'<p class="save-date-tag">📅 {row["save_date"]}</p>', unsafe_allow_html=True)
+                        st.markdown(f'<p class="date-text" style="font-size:14px; text-align:center;">📅 {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
-
-
-
