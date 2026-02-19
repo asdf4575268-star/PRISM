@@ -13,6 +13,7 @@ st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Kirang+Haerang&family=Jolly+Lodger&family=Lacquer&display=swap');
     
+    /* 사용자 설정 크기 및 폰트 적용 */
     .act-name {{ font-size: 90px; font-family: 'Kirang Haerang'; line-height: 1.1; margin: 0; }}
     .date-text {{ font-size: 30px; color: #666; margin: 0; }}
     .num-text {{ font-size: 60px; font-family: 'Jolly Lodger'; text-transform: lowercase; margin: 0; line-height: 1; }}
@@ -21,17 +22,17 @@ st.markdown(f"""
         border: 1px solid #eee;
         border-radius: 12px;
         padding: 10px;
-        min-height: 160px;
+        min-height: 160px; /* 데이터가 있는 날만 높이 유지 */
         background-color: #ffffff;
         box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         margin-bottom: 10px;
     }}
     
+    /* 엑박 방지: 데이터가 없는 날은 높이값을 제거하여 하얀 공란 방지 */
     .cal-day-empty {{
-        padding: 10px;
-        min-height: 160px;
+        padding: 5px;
         background-color: transparent;
-        border: 1px solid transparent;
+        border: none;
         margin-bottom: 10px;
     }}
 
@@ -43,6 +44,9 @@ st.markdown(f"""
         margin: 8px 0; 
     }}
     .cal-img-box img {{ width: 100%; height: 100%; object-fit: cover; }}
+    
+    /* 소문자 원칙 적용 */
+    .unit-text {{ text-transform: lowercase; }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -237,14 +241,11 @@ with tab1:
             st.success("저장 완료!"); st.rerun()
 
 with tab2:
-    # 실시간 데이터 로드
     all_df = load_data()
     
     if not all_df.empty:
-        # 아카이브 내 서브 탭 구성
         sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
         
-        # --- [1. YEARLY 탭: 연도별 달력 보기] ---
         with sub_tabs[0]:
             years = sorted(all_df['v_dt'].dt.year.unique(), reverse=True)
             sel_year = st.selectbox("📅 연도 선택", years, index=0, key="year_filter")
@@ -256,6 +257,7 @@ with tab2:
                     st.session_state.cal_month = 12; st.session_state.cal_year -= 1
                 st.rerun()
             
+            # 숫자 크기 60 적용
             c2.markdown(f"<div class='num-text' style='text-align:center;'>{st.session_state.cal_year} . {st.session_state.cal_month}</div>", unsafe_allow_html=True)
             
             if c3.button("▶", key="next_btn"):
@@ -279,23 +281,20 @@ with tab2:
                         with cols[i]:
                             d_items = m_df[m_df['v_dt'].dt.day == day]
                             is_active = not d_items.empty
-                            box_class = "cal-day-active" if is_active else "cal-day-empty"
                             day_color = "#FF4B4B" if i == 6 else "#2E5BFF" if i == 5 else "#ccc"
                             
-                            st.markdown(f"<div class='{box_class}'>", unsafe_allow_html=True)
+                            # 날짜 숫자 표시
                             st.markdown(f"<p class='num-text' style='font-size:25px; color:{day_color};'>{day}</p>", unsafe_allow_html=True)
                             
+                            # [핵심 수정] 데이터가 있을 때만 active 박스를 생성하여 하얀 공란(엑박) 방지
                             if is_active:
-                                # ⭐ 수정: 이미지 URL 유효성 검사 및 'http' 포함 여부 확인
-                                first_img = d_items.iloc[0]['img_url']
-                                import pandas as pd
+                                st.markdown(f"<div class='cal-day-active'>", unsafe_allow_html=True)
                                 
-                                # 문자열 변환 후 None/nan/공백/길이 체크
+                                first_img = d_items.iloc[0]['img_url']
                                 img_str = str(first_img).strip() if pd.notnull(first_img) else ""
                                 is_img_valid = img_str not in ["", "None", "nan", "NULL"] and (img_str.startswith("http") or "/" in img_str)
 
                                 if is_img_valid:
-                                    # onerror 발생 시 아예 해당 요소를 보이지 않게(visibility) 처리
                                     img_html = f"""
                                     <div class='cal-img-box' style='background: none !important; border: none !important;'>
                                         <img src='{img_str}' 
@@ -308,10 +307,12 @@ with tab2:
                                 for _, r in d_items.iterrows():
                                     if st.button(f"{r['title'][:5]}..", key=f"cal_{r['id']}", use_container_width=True): 
                                         show_details(r)
-                            
-                            st.markdown(f"</div>", unsafe_allow_html=True)
+                                st.markdown(f"</div>", unsafe_allow_html=True)
+                            else:
+                                # 데이터가 없는 날은 최소한의 패딩만 가진 빈 태그 삽입
+                                st.markdown(f"<div class='cal-day-empty'></div>", unsafe_allow_html=True)
 
-        # --- [2. 카테고리 탭: 전체 기록 보기] ---
+        # 카테고리 탭 (기존과 동일)
         cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
         for idx, cn in enumerate(cats):
             with sub_tabs[idx+1]:
@@ -330,10 +331,3 @@ with tab2:
                     st.info(f"{cn} 카테고리에 아직 기록이 없습니다.")
     else:
         st.info("기록이 없습니다.")
-
-
-
-
-
-
-
