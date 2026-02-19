@@ -55,7 +55,7 @@ with tab1:
             if results:
                 options = {f"📚 {b['title']} ({b['authors'][0]})": b for b in results if b['authors']}
                 sel = st.selectbox("검색 결과 선택", list(options.keys()))
-                if st.button("✨ 데이터 연동"):
+                if st.button("✨ 연동"):
                     b = options[sel]
                     st.session_state.api_data = {
                         'title': b['title'], 'creator': b['authors'][0], 
@@ -74,7 +74,7 @@ with tab1:
                     options[f"{type_label} | {name} - {artist}"] = m
                 
                 sel = st.selectbox("검색 결과 선택", list(options.keys()))
-                if st.button("✨ 애플뮤직 데이터 연동"):
+                if st.button("✨ 연동"):
                     m = options[sel]
                     name = m.get('trackName') if m.get('wrapperType') == 'track' else m.get('collectionName')
                     artwork_url = m.get('artworkUrl100', '').replace('100x100bb', '600x600bb')
@@ -153,3 +153,4 @@ with tab2:
                 st.rerun()
     else:
         st.info("기록이 없습니다.")
+
