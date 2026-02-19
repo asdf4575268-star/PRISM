@@ -3,6 +3,8 @@ import sqlite3
 import requests
 import pandas as pd
 from datetime import date
+import calendar
+from datetime import datetime
 
 # --- [1. 스타일 및 설정] ---
 st.set_page_config(layout="wide", page_title="PRISM")
@@ -168,7 +170,10 @@ with tab2:
     # 탭 메뉴에 'YEARLY' 추가
     sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES"])
     
-# 1. 연도별 통합 보기 탭 (달력형)
+import calendar
+from datetime import datetime
+
+# 1. 연도별 통합 보기 탭
 with sub_tabs[0]:
     with sqlite3.connect(DB_NAME) as conn:
         all_df = pd.read_sql_query("SELECT * FROM archive", conn)
@@ -176,64 +181,82 @@ with sub_tabs[0]:
     if all_df.empty:
         st.info("기록이 없습니다.")
     else:
-        # 연도 추출 및 선택창
         all_df['save_date'] = pd.to_datetime(all_df['save_date'])
-        all_df['year'] = all_df['save_date'].dt.year.astype(str)
         
+        # 상단 제어바: 연도 선택 + 월 선택
+        col1, col2 = st.columns([1, 1])
+        
+        # 연도 선택 (2026 (128) 형식 유지)
+        all_df['year'] = all_df['save_date'].dt.year.astype(str)
         year_counts = all_df['year'].value_counts().sort_index(ascending=False)
         year_options = [f"{year} ({count})" for year, count in year_counts.items()]
-        selected_option = st.selectbox("📅 연도 선택", year_options)
-        selected_year = selected_option.split(' ')[0]
+        selected_option = col1.selectbox("📅 연도", year_options)
+        selected_year = int(selected_option.split(' ')[0])
 
-        # 해당 연도의 데이터만 필터링
-        year_df = all_df[all_df['year'] == selected_year]
+        # 월 선택 (기본값은 현재 월)
+        current_month = datetime.now().month
+        selected_month = col2.slider("📆 월 선택", 1, 12, current_month)
 
-        # 월별로 달력 생성 (1월부터 12월까지)
-        for month in range(1, 13):
-            st.markdown(f"#### {month}월")
-            
-            # 요일 헤더 (월~일)
-            days = ["월", "화", "수", "목", "금", "토", "일"]
+        # 데이터 필터링
+        year_df = all_df[(all_df['save_date'].dt.year == selected_year) & 
+                         (all_df['save_date'].dt.month == selected_month)]
+
+        # --- 달력 렌더링 시작 ---
+        st.markdown(f"### {selected_year}년 {selected_month}월")
+        
+        # 요일 헤더
+        days = ["월", "화", "수", "목", "금", "토", "일"]
+        header_cols = st.columns(7)
+        for i, day in enumerate(days):
+            color = "#FF4B4B" if i >= 5 else "#333" # 주말 강조
+            header_cols[i].markdown(f"<p style='text-align:center; font-weight:bold; color:{color};'>{day}</p>", unsafe_allow_html=True)
+
+        # calendar 모듈로 해당 월의 주차별 날짜 가져오기
+        cal = calendar.monthcalendar(selected_year, selected_month)
+        
+        for week in cal:
             cols = st.columns(7)
-            for i, day in enumerate(days):
-                cols[i].markdown(f"<p style='text-align:center; color:gray; font-size:12px;'>{day}</p>", unsafe_allow_html=True)
+            for i, day in enumerate(week):
+                if day == 0:
+                    cols[i].write("") # 빈 칸
+                    continue
+                
+                # 오늘 날짜 강조 스타일
+                is_today = (selected_year == datetime.now().year and 
+                            selected_month == datetime.now().month and 
+                            day == datetime.now().day)
+                border_style = "2px solid #FF4B4B" if is_today else "1px solid #eee"
+                bg_style = "#FFF5F5" if is_today else "white"
 
-            # 달력 데이터 생성
-            import calendar
-            cal = calendar.monthcalendar(int(selected_year), month)
-            
-            for week in cal:
-                cols = st.columns(7)
-                for i, day in enumerate(week):
-                    if day == 0: # 해당 월이 아닌 날짜
-                        cols[i].write("")
-                        continue
+                with cols[i]:
+                    # 날짜 박스 시작
+                    st.markdown(f"""
+                        <div style="text-align:left; font-size:12px; font-weight:bold; margin-bottom:2px; color:{'#FF4B4B' if is_today else '#888'};">
+                            {day}
+                        </div>
+                    """, unsafe_allow_html=True)
                     
-                    # 해당 날짜의 데이터 찾기
-                    current_date = f"{selected_year}-{month:02d}-{day:02d}"
-                    day_data = year_df[year_df['save_date'].dt.strftime('%Y-%m-%d') == current_date]
+                    # 해당 날짜 데이터 검색
+                    day_data = year_df[year_df['save_date'].dt.day == day]
                     
-                    with cols[i]:
-                        # 날짜 표시
-                        st.markdown(f"<p style='margin:0; font-size:10px;'>{day}</p>", unsafe_allow_html=True)
-                        
-                        if not day_data.empty:
-                            # 데이터가 있으면 첫 번째 이미지 표시
-                            row = day_data.iloc[0]
-                            if row['img_url']:
-                                st.markdown(f"""
-                                    <div style="width:100%; aspect-ratio: 1 / 1; overflow:hidden; border-radius:4px;">
-                                        <img src="{row['img_url']}" style="width:100%; height:100%; object-fit:cover;">
-                                    </div>
-                                """, unsafe_allow_html=True)
-                                
-                                # 클릭 시 상세보기를 위한 버튼 (아주 작게)
-                                if st.button("👁️", key=f"cal_{row['id']}", use_container_width=True):
-                                    show_details(row)
-                        else:
-                            # 데이터가 없는 날은 빈 박스로 높이 유지
-                            st.markdown('<div style="width:100%; aspect-ratio: 1 / 1; background:#f9f9f9; border-radius:4px;"></div>', unsafe_allow_html=True)
-            st.divider()
+                    if not day_data.empty:
+                        row = day_data.iloc[0]
+                        if row['img_url']:
+                            # 이미지 정사각형 강제 고정 및 테두리 효과
+                            st.markdown(f"""
+                                <div style="width:100%; aspect-ratio: 1/1; overflow:hidden; border-radius:6px; border:{border_style}; background:{bg_style};">
+                                    <img src="{row['img_url']}" style="width:100%; height:100%; object-fit:cover;">
+                                </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # 아주 작은 버튼으로 상세페이지 연결
+                            if st.button("🔍", key=f"cal_btn_{row['id']}", use_container_width=True):
+                                show_details(row)
+                    else:
+                        # 데이터 없는 날: 빈 박스 유지
+                        st.markdown(f"""
+                            <div style="width:100%; aspect-ratio: 1/1; background:#fbfbfb; border-radius:6px; border:1px solid #f0f0f0;"></div>
+                        """, unsafe_allow_html=True)
                     
     # 2. 기존 카테고리별 탭 (동일하게 유지)
     categories = ["BOOKS", "MUSIC", "MOVIES", "SERIES"]
@@ -251,6 +274,7 @@ with sub_tabs[0]:
                         st.markdown(f'<p class="save-date-tag">📅 기록일: {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"cat_btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
