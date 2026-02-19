@@ -16,7 +16,7 @@ st.markdown("""
     .act-name { font-size: 90px; font-family: 'Kirang Haerang'; line-height: 1.1; margin: 0; }
     /* 날짜 크기 30 */
     .date-text { font-size: 30px; color: #666; margin: 0; }
-    /* 숫자 크기 60 (달력 날짜 등) */
+    /* 숫자 크기 60 (Jolly Lodger 적용) */
     .num-text { font-size: 60px; font-family: 'Jolly Lodger'; text-transform: lowercase; margin: 0; line-height: 1; }
     
     .cal-img-box { width:100%; aspect-ratio:1/1; overflow:hidden; border-radius:4px; margin-bottom:4px; border: 1px solid #eee; }
@@ -52,10 +52,8 @@ def show_details(item):
     with col_img:
         if item['img_url']: st.image(item['img_url'], use_container_width=True)
     with col_txt:
-        # 활동명 크기 90 적용
         st.markdown(f'<p class="act-name">{item["title"]}</p>', unsafe_allow_html=True)
         st.write(f"**정보:** {item['creator']} | **작품날짜:** {item['rel_date']}")
-        # 날짜 크기 30 적용
         st.markdown(f'<p class="date-text">기록일: {item["save_date"]}</p>', unsafe_allow_html=True)
         st.divider()
         if item['brief']: st.success(f"**📝 요약:** {item['brief']}")
@@ -67,7 +65,7 @@ def show_details(item):
                 conn.execute("DELETE FROM archive WHERE id=?", (int(item['id']),))
             st.rerun()
 
-# --- API 함수들 ---
+# --- API 함수들 (WRITE용) ---
 def get_tmdb_details(item_id, category):
     type_path = "movie" if category == "MOVIES" else "tv"
     url = f"https://api.themoviedb.org/3/{type_path}/{item_id}/credits?api_key={TMDB_API_KEY}&language=ko-KR"
@@ -136,10 +134,8 @@ with tab1:
     data = st.session_state.get('api_data', {})
     cl, cr = st.columns([0.4, 0.6])
     with cl:
-        # 이미지 URL 입력칸 제거, 가져온 이미지만 표시
         img_url_val = data.get('img', '')
-        if img_url_val: 
-            st.image(img_url_val, width=300)
+        if img_url_val: st.image(img_url_val, width=300)
         title = st.text_input("제목", value=data.get('title', ''))
         creator = st.text_input("창작자 정보", value=data.get('creator', ''))
         rel_date = st.text_input("날짜", value=data.get('date', str(date.today())))
@@ -163,17 +159,34 @@ with tab2:
     with sub_tabs[0]:
         with sqlite3.connect(DB_NAME) as conn:
             all_df = pd.read_sql_query("SELECT * FROM archive", conn)
+        
         if not all_df.empty:
             all_df['save_date'] = pd.to_datetime(all_df['save_date'])
+            
+            # --- 연도 선택창 추가 ---
+            all_df['year_int'] = all_df['save_date'].dt.year
+            available_years = sorted(all_df['year_int'].unique(), reverse=True)
+            if datetime.now().year not in available_years:
+                available_years = [datetime.now().year] + available_years
+            
+            # 상단 컨트롤 영역
+            c_yr, c_nav = st.columns([1, 3])
+            with c_yr:
+                selected_year = st.selectbox("연도 선택", available_years, index=available_years.index(st.session_state.cal_year) if st.session_state.cal_year in available_years else 0)
+                if selected_year != st.session_state.cal_year:
+                    st.session_state.cal_year = selected_year
+                    st.rerun()
+
             n1, n2, n3 = st.columns([1, 2, 1])
             with n1:
                 if st.button("◀ 이전달"): shift_month(-1); st.rerun()
             with n2:
                 # 숫자 크기 60 적용
-                st.markdown(f"<h3 style='text-align:center;' class='num-text'>{st.session_state.cal_year} / {st.session_state.cal_month}</h3>", unsafe_allow_html=True)
+                st.markdown(f"<div style='text-align:center;' class='num-text'>{st.session_state.cal_year} / {st.session_state.cal_month}</div>", unsafe_allow_html=True)
             with n3:
                 if st.button("다음달 ▶"): shift_month(1); st.rerun()
 
+            # 달력 렌더링
             days = ["월", "화", "수", "목", "금", "토", "일"]
             h_cols = st.columns(7)
             for i, d in enumerate(days):
@@ -188,7 +201,6 @@ with tab2:
                 for i, day in enumerate(week):
                     if day == 0: continue
                     with cols[i]:
-                        # 숫자 크기 60 적용
                         st.markdown(f"<p class='num-text' style='font-size:30px; margin:0;'>{day}</p>", unsafe_allow_html=True)
                         day_items = month_df[month_df['save_date'].dt.day == day]
                         if not day_items.empty:
@@ -199,7 +211,10 @@ with tab2:
                                     show_details(r)
                         else:
                             st.markdown("<div style='height:80px;'></div>", unsafe_allow_html=True)
+        else:
+            st.info("기록이 없습니다.")
 
+    # 나머지 카테고리 탭
     cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES"]
     for idx, c_name in enumerate(cats):
         with sub_tabs[idx+1]:
