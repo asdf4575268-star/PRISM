@@ -22,38 +22,34 @@ def init_db():
 def search_books(query):
     if not query: return []
     try:
-        # 요청 전 미세한 지연 (연속 호출 차단 방지)
-        time.sleep(0.5)
+        # 구글 대신 iTunes API 사용 (차단이 거의 없음)
+        # entity=ebook 설정을 통해 도서 정보를 가져옵니다.
+        url = f"https://itunes.apple.com/search?term={query.strip()}&entity=ebook&limit=10"
+        response = requests.get(url, timeout=10)
         
-        # Google Books API
-        url = f"https://www.googleapis.com/books/v1/volumes?q={query.strip()}&maxResults=10"
-        headers = {"User-Agent": "Mozilla/5.0"}
-        response = requests.get(url, headers=headers, timeout=10)
-        
-        if response.status_code == 429:
-            return "RATE_LIMIT" # 차단 상태 알림
-            
+        if response.status_code != 200:
+            return []
+
         res = response.json()
         results = []
-        if "items" in res:
-            for item in res["items"]:
-                info = item.get("volumeInfo", {})
-                img_links = info.get("imageLinks", {})
-                img_url = img_links.get("thumbnail") or img_links.get("smallThumbnail") or ""
-                if img_url.startswith("http:"):
-                    img_url = img_url.replace("http:", "https:")
+        
+        if res.get("resultCount", 0) > 0:
+            for item in res["results"]:
+                # 이미지 고화질 변환 (100x100 -> 600x600)
+                img_url = item.get("artworkUrl100", "").replace("100x100bb", "600x600bb")
                 
                 results.append({
-                    "label": f"📚 {info.get('title')} ({', '.join(info.get('authors', ['미상']))})",
-                    "title": info.get("title", "제목 없음"),
-                    "creator": ", ".join(info.get("authors", ["작가 미상"])),
+                    "label": f"📚 {item.get('trackName')} ({item.get('artistName')})",
+                    "title": item.get("trackName", "제목 없음"),
+                    "creator": item.get("artistName", "작가 미상"),
                     "performer": "-",
-                    "date": info.get("publishedDate", "날짜 미상"),
+                    "date": item.get("releaseDate", "날짜 미상")[:10], # 날짜만 추출
                     "img": img_url,
-                    "desc": info.get("description", "정보 없음")
+                    "desc": item.get("description", "정보 없음").replace("<br />", "\n")
                 })
         return results
-    except Exception:
+    except Exception as e:
+        st.error(f"연결 오류: {e}")
         return []
 
 # --- [3. UI 메인 설정] ---
@@ -138,4 +134,5 @@ with tab2:
         st.info(detail['note'])
     else:
         st.write("아카이브가 비어있습니다.")
+
 
