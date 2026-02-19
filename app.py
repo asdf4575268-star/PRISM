@@ -163,12 +163,6 @@ with tab1:
             st.session_state.api_data = {}
             st.rerun()
 
-네, 충분히 가능합니다! 카테고리 구분 없이 연도별로 모아보는 기능은 아카이브의 흐름을 한눈에 파악하기에 아주 좋은 아이디어입니다.
-
-기존의 [BOOKS, MUSIC, MOVIES, SERIES] 탭 옆에 [📅 YEARLY] 탭을 추가하여, 기록된 날짜(save_date)를 기준으로 연도를 선택하고 모든 카테고리의 기록을 통합해서 볼 수 있도록 수정해 드릴게요.
-
-📅 ARCHIVE 탭에 '연도별 통합 보기'가 추가된 코드
-Python
 # --- [4. 메인 화면 구성 수정 부분] ---
 with tab2:
     # 탭 메뉴에 'YEARLY' 추가
@@ -223,6 +217,7 @@ with tab2:
                         st.markdown(f'<p class="save-date-tag">📅 기록일: {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"cat_btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
