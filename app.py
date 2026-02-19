@@ -246,7 +246,7 @@ with tab2:
         
         # --- [1. YEARLY 탭: 연도별 달력 보기] ---
         with sub_tabs[0]:
-            # 연도 선택 필터를 달력 탭 내부로 이동 (나머지 탭은 전체 보기 유지)
+            # 연도 선택 필터를 달력 탭 내부로 이동
             years = sorted(all_df['v_dt'].dt.year.unique(), reverse=True)
             sel_year = st.selectbox("📅 연도 선택", years, index=0, key="year_filter")
             
@@ -290,43 +290,41 @@ with tab2:
                             st.markdown(f"<p class='num-text' style='font-size:25px; color:{day_color};'>{day}</p>", unsafe_allow_html=True)
                             
                             if is_active:
-    # 1. 데이터 확인: 첫 번째 이미지 URL 가져오기
-    first_img = d_items.iloc[0]['img_url']
-    
-    # 2. 이미지 유효성 검사 강화 (None, 공백, NaN 등 체크)
-    import pandas as pd
-    is_img_valid = pd.notnull(first_img) and str(first_img).strip() not in ["", "None", "nan"]
+                                # 1. 데이터 확인: 첫 번째 이미지 URL 가져오기
+                                first_img = d_items.iloc[0]['img_url']
+                                
+                                # 2. 이미지 유효성 검사 (None, 공백, NaN 등 체크)
+                                import pandas as pd
+                                is_img_valid = pd.notnull(first_img) and str(first_img).strip() not in ["", "None", "nan"]
 
-    if is_img_valid:
-        # 3. HTML <img> 태그에 onerror 처리를 추가하여 로드 실패 시 박스 자체를 숨김 처리
-        img_html = f"""
-        <div class='cal-img-box'>
-            <img src='{first_img}' 
-                 style='width:100%; border-radius:5px;' 
-                 onerror="this.parentElement.style.display='none';">
-        </div>
-        """
-        st.markdown(img_html, unsafe_allow_html=True)
-    
-    # 활동 제목 버튼들
-    for _, r in d_items.iterrows():
-        if st.button(f"{r['title'][:5]}..", key=f"cal_{r['id']}", use_container_width=True): 
-            show_details(r)
-
-st.markdown(f"</div>", unsafe_allow_html=True)
+                                if is_img_valid:
+                                    # 3. HTML <img> 태그에 onerror 처리를 추가하여 로드 실패 시 박스 숨김
+                                    img_html = f"""
+                                    <div class='cal-img-box'>
+                                        <img src='{first_img}' 
+                                             style='width:100%; border-radius:5px;' 
+                                             onerror="this.parentElement.style.display='none';">
+                                    </div>
+                                    """
+                                    st.markdown(img_html, unsafe_allow_html=True)
+                                
+                                # 활동 제목 버튼들
+                                for _, r in d_items.iterrows():
+                                    if st.button(f"{r['title'][:5]}..", key=f"cal_{r['id']}", use_container_width=True): 
+                                        show_details(r)
+                            
+                            st.markdown(f"</div>", unsafe_allow_html=True)
 
         # --- [2. 카테고리 탭: 전체 기록 보기] ---
         cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
         for idx, cn in enumerate(cats):
             with sub_tabs[idx+1]:
-                # 연도 선택과 상관없이 전체 데이터에서 해당 카테고리만 추출
                 c_df = all_df[all_df['category'] == cn]
                 
                 if not c_df.empty:
                     cols = st.columns(4)
                     for i, (record_idx, row) in enumerate(c_df.iterrows()):
                         with cols[i % 4]:
-                            # 이미지 출력 전 유효성 검사
                             if row['img_url'] and str(row['img_url']).strip() not in ["", "None"]:
                                 st.image(row['img_url'], use_container_width=True)
                             st.markdown(f"<p style='text-align:center; font-size:14px; color:#888;'>🍿 {row['view_date']}</p>", unsafe_allow_html=True)
@@ -336,6 +334,7 @@ st.markdown(f"</div>", unsafe_allow_html=True)
                     st.info(f"{cn} 카테고리에 아직 기록이 없습니다.")
     else:
         st.info("기록이 없습니다. 첫 기록을 남겨보세요!")
+
 
 
 
