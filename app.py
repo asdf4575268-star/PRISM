@@ -100,20 +100,27 @@ with tab1:
                     artwork = m.get('artworkUrl100', '').replace('100x100bb', '600x600bb')
                     st.session_state.api_data = {'title': m.get('trackName', m.get('collectionName')), 'creator': m['artistName'], 'date': m['releaseDate'][:10], 'img': artwork, 'note': ''}
                     st.rerun()
-        else: # 영화
-            res = search_movies(search_query)
-            if res:
-                opts = {f"🎬 {mv['title']} ({mv['release_date'][:4] if mv.get('release_date') else '미정'})": mv for mv in res}
-                sel = st.selectbox("결과 선택", list(opts.keys()))
-                if st.button("✨ 데이터 연동"):
-                    mv = opts[sel]
-                    st.session_state.api_data = {
-                        'title': mv['title'], 'creator': '영화 감독 및 출연진', 
-                        'date': mv.get('release_date', ''), 
-                        'img': f"https://image.tmdb.org/t/p/w500{mv['poster_path']}" if mv.get('poster_path') else "",
-                        'note': mv.get('overview', '')
-                    }
-                    st.rerun()
+        if category == "영화":
+    if search_query:
+        movie_list = search_movies_kofic(search_query)
+        if movie_list:
+            # 영화 목록 구성
+            opts = {f"🎬 {m['movieNm']} ({m['prdtYear']}년) - {m['genreAlt']}": m for m in movie_list}
+            sel = st.selectbox("검색 결과 선택", list(opts.keys()))
+            
+            if st.button("✨ 영진위 데이터 연동"):
+                m = opts[sel]
+                # 영진위 데이터 매핑
+                st.session_state.api_data = {
+                    'title': m['movieNm'],
+                    'creator': m['directors'][0]['peopleNm'] if m['directors'] else "정보 없음",
+                    'date': m['openDt'] if m.get('openDt') else f"{m['prdtYear']}-01-01",
+                    'img': "",  # 영진위는 이미지를 제공하지 않아 직접 입력하거나 별도 처리가 필요합니다.
+                    'note': f"장르: {m['genreAlt']} / 제작상태: {m['prdtStatNm']}"
+                }
+                st.rerun()
+        else:
+            st.warning("영진위 DB에 해당 영화가 없습니다.")
 
     data = st.session_state.get('api_data', {})
     st.divider()
@@ -159,3 +166,4 @@ with tab2:
     with f_book: display_gallery("도서")
     with f_music: display_gallery("음악")
     with f_movie: display_gallery("영화")
+
