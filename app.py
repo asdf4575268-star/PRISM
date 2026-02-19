@@ -51,29 +51,12 @@ init_db()
 
 # --- [2. API 함수 정의 구역] ---
 
-def search_naver_books(query):
-    # 제공해주신 API 키를 적용했습니다.
-    NAVER_CLIENT_ID = "S7NU9zo0E14iYGTS1L3e"
-    NAVER_CLIENT_SECRET = "eW1hRp9Zxj"
-    
-    url = "https://openapi.naver.com/v1/search/book.json"
-    headers = {
-        "X-Naver-Client-Id": NAVER_CLIENT_ID,
-        "X-Naver-Client-Secret": NAVER_CLIENT_SECRET
-    }
-    # display: 50으로 설정하여 검색 결과를 넉넉히 가져옵니다.
-    params = {"query": query, "display": 50}
-    
+def search_books(query):
+    headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
     try:
-        res = requests.get(url, headers=headers, params=params)
-        if res.status_code == 200:
-            return res.json().get("items", [])
-        else:
-            st.error(f"네이버 API 오류: {res.status_code}")
-            return []
-    except Exception as e:
-        st.error(f"연결 오류: {e}")
-        return []
+        res = requests.get("https://dapi.kakao.com/v3/search/book", headers=headers, params={"query": query})
+        return res.json().get("documents", []) if res.status_code == 200 else []
+    except: return []
 
 def search_apple_music(query):
     url = f"https://itunes.apple.com/search?term={query}&limit=20&country=kr&entity=musicTrack,album"
@@ -430,6 +413,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
