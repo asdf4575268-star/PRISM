@@ -66,11 +66,6 @@ with tab1:
         highlights = st.text_area("✨ 인상 깊은 부분 (쪽수 포함)", height=150, placeholder="p.123 - 문장 내용")
         note = st.text_area("💬 감상", value=data.get('contents', ''), height=150)
         
-        # 하단 폰트 시각화
-        st.markdown(f'<p class="act-name">{title if title else "활동명"}</p>', unsafe_allow_html=True)
-        st.markdown(f'<p class="date-text">{rel_date if rel_date else "2026-00-00"}</p>', unsafe_allow_html=True)
-        st.markdown(f'<p class="num-text">12.5 km / 145 bpm</p>', unsafe_allow_html=True)
-
         if st.button("✅ 아카이브 최종 저장", use_container_width=True):
             conn = sqlite3.connect('archive_final.db')
             conn.execute("""INSERT INTO archive (title, creator, rel_date, summary, highlights, note, img_url, save_date) 
@@ -113,5 +108,6 @@ with tab2:
                 st.rerun()
     else:
         st.info("아직 저장된 아카이브가 없습니다.")
+
 
 
