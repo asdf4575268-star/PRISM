@@ -247,13 +247,16 @@ with tab2:
                     st.session_state.cal_year = selected_year
                     st.rerun()
 
-            n1, n2, n3 = st.columns([1, 2, 1])
+            # 이전달/다음달 버튼을 월 텍스트 양옆으로 촘촘히 중앙 배치
+            _, n1, n2, n3, _ = st.columns([1.5, 1, 2, 1, 1.5])
             with n1:
-                if st.button("◀ 이전달"): shift_month(-1); st.rerun()
+                st.markdown("<div style='height:15px;'></div>", unsafe_allow_html=True)
+                if st.button("◀ 이전달", use_container_width=True): shift_month(-1); st.rerun()
             with n2:
                 st.markdown(f"<div style='text-align:center;' class='num-text'>{st.session_state.cal_year} / {st.session_state.cal_month}</div>", unsafe_allow_html=True)
             with n3:
-                if st.button("다음달 ▶"): shift_month(1); st.rerun()
+                st.markdown("<div style='height:15px;'></div>", unsafe_allow_html=True)
+                if st.button("다음달 ▶", use_container_width=True): shift_month(1); st.rerun()
 
             # 요일 헤더
             days = ["월", "화", "수", "목", "금", "토", "일"]
