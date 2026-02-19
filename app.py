@@ -274,7 +274,7 @@ with sub_tabs[0]:
                             if st.button(f"• {display_title}", key=f"cal_{row['id']}", use_container_width=True):
                                 show_details(row)
                     else:
-                        st.markdown("<div style='width:100%; aspect-ratio:1/1; background:#fbfbfb; b
+                        st.markdown("<div style='width:100%; aspect-ratio:1/1; background:#fbfbfb; border-radius:4px; margin-bottom:4px;'></div>", unsafe_allow_html=True)
                     
     # 2. 기존 카테고리별 탭 (동일하게 유지)
     categories = ["BOOKS", "MUSIC", "MOVIES", "SERIES"]
@@ -292,6 +292,7 @@ with sub_tabs[0]:
                         st.markdown(f'<p class="save-date-tag">📅 기록일: {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"cat_btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
