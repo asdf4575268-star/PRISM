@@ -5,7 +5,7 @@ import pandas as pd
 from datetime import date
 
 # --- [1. 스타일 및 설정] ---
-st.set_page_config(layout="wide", page_title="My Prism Archive")
+st.set_page_config(layout="wide", page_title="Prism")
 
 st.markdown("""
     <style>
@@ -29,8 +29,8 @@ def init_db():
 
 # --- [2. API 연동 함수들] ---
 def get_tmdb_details(item_id, category):
-    type_path = "movie" if category == "영화" else "tv"
-    url = f"https://api.themoviedb.org/3/{type_path}/{item_id}/credits?api_key={TMDB_API_KEY}&language=ko-KR"
+    type_path = "MOVIES" if category == "MOVIES" else "tv"
+    url = f"https://api.theMOVIESdb.org/3/{type_path}/{item_id}/credits?api_key={TMDB_API_KEY}&language=ko-KR"
     try:
         res = requests.get(url).json()
         director = next((m['name'] for m in res.get('crew', []) if m.get('job') == 'Director'), "정보 없음")
@@ -38,10 +38,10 @@ def get_tmdb_details(item_id, category):
         return f"감독: {director} / 출연: {cast}"
     except: return "정보 없음"
 
-def search_books(query):
+def search_BOOKSs(query):
     headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
     try:
-        res = requests.get("https://dapi.kakao.com/v3/search/book", headers=headers, params={"query": query})
+        res = requests.get("https://dapi.kakao.com/v3/search/BOOKS", headers=headers, params={"query": query})
         return res.json().get("documents", []) if res.status_code == 200 else []
     except: return []
 
@@ -51,8 +51,8 @@ def search_apple_music(query):
     except: return []
 
 def search_tmdb(query, category):
-    search_type = "movie" if category == "영화" else "tv"
-    url = f"https://api.themoviedb.org/3/search/{search_type}?api_key={TMDB_API_KEY}&query={query}&language=ko-KR"
+    search_type = "MOVIES" if category == "MOVIES" else "tv"
+    url = f"https://api.theMOVIESdb.org/3/search/{search_type}?api_key={TMDB_API_KEY}&query={query}&language=ko-KR"
     try: return requests.get(url).json().get("results", [])
     except: return []
 
@@ -81,13 +81,13 @@ init_db()
 tab1, tab2 = st.tabs(["🖋️ 아카이빙 입력", "📂 보관함 폴더"])
 
 with tab1:
-    category = st.radio("📂 카테고리 선택", ["도서", "음악", "영화", "시리즈"], horizontal=True)
+    category = st.radio("📂 카테고리 선택", ["BOOKS", "MUSIC", "MOVIES", "SERIES"], horizontal=True)
     search_query = st.text_input(f"🔍 {category} 제목 검색")
     
     if search_query:
         # (기본 연동 로직은 동일하되, 받아오는 데이터를 session_state에 저장)
-        if category == "도서":
-            res = search_books(search_query)
+        if category == "BOOKS":
+            res = search_BOOKSs(search_query)
             if res:
                 opts = {f"📚 {b['title']} ({b['authors'][0]})": b for b in res if b['authors']}
                 sel = st.selectbox("검색 결과", list(opts.keys()))
@@ -95,7 +95,7 @@ with tab1:
                     b = opts[sel]
                     st.session_state.api_data = {'title': b['title'], 'creator': f"저자: {', '.join(b['authors'])}", 'date': b['datetime'][:10], 'img': b['thumbnail'], 'summary': b['contents']}
                     st.rerun()
-        elif category == "음악":
+        elif category == "MUSIC":
             res = search_apple_music(search_query)
             if res:
                 opts = {f"🎵 {m.get('trackName', m.get('collectionName'))}": m for m in res}
@@ -104,22 +104,22 @@ with tab1:
                     m = opts[sel]
                     st.session_state.api_data = {'title': m.get('trackName', m.get('collectionName')), 'creator': f"아티스트: {m['artistName']}", 'date': m['releaseDate'][:10], 'img': m.get('artworkUrl100', '').replace('100x100bb', '600x600bb'), 'summary': ''}
                     st.rerun()
-        else: # 영화/시리즈
+        else: # MOVIES/SERIES
             res = search_tmdb(search_query, category)
             if res:
                 opts = {}
                 for r in res[:10]:
-                    name = r.get('title') if category == "영화" else r.get('name')
-                    date_v = r.get('release_date') if category == "영화" else r.get('first_air_date')
+                    name = r.get('title') if category == "MOVIES" else r.get('name')
+                    date_v = r.get('release_date') if category == "MOVIES" else r.get('first_air_date')
                     opts[f"🎬 {name} ({date_v[:4] if date_v else '미상'})"] = r
                 sel = st.selectbox("검색 결과", list(opts.keys()))
                 if st.button("✨ 데이터 가져오기"):
                     selected = opts[sel]
                     credits_info = get_tmdb_details(selected['id'], category)
                     st.session_state.api_data = {
-                        'title': selected.get('title') if category == "영화" else selected.get('name'),
+                        'title': selected.get('title') if category == "MOVIES" else selected.get('name'),
                         'creator': credits_info,
-                        'date': selected.get('release_date') if category == "영화" else selected.get('first_air_date'),
+                        'date': selected.get('release_date') if category == "MOVIES" else selected.get('first_air_date'),
                         'img': f"https://image.tmdb.org/t/p/w500{selected.get('poster_path')}" if selected.get('poster_path') else "",
                         'summary': selected.get('overview', '')
                     }
@@ -159,8 +159,8 @@ with tab1:
             st.rerun()
 
 with tab2:
-    sub_tabs = st.tabs(["📚 도서", "🎸 음악", "🎬 영화", "📺 시리즈"])
-    categories = ["도서", "음악", "영화", "시리즈"]
+    sub_tabs = st.tabs(["📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES"])
+    categories = ["BOOKS", "MUSIC", "MOVIES", "SERIES"]
     for i, tab in enumerate(sub_tabs):
         with tab:
             with sqlite3.connect(DB_NAME) as conn:
@@ -173,3 +173,4 @@ with tab2:
                         if row['img_url']: st.image(row['img_url'], use_container_width=True)
                         if st.button(row['title'], key=f"btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
