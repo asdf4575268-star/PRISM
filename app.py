@@ -182,11 +182,20 @@ with tab1:
         elif category == "MUSIC":
             res = search_apple_music(search_query)
             if res:
-                opts = {f"🎵 {m.get('trackName')}": m for m in res}
-                sel = st.selectbox("검색 결과", list(opts.keys()))
-                if st.button("✨ 가져오기"):
+                # 함수가 만들어준 명확한 이름(ALBUM/SINGLE 포함)으로 목록 생성
+                opts = {m['display_name']: m for m in res}
+                sel = st.selectbox("검색 결과 선택", list(opts.keys()))
+                
+                if st.button("✨ 데이터 가져오기"):
                     m = opts[sel]
-                    st.session_state.api_data = {'title': m.get('trackName'), 'creator': f"아티스트: {m['artistName']}", 'date': m['releaseDate'][:10], 'img': m.get('artworkUrl100', '').replace('100x100bb', '600x600bb'), 'summary': m.get('trackViewUrl', '')}
+                    # 세션에 깔끔하게 저장 (URL은 summary 첫 줄로!)
+                    st.session_state.api_data = {
+                        'title': m['title'],
+                        'creator': m['creator'],
+                        'date': m['date'],
+                        'img': m['img'],
+                        'summary': f"{m['url']}\n\n" # 나중에 팝업에서 버튼으로 변신!
+                    }
                     st.rerun()
         # ... (나머지 카테고리도 이와 같은 방식으로 summary에 URL 추가 가능)
 
@@ -339,6 +348,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
