@@ -114,9 +114,36 @@ def search_books(query):
     except: return []
 
 def search_apple_music(query):
-    url = f"https://itunes.apple.com/search?term={query}&limit=10&country=kr&entity=musicTrack,album"
-    try: return requests.get(url).json().get("results", [])
-    except: return []
+    # 곡(musicTrack)과 앨범(album)을 동시에 검색
+    url = f"https://itunes.apple.com/search?term={query}&limit=20&country=kr&entity=musicTrack,album"
+    try:
+        res = requests.get(url).json().get("results", [])
+        formatted_res = []
+        for m in res:
+            is_album = m.get('wrapperType') == 'collection'
+            
+            # 1. 앨범/싱글 타입에 따른 정보 정리
+            if is_album:
+                title = m.get('collectionName', 'Unknown Album')
+                info_url = m.get('collectionViewUrl', '')
+                prefix = "📀 [ALBUM]"
+            else:
+                title = m.get('trackName', 'Unknown Song')
+                info_url = m.get('trackViewUrl', '')
+                prefix = "🎵 [SINGLE]"
+            
+            # 2. 결과 리스트에 담기
+            formatted_res.append({
+                'display_name': f"{prefix} {title} - {m.get('artistName', '')}",
+                'title': title,
+                'creator': m.get('artistName', ''),
+                'date': m.get('releaseDate', '')[:10],
+                'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'),
+                'url': info_url
+            })
+        return formatted_res
+    except:
+        return []
         
 def search_tmdb(query, category):
     search_type = "movie" if category == "MOVIES" else "tv"
@@ -312,6 +339,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
