@@ -83,13 +83,6 @@ def search_books(query):
     res = requests.get("https://dapi.kakao.com/v3/search/book", headers=headers, params={"query": query})
     return res.json().get("documents", []) if res.status_code == 200 else []
 
-# --- [4. 메인 화면 WRITE] ---
-tab1에서 발생한 에러는 주로 **들여쓰기(Indentation)**가 일관되지 않거나(공백 vs 탭), 상단에서 tab1, tab2 = st.tabs(...)를 선언할 때와 with tab1:을 사용할 때 사이의 코드가 잘못 닫혔을 때 발생합니다.
-
-사용자께서 주신 전체 코드 구조를 유지하면서, 이미지 URL 대신 정보 URL을 우선적으로 처리하고 들여쓰기 오류를 완벽하게 수정한 tab1 영역 전체 코드를 드립니다. 이 부분을 그대로 복사해서 덮어씌우세요.
-
-🛠 수정된 TAB 1: WRITE (정보 URL 연동 및 에러 수정)
-Python
 # --- [4. 메인 화면 구성] ---
 tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 
@@ -300,6 +293,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
