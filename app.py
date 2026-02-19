@@ -10,22 +10,14 @@ st.set_page_config(layout="wide", page_title="My Prism Archive")
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Kirang+Haerang&family=Jolly+Lodger&family=Lacquer&display=swap');
-    
     .act-name { font-size: 90px; font-family: 'Kirang Haerang'; line-height: 1.1; margin: 0; }
     .date-text { font-size: 30px; color: #666; margin: 0; }
     .num-text { font-size: 60px; font-family: 'Jolly Lodger'; text-transform: lowercase; margin: 0; }
-    
-    div[data-testid="stImage"] > img {
-        border-radius: 12px;
-        transition: transform 0.3s ease;
-        cursor: pointer;
-        border: 1px solid #eee;
-    }
-    div[data-testid="stImage"] > img:hover { transform: scale(1.05); }
+    div[data-testid="stImage"] > img { border-radius: 12px; border: 1px solid #eee; }
     </style>
     """, unsafe_allow_html=True)
 
-DB_NAME = 'archive_prism_total_v2.db'
+DB_NAME = 'archive_prism_total_v3.db'
 TMDB_API_KEY = "6e7c55b6259b7731655033f783f3fc5b"
 
 def init_db():
@@ -34,7 +26,20 @@ def init_db():
                         (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
                          rel_date TEXT, summary TEXT, highlights TEXT, note TEXT, img_url TEXT, save_date TEXT)''')
 
-# --- [2. API 연동 함수들] ---
+# --- [2. 상세 정보(출연진/감독) 가져오기 함수] ---
+def get_tmdb_details(item_id, category):
+    # 영화는 credits, TV는 aggregate_credits 또는 credits 사용
+    type_path = "movie" if category == "영화" else "tv"
+    url = f"https://api.themoviedb.org/3/{type_path}/{item_id}/credits?api_key={TMDB_API_KEY}&language=ko-KR"
+    try:
+        res = requests.get(url).json()
+        # 감독(Director) 찾기
+        director = next((m['name'] for m in res.get('crew', []) if m.get('job') == 'Director'), "정보 없음")
+        # 배우(Cast) 상위 3명 가져오기
+        cast = ", ".join([c['name'] for c in res.get('cast', [])[:3]])
+        return f"감독: {director} / 출연: {cast}"
+    except: return "정보 없음"
+
 def search_books(query):
     headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
     try:
@@ -61,12 +66,13 @@ def show_details(item):
         if item['img_url']: st.image(item['img_url'], use_container_width=True)
     with col_txt:
         st.subheader(item['title'])
-        st.write(f"**정보:** {item['creator']} | **날짜:** {item['rel_date']}")
+        st.write(f"**정보:** {item['creator']}")
+        st.write(f"**날짜:** {item['rel_date']}")
         st.divider()
-        st.info(f"**📖 요약/줄거리**\n\n{item['summary']}")
+        st.info(f"**📖 요약/정보**\n\n{item['summary']}")
         st.warning(f"**✨ 하이라이트**\n\n{item['highlights']}")
-        st.write(f"**💬 나의 기록**\n\n{item['note']}")
-        if st.button("🗑️ 삭제하기", use_container_width=True):
+        st.write(f"**💬 감상**\n\n{item['note']}")
+        if st.button("🗑️ 삭제하기"):
             with sqlite3.connect(DB_NAME) as conn:
                 conn.execute("DELETE FROM archive WHERE id=?", (int(item['id']),))
             st.rerun()
@@ -78,26 +84,26 @@ tab1, tab2 = st.tabs(["🖋️ 아카이빙 입력", "📂 보관함 폴더"])
 
 with tab1:
     category = st.radio("📂 카테고리 선택", ["도서", "음악", "영화", "시리즈"], horizontal=True)
-    search_query = st.text_input(f"🔍 {category} 제목 검색", placeholder="제목 입력 후 데이터 가져오기를 눌러주세요")
+    search_query = st.text_input(f"🔍 {category} 제목 검색")
     
     if search_query:
         if category == "도서":
             res = search_books(search_query)
             if res:
-                opts = {f"📚 {b['title']} ({b['authors'][0] if b['authors'] else '미상'})": b for b in res}
+                opts = {f"📚 {b['title']} ({b['authors'][0]})": b for b in res if b['authors']}
                 sel = st.selectbox("검색 결과", list(opts.keys()))
                 if st.button("✨ 데이터 가져오기"):
                     b = opts[sel]
-                    st.session_state.api_data = {'title': b['title'], 'creator': b['authors'][0] if b['authors'] else "미상", 'date': b['datetime'][:10], 'img': b['thumbnail'], 'summary': b['contents']}
+                    st.session_state.api_data = {'title': b['title'], 'creator': f"저자: {', '.join(b['authors'])}", 'date': b['datetime'][:10], 'img': b['thumbnail'], 'summary': b['contents']}
                     st.rerun()
         elif category == "음악":
             res = search_apple_music(search_query)
             if res:
-                opts = {f"🎵 {m.get('trackName', m.get('collectionName'))} - {m['artistName']}": m for m in res}
+                opts = {f"🎵 {m.get('trackName', m.get('collectionName'))}": m for m in res}
                 sel = st.selectbox("검색 결과", list(opts.keys()))
                 if st.button("✨ 데이터 가져오기"):
                     m = opts[sel]
-                    st.session_state.api_data = {'title': m.get('trackName', m.get('collectionName')), 'creator': m['artistName'], 'date': m['releaseDate'][:10], 'img': m.get('artworkUrl100', '').replace('100x100bb', '600x600bb'), 'summary': ''}
+                    st.session_state.api_data = {'title': m.get('trackName', m.get('collectionName')), 'creator': f"아티스트: {m['artistName']}", 'date': m['releaseDate'][:10], 'img': m.get('artworkUrl100', '').replace('100x100bb', '600x600bb'), 'summary': ''}
                     st.rerun()
         else: # 영화/시리즈
             res = search_tmdb(search_query, category)
@@ -105,14 +111,17 @@ with tab1:
                 opts = {}
                 for r in res[:10]:
                     name = r.get('title') if category == "영화" else r.get('name')
-                    date_val = r.get('release_date') if category == "영화" else r.get('first_air_date')
-                    opts[f"🎬 {name} ({date_val[:4] if date_val else '미상'})"] = r
+                    date_v = r.get('release_date') if category == "영화" else r.get('first_air_date')
+                    opts[f"🎬 {name} ({date_v[:4] if date_v else '미상'})"] = r
                 sel = st.selectbox("검색 결과", list(opts.keys()))
                 if st.button("✨ 데이터 가져오기"):
                     selected = opts[sel]
+                    # 추가 API 호출로 감독/배우 정보 가져오기
+                    credits_info = get_tmdb_details(selected['id'], category)
                     st.session_state.api_data = {
                         'title': selected.get('title') if category == "영화" else selected.get('name'),
-                        'creator': "TMDB 연동", 'date': selected.get('release_date') if category == "영화" else selected.get('first_air_date'),
+                        'creator': credits_info,
+                        'date': selected.get('release_date') if category == "영화" else selected.get('first_air_date'),
                         'img': f"https://image.tmdb.org/t/p/w500{selected.get('poster_path')}" if selected.get('poster_path') else "",
                         'summary': selected.get('overview', '')
                     }
@@ -120,25 +129,16 @@ with tab1:
 
     st.divider()
     data = st.session_state.get('api_data', {})
-    
     col_l, col_r = st.columns([0.4, 0.6])
     
     with col_l:
-        # 이미지 주소창을 기본적으로 숨김
         img_url = data.get('img', '')
-        if img_url: 
-            st.image(img_url, width=300)
-        
-        # 주소가 없거나 수동 입력하고 싶을 때만 체크박스로 노출
-        if not img_url:
-            st.info("검색을 통해 이미지를 불러오거나 아래 체크박스를 클릭해 직접 입력하세요.")
-        
-        show_img_input = st.checkbox("이미지 주소 직접 입력/수정", value=False if img_url else True)
-        if show_img_input:
-            img_url = st.text_input("이미지 주소(URL)", value=img_url)
+        if img_url: st.image(img_url, width=300)
+        show_img_input = st.checkbox("이미지 주소 직접 입력", value=False if img_url else True)
+        if show_img_input: img_url = st.text_input("이미지 주소(URL)", value=img_url)
         
         title = st.text_input("제목", value=data.get('title', ''))
-        creator = st.text_input("창작자/정보", value=data.get('creator', ''))
+        creator = st.text_input("창작자/배우 정보", value=data.get('creator', ''))
         rel_date = st.text_input("날짜", value=data.get('date', str(date.today())))
 
     with col_r:
@@ -146,16 +146,15 @@ with tab1:
         highlights = st.text_area("✨ 하이라이트", height=100)
         note = st.text_area("💬 개인적 감상", height=100)
         
-        # 가이드 디자인 (90, 30, 60 규칙)
         st.markdown(f'<p class="act-name">{title if title else "Title"}</p>', unsafe_allow_html=True)
         st.markdown(f'<p class="date-text">{rel_date if rel_date else "2026-00-00"}</p>', unsafe_allow_html=True)
         st.markdown(f'<p class="num-text">12.5 km / 145 bpm</p>', unsafe_allow_html=True)
         
-        if st.button("✅ 보관함에 최종 저장", use_container_width=True):
+        if st.button("✅ 최종 저장", use_container_width=True):
             with sqlite3.connect(DB_NAME) as conn:
                 conn.execute("INSERT INTO archive (category, title, creator, rel_date, summary, highlights, note, img_url, save_date) VALUES (?,?,?,?,?,?,?,?,?)",
                              (category, title, creator, rel_date, summary, highlights, note, img_url, str(date.today())))
-            st.success("보관함에 저장되었습니다!")
+            st.success("저장되었습니다!")
             st.session_state.api_data = {}
             st.rerun()
 
@@ -165,9 +164,8 @@ with tab2:
     for i, tab in enumerate(sub_tabs):
         with tab:
             with sqlite3.connect(DB_NAME) as conn:
-                # ORDER BY id DESC를 통해 최신 기록이 위로 오도록 정렬
                 df = pd.read_sql_query(f"SELECT * FROM archive WHERE category='{categories[i]}' ORDER BY id DESC", conn)
-            if df.empty: st.info("아직 기록이 없습니다.")
+            if df.empty: st.info("기록이 없습니다.")
             else:
                 cols = st.columns(4)
                 for idx, row in df.iterrows():
