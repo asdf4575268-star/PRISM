@@ -82,7 +82,7 @@ def show_details(item):
         if item['brief']: st.success(f"**📝 요약:** {item['brief']}")
         st.info(f"**📖 줄거리:**\n\n{item['summary']}")
         st.warning(f"**✨ 인상 깊은 부분:**\n\n{item['highlights']}")
-        st.write(f"**💬 개인적 감상:**\n\n{item['note']}")
+        st.write(f"**💬 감상:**\n\n{item['note']}")
         if st.button("🗑️ 삭제하기", use_container_width=True):
             with sqlite3.connect(DB_NAME) as conn:
                 conn.execute("DELETE FROM archive WHERE id=?", (int(item['id']),))
@@ -154,7 +154,7 @@ with tab1:
         summary = st.text_area("📖 줄거리", value=data.get('summary', ''), height=150)
         brief = st.text_input("📝 요약")
         highlights = st.text_area("✨ 인상 깊은 부분", height=100)
-        note = st.text_area("💬 개인적 감상", height=100)
+        note = st.text_area("💬 감상", height=100)
 
         
         if st.button("✅ 저장", use_container_width=True):
@@ -182,6 +182,7 @@ with tab2:
                         st.markdown(f'<p class="save-date-tag">📅 기록일: {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
