@@ -17,25 +17,23 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-DB_NAME = 'archive_prism_total_v3.db'
+DB_NAME = 'archive_prism_total_v4.db' # 요약 컬럼 추가를 위해 DB 버전 업
 TMDB_API_KEY = "6e7c55b6259b7731655033f783f3fc5b"
 
 def init_db():
     with sqlite3.connect(DB_NAME) as conn:
+        # summary(줄거리) 외에 brief(새로 만든 요약) 컬럼 추가
         conn.execute('''CREATE TABLE IF NOT EXISTS archive 
                         (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
-                         rel_date TEXT, summary TEXT, highlights TEXT, note TEXT, img_url TEXT, save_date TEXT)''')
+                         rel_date TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, img_url TEXT, save_date TEXT)''')
 
-# --- [2. 상세 정보(출연진/감독) 가져오기 함수] ---
+# --- [2. API 연동 함수들] ---
 def get_tmdb_details(item_id, category):
-    # 영화는 credits, TV는 aggregate_credits 또는 credits 사용
     type_path = "movie" if category == "영화" else "tv"
     url = f"https://api.themoviedb.org/3/{type_path}/{item_id}/credits?api_key={TMDB_API_KEY}&language=ko-KR"
     try:
         res = requests.get(url).json()
-        # 감독(Director) 찾기
         director = next((m['name'] for m in res.get('crew', []) if m.get('job') == 'Director'), "정보 없음")
-        # 배우(Cast) 상위 3명 가져오기
         cast = ", ".join([c['name'] for c in res.get('cast', [])[:3]])
         return f"감독: {director} / 출연: {cast}"
     except: return "정보 없음"
@@ -66,12 +64,12 @@ def show_details(item):
         if item['img_url']: st.image(item['img_url'], use_container_width=True)
     with col_txt:
         st.subheader(item['title'])
-        st.write(f"**정보:** {item['creator']}")
-        st.write(f"**날짜:** {item['rel_date']}")
+        st.write(f"**정보:** {item['creator']} | **날짜:** {item['rel_date']}")
         st.divider()
-        st.info(f"**📖 요약/정보**\n\n{item['summary']}")
-        st.warning(f"**✨ 하이라이트**\n\n{item['highlights']}")
-        st.write(f"**💬 감상**\n\n{item['note']}")
+        if item['brief']: st.success(f"**📝 요약:** {item['brief']}")
+        st.info(f"**📖 줄거리:**\n\n{item['summary']}")
+        st.warning(f"**✨ 하이라이트:**\n\n{item['highlights']}")
+        st.write(f"**💬 감상:**\n\n{item['note']}")
         if st.button("🗑️ 삭제하기"):
             with sqlite3.connect(DB_NAME) as conn:
                 conn.execute("DELETE FROM archive WHERE id=?", (int(item['id']),))
@@ -87,6 +85,7 @@ with tab1:
     search_query = st.text_input(f"🔍 {category} 제목 검색")
     
     if search_query:
+        # (기본 연동 로직은 동일하되, 받아오는 데이터를 session_state에 저장)
         if category == "도서":
             res = search_books(search_query)
             if res:
@@ -116,7 +115,6 @@ with tab1:
                 sel = st.selectbox("검색 결과", list(opts.keys()))
                 if st.button("✨ 데이터 가져오기"):
                     selected = opts[sel]
-                    # 추가 API 호출로 감독/배우 정보 가져오기
                     credits_info = get_tmdb_details(selected['id'], category)
                     st.session_state.api_data = {
                         'title': selected.get('title') if category == "영화" else selected.get('name'),
@@ -142,8 +140,10 @@ with tab1:
         rel_date = st.text_input("날짜", value=data.get('date', str(date.today())))
 
     with col_r:
-        summary = st.text_area("📖 요약/정보", value=data.get('summary', ''), height=100)
-        highlights = st.text_area("✨ 하이라이트", height=100)
+        # 요청사항 반영: 요약 입력창 새로 만들고, 기존 요약은 줄거리로 변경
+        brief = st.text_input("📝 한 줄 요약 (직접 입력)", placeholder="이 작품을 한 마디로 정의한다면?")
+        summary = st.text_area("📖 줄거리 (API 연동)", value=data.get('summary', ''), height=150)
+        highlights = st.text_area("✨ 하이라이트 (명대사/구절)", height=100)
         note = st.text_area("💬 개인적 감상", height=100)
         
         st.markdown(f'<p class="act-name">{title if title else "Title"}</p>', unsafe_allow_html=True)
@@ -152,9 +152,9 @@ with tab1:
         
         if st.button("✅ 최종 저장", use_container_width=True):
             with sqlite3.connect(DB_NAME) as conn:
-                conn.execute("INSERT INTO archive (category, title, creator, rel_date, summary, highlights, note, img_url, save_date) VALUES (?,?,?,?,?,?,?,?,?)",
-                             (category, title, creator, rel_date, summary, highlights, note, img_url, str(date.today())))
-            st.success("저장되었습니다!")
+                conn.execute("INSERT INTO archive (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                             (category, title, creator, rel_date, summary, brief, highlights, note, img_url, str(date.today())))
+            st.success("보관함에 저장되었습니다!")
             st.session_state.api_data = {}
             st.rerun()
 
