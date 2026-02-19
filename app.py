@@ -190,8 +190,11 @@ with tab1:
     data = st.session_state.get('api_data', {})
     cl, cr = st.columns([0.4, 0.6])
     with cl:
-        img_url_val = st.text_input("이미지 URL", value=data.get('img', ''))
-        if img_url_val: st.image(img_url_val, width=300)
+        img_url_val = data.get('img', '') 
+        if img_url_val: 
+            st.image(img_url_val, use_container_width=True)
+        else:
+            st.info("검색을 통해 이미지를 불러와주세요.")
         title = st.text_input("제목", value=data.get('title', ''))
         creator = st.text_input("창작자 정보", value=data.get('creator', ''))
         col1, col2 = st.columns(2)
@@ -333,6 +336,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
