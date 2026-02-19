@@ -31,8 +31,8 @@ def search_books(query):
     return res.json().get("documents", []) if res.status_code == 200 else []
 
 def search_apple_music(query):
-    # iTunes Search API (애플뮤직 데이터 소스)
-    url = f"https://itunes.apple.com/search?term={query}&entity=song&limit=10&country=kr"
+    # 곡(song)과 앨범(album)을 모두 검색하도록 설정
+    url = f"https://itunes.apple.com/search?term={query}&limit=15&country=kr&entity=musicTrack,album"
     try:
         res = requests.get(url)
         return res.json().get("results", [])
@@ -58,28 +58,29 @@ with tab1:
                 if st.button("✨ 데이터 연동"):
                     b = options[sel]
                     st.session_state.api_data = {
-                        'title': b['title'], 
-                        'creator': b['authors'][0], 
-                        'date': b['datetime'][:10], 
-                        'img': b['thumbnail'], 
-                        'note': b['contents']
+                        'title': b['title'], 'creator': b['authors'][0], 
+                        'date': b['datetime'][:10], 'img': b['thumbnail'], 'note': b['contents']
                     }
                     st.rerun()
-        else: # 애플뮤직 연동
+        else: # 음악/앨범 연동
             results = search_apple_music(search_query)
             if results:
-                options = {f"🍎 {m['trackName']} - {m['artistName']} ({m.get('collectionName', 'Single')})": m for m in results}
+                # 곡명 혹은 앨범명으로 표시 분기
+                options = {}
+                for m in results:
+                    name = m.get('trackName') if m.get('wrapperType') == 'track' else m.get('collectionName')
+                    artist = m.get('artistName')
+                    type_label = "🎵 곡" if m.get('wrapperType') == 'track' else "💿 앨범"
+                    options[f"{type_label} | {name} - {artist}"] = m
+                
                 sel = st.selectbox("검색 결과 선택", list(options.keys()))
                 if st.button("✨ 애플뮤직 데이터 연동"):
                     m = options[sel]
-                    # 고화질 이미지를 위해 URL 수정 (100x100 -> 600x600)
+                    name = m.get('trackName') if m.get('wrapperType') == 'track' else m.get('collectionName')
                     artwork_url = m.get('artworkUrl100', '').replace('100x100bb', '600x600bb')
                     st.session_state.api_data = {
-                        'title': m['trackName'], 
-                        'creator': m['artistName'], 
-                        'date': m['releaseDate'][:10], 
-                        'img': artwork_url, 
-                        'note': ''
+                        'title': name, 'creator': m['artistName'], 
+                        'date': m['releaseDate'][:10], 'img': artwork_url, 'note': ''
                     }
                     st.rerun()
 
@@ -89,9 +90,10 @@ with tab1:
     col_l, col_r = st.columns([0.4, 0.6])
     
     with col_l:
-        img_url = st.text_input("이미지 주소", value=data.get('img', ''))
+        # 이미지 주소 입력창 삭제 및 이미지만 표시
+        img_url = data.get('img', '')
         if img_url:
-            st.image(img_url, use_container_width=False, caption="애플뮤직 앨범 아트")
+            st.image(img_url, use_container_width=False, caption="연동된 이미지")
         
         title_label = "곡명/앨범명" if category == "음악" else "활동명 (제목)"
         creator_label = "아티스트" if category == "음악" else "창작자 (작가)"
@@ -108,7 +110,7 @@ with tab1:
         highlights = st.text_area(high_label, height=150)
         note = st.text_area("💬 감상", value=data.get('note', ''), height=150)
         
-        # 하단 폰트 시각화 (가이드 준수: 90/30/60)
+        # 하단 시각화 (90/30/60)
         st.markdown(f'<p class="act-name">{title if title else "Title"}</p>', unsafe_allow_html=True)
         st.markdown(f'<p class="date-text">{rel_date if rel_date else "2026-00-00"}</p>', unsafe_allow_html=True)
         st.markdown(f'<p class="num-text">12.5 km / 145 bpm</p>', unsafe_allow_html=True)
@@ -119,7 +121,7 @@ with tab1:
                             VALUES (?,?,?,?,?,?,?,?,?)""",
                          (category, title, creator, rel_date, summary, highlights, note, img_url, str(date.today())))
             conn.commit()
-            st.success(f"{category} 기록이 성공적으로 저장되었습니다!")
+            st.success("보관함에 저장되었습니다!")
             st.rerun()
 
 with tab2:
@@ -135,14 +137,13 @@ with tab2:
         st.divider()
         det_l, det_r = st.columns([0.3, 0.7])
         with det_l:
-            st.caption(f"카테고리: {item.get('category')}")
             if item['img_url']: st.image(item['img_url'], use_container_width=False)
-            st.write(f"**정보:** {item['creator']}")
+            st.write(f"**{ '아티스트' if item.get('category') == '음악' else '작가' }:** {item['creator']}")
             st.write(f"**날짜:** {item['rel_date']}")
         
         with det_r:
             st.info(f"**📖 요약**\n\n{item['summary']}")
-            st.warning(f"**✨ 인상 깊은 구절/트랙**\n\n{item['highlights']}")
+            st.warning(f"**✨ 인상 깊은 부분**\n\n{item['highlights']}")
             st.write(f"**💬 감상**\n\n{item['note']}")
             
             if st.button("🗑️ 삭제"):
@@ -151,4 +152,4 @@ with tab2:
                 conn.commit()
                 st.rerun()
     else:
-        st.info("아직 저장된 기록이 없습니다.")
+        st.info("기록이 없습니다.")
