@@ -197,7 +197,24 @@ with tab1:
                         'summary': f"{m['url']}\n\n" # 나중에 팝업에서 버튼으로 변신!
                     }
                     st.rerun()
-        # ... (나머지 카테고리도 이와 같은 방식으로 summary에 URL 추가 가능)
+          elif category == "STAGE":
+            res = search_kopis(search_query)
+            if res:
+                opts = {f"🎭 {s['title']} ({s['venue']})": s for s in res}
+                sel = st.selectbox("검색 결과", list(opts.keys()))
+                if st.button("✨ 가져오기"):
+                    s = opts[sel]
+                    st.session_state.api_data = {'title': s['title'], 'creator': f"공연장: {s['venue']}", 'date': s['date'], 'img': s['img'], 'summary': ''}
+                    st.rerun()
+            else:
+            res = search_tmdb(search_query, category)
+            if res:
+                opts = {f"🎬 {r.get('title' if category=='MOVIES' else 'name')}": r for r in res}
+                sel = st.selectbox("검색 결과", list(opts.keys()))
+                if st.button("✨ 가져오기"):
+                    s = opts[sel]
+                    st.session_state.api_data = {'title': s.get('title' if category=='MOVIES' else 'name'), 'creator': get_tmdb_details(s['id'], category), 'date': s.get('release_date' if category=='MOVIES' else 'first_air_date'), 'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", 'summary': s.get('overview', '')}
+                    st.rerun()
 
     st.divider()
     data = st.session_state.get('api_data', {})
@@ -348,6 +365,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
