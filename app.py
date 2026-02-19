@@ -236,52 +236,62 @@ with sub_tabs[0]:
 
         # --- 달력 렌더링 ---
         days = ["월", "화", "수", "목", "금", "토", "일"]
-        header_cols = st.columns(7)
-        for i, d in enumerate(days):
-            header_cols[i].markdown(f"<p style='text-align:center; font-weight:bold; color:#888;'>{d}</p>", unsafe_allow_html=True)
+header_cols = st.columns(7)
+for i, d in enumerate(days):
+    # 헤더 색상 설정: 토(파랑), 일(빨강)
+    h_color = "#2E5BFF" if i == 5 else "#FF4B4B" if i == 6 else "#888"
+    header_cols[i].markdown(f"<p style='text-align:center; font-weight:bold; color:{h_color};'>{d}</p>", unsafe_allow_html=True)
 
-        cal = calendar.monthcalendar(st.session_state.cal_year, st.session_state.cal_month)
-        for week in cal:
-            cols = st.columns(7)
-            for i, day in enumerate(week):
-                if day == 0:
-                    cols[i].write("")
-                    continue
+cal = calendar.monthcalendar(st.session_state.cal_year, st.session_state.cal_month)
+for week in cal:
+    cols = st.columns(7)
+    for i, day in enumerate(week):
+        if day == 0:
+            cols[i].write("")
+            continue
+        
+        with cols[i]:
+            # 오늘 및 주말 여부 확인
+            is_today = (st.session_state.cal_year == datetime.now().year and 
+                        st.session_state.cal_month == datetime.now().month and 
+                        day == datetime.now().day)
+            
+            # 날짜 색상 결정: 오늘(강조), 일(빨강), 토(파랑), 평일(검정/회색)
+            day_items = year_df[year_df['save_date'].dt.day == day]
+            
+            if is_today:
+                date_color = "#FF4B4B" # 오늘 강조
+                font_weight = "bold"
+            elif i == 5: # 토요일
+                date_color = "#2E5BFF"
+                font_weight = "normal"
+            elif i == 6: # 일요일
+                date_color = "#FF4B4B"
+                font_weight = "normal"
+            else:
+                date_color = "#333" if not day_items.empty else "#ccc"
+                font_weight = "normal"
+
+            st.markdown(f"<p style='margin:0; font-size:12px; color:{date_color}; font-weight:{font_weight};'>{day}</p>", unsafe_allow_html=True)
+            
+            if not day_items.empty:
+                # 사진 1개 고정
+                main_row = day_items.iloc[0]
+                if main_row['img_url']:
+                    st.markdown(f"""
+                        <div style="width:100%; aspect-ratio:1/1; overflow:hidden; border-radius:4px; margin-bottom:4px;">
+                            <img src="{main_row['img_url']}" style="width:100%; height:100%; object-fit:cover;">
+                        </div>
+                    """, unsafe_allow_html=True)
                 
-                with cols[i]:
-                    # 오늘 날짜 확인
-                    is_today = (st.session_state.cal_year == datetime.now().year and 
-                                st.session_state.cal_month == datetime.now().month and 
-                                day == datetime.now().day)
-                    
-                    # 해당 날짜 데이터 검색
-                    day_items = year_df[year_df['save_date'].dt.day == day]
-                    
-                    # 날짜 색상 설정: 오늘(빨강), 기록있음(검정), 기록없음(연한회색)
-                    if is_today: date_color = "#FF4B4B"
-                    elif not day_items.empty: date_color = "#333"
-                    else: date_color = "#ccc"
-
-                    st.markdown(f"<p style='margin:0; font-size:12px; color:{date_color}; font-weight:{'bold' if not day_items.empty or is_today else 'normal'};'>{day}</p>", unsafe_allow_html=True)
-                    
-                    if not day_items.empty:
-                        # 사진 1개 고정 (대표 이미지)
-                        main_row = day_items.iloc[0]
-                        if main_row['img_url']:
-                            st.markdown(f"""
-                                <div style="width:100%; aspect-ratio:1/1; overflow:hidden; border-radius:4px; margin-bottom:4px;">
-                                    <img src="{main_row['img_url']}" style="width:100%; height:100%; object-fit:cover;">
-                                </div>
-                            """, unsafe_allow_html=True)
-                        
-                        # 목록형 버튼
-                        for _, row in day_items.iterrows():
-                            display_title = row['title'][:5] + ".." if len(row['title']) > 6 else row['title']
-                            if st.button(f"• {display_title}", key=f"cal_{row['id']}", use_container_width=True):
-                                show_details(row)
-                    else:
-                        # [수정] 빈 부분은 아무것도 렌더링하지 않음
-                        st.write("")
+                # 목록형 버튼
+                for _, row in day_items.iterrows():
+                    display_title = row['title'][:5] + ".." if len(row['title']) > 6 else row['title']
+                    if st.button(f"• {display_title}", key=f"cal_{row['id']}", use_container_width=True):
+                        show_details(row)
+            else:
+                # [수정] 빈 공간이지만 투명한 1:1 박스를 넣어 칸 크기 고정
+                st.markdown("<div style='width:100%; aspect-ratio:1/1;'></div>", unsafe_allow_html=True)
                     
     # 2. 기존 카테고리별 탭 (동일하게 유지)
     categories = ["BOOKS", "MUSIC", "MOVIES", "SERIES"]
@@ -299,6 +309,7 @@ with sub_tabs[0]:
                         st.markdown(f'<p class="save-date-tag">📅 기록일: {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"cat_btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
