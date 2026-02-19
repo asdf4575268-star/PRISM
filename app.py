@@ -51,12 +51,29 @@ init_db()
 
 # --- [2. API 함수 정의 구역] ---
 
-def search_books(query):
-    headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
+def search_naver_books(query):
+    # 제공해주신 API 키를 적용했습니다.
+    NAVER_CLIENT_ID = "S7NU9zo0E14iYGTS1L3e"
+    NAVER_CLIENT_SECRET = "eW1hRp9Zxj"
+    
+    url = "https://openapi.naver.com/v1/search/book.json"
+    headers = {
+        "X-Naver-Client-Id": NAVER_CLIENT_ID,
+        "X-Naver-Client-Secret": NAVER_CLIENT_SECRET
+    }
+    # display: 50으로 설정하여 검색 결과를 넉넉히 가져옵니다.
+    params = {"query": query, "display": 50}
+    
     try:
-        res = requests.get("https://dapi.kakao.com/v3/search/book", headers=headers, params={"query": query})
-        return res.json().get("documents", []) if res.status_code == 200 else []
-    except: return []
+        res = requests.get(url, headers=headers, params=params)
+        if res.status_code == 200:
+            return res.json().get("items", [])
+        else:
+            st.error(f"네이버 API 오류: {res.status_code}")
+            return []
+    except Exception as e:
+        st.error(f"연결 오류: {e}")
+        return []
 
 def search_apple_music(query):
     url = f"https://itunes.apple.com/search?term={query}&limit=20&country=kr&entity=musicTrack,album"
@@ -206,14 +223,29 @@ with tab1:
     
     if search_query:
         if category == "BOOKS":
-            res = search_books(search_query)
+            res = search_naver_books(search_query)
             if res:
-                opts = {f"📚 {b['title']}": b for b in res}
-                sel = st.selectbox("결과 선택", list(opts.keys()))
+                # 제목과 저자명에서 <b> 태그 제거 후 선택지 생성
+                def clean_html(raw_html):
+                    return re.sub('<[^<]+?>', '', raw_html)
+
+                opts = {f"📚 [{b['publisher']}] {clean_html(b['title'])} - {clean_html(b['author'])}": b for b in res}
+                sel = st.selectbox("검색 결과 (원하는 판본을 선택하세요)", list(opts.keys()))
+                
                 if st.button("✨ 가져오기"):
                     b = opts[sel]
-                    st.session_state.api_data = {'title': b['title'], 'creator': f"{', '.join(b['authors'])}", 'date': b['datetime'][:10], 'img': b.get('thumbnail', '').replace("R120x174", "R400x0"), 'summary': f"{b['url']}\n\n{b.get('contents', '')}"}
+                    # 데이터 세션 저장
+                    st.session_state.api_data = {
+                        'title': clean_html(b['title']), 
+                        'creator': f"{clean_html(b['author'])} (출판사: {b['publisher']})", 
+                        # 네이버 날짜 형식(YYYYMMDD)을 YYYY-MM-DD로 변환
+                        'date': f"{b['pubdate'][:4]}-{b['pubdate'][4:6]}-{b['pubdate'][6:]}" if len(b['pubdate'])==8 else b['pubdate'], 
+                        'img': b['image'], 
+                        'summary': f"{b['link']}\n\n{b.get('description', '')}"
+                    }
                     st.rerun()
+            elif search_query:
+                st.warning("검색 결과가 없습니다. 직접 입력해 주세요.")
 
         elif category == "MUSIC":
             res = search_apple_music(search_query)
@@ -398,6 +430,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
