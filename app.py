@@ -278,67 +278,51 @@ with tab1:
 with tab2:
     sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
     
-    # CSS: 6열 배치를 위한 스타일 및 제목 줄바꿈 설정
-    st.markdown("""
-        <style>
-        /* 이미지 박스 정사각형 유지 */
-        .grid-img-box { 
-            width: 100%; 
-            aspect-ratio: 1/1; 
-            overflow: hidden; 
-            border-radius: 8px; 
-            background: #222; 
-            border: 1px solid #333;
-        }
-        .grid-img-box img { width: 100%; height: 100%; object-fit: cover; }
+    with sub_tabs[0]:
+        with sqlite3.connect(DB_NAME) as conn:
+            all_df = pd.read_sql_query("SELECT * FROM archive", conn)
         
-        /* 버튼 텍스트 줄바꿈 허용 (제목 잘림 방지) */
-        div.stButton > button {
-            white-space: normal !important;
-            word-break: keep-all !important;
-            height: auto !important;
-            min-height: 40px;
-            font-size: 11px !important;
-            padding: 2px 5px !important;
-            line-height: 1.2 !important;
-        }
-
-        /* 달력 간격 보정 */
-        .cal-day-container { display: flex; flex-direction: column; align-items: center; min-height: 60px; }
-        .cal-img-wrapper { width: 100%; aspect-ratio: 1/1; border-radius: 5px; overflow: hidden; margin: 4px 0; }
-        .cal-img-wrapper img { width: 100%; height: 100%; object-fit: cover; }
-        </style>
-    """, unsafe_allow_html=True)
-
-    with sqlite3.connect(DB_NAME) as conn:
-        all_df = pd.read_sql_query("SELECT * FROM archive", conn)
-
-    if all_df.empty:
-        st.info("기록이 없습니다.")
-    else:
-        all_df['view_date_filled'] = all_df['view_date'].fillna(all_df['save_date'])
-        all_df['v_dt'] = pd.to_datetime(all_df['view_date_filled'])
-        all_df['year_int'] = all_df['v_dt'].dt.year
-        
-        # --- [탭 0: YEARLY (달력)] ---
-        with sub_tabs[0]:
-            # 연도 및 월 이동 네비게이션 (기존 로직 유지)
-            c_yr, c_nav = st.columns([1.5, 3])
+        if not all_df.empty:
+            # 감상일이 없으면 기록일로 대체하여 v_dt(달력 기준일) 생성
+            if 'view_date' not in all_df.columns:
+                all_df['view_date'] = all_df['save_date']
+            all_df['view_date_filled'] = all_df['view_date'].fillna(all_df['save_date'])
+            all_df['v_dt'] = pd.to_datetime(all_df['view_date_filled'])
+            all_df['year_int'] = all_df['v_dt'].dt.year
+            
+            # 연도 선택 + 통계
             year_counts = all_df['year_int'].value_counts().to_dict()
             unique_years = sorted(list(set([datetime.now().year] + list(year_counts.keys()))), reverse=True)
             year_labels = [f"{y} ({year_counts.get(y, 0)})" for y in unique_years]
             label_to_year = {label: y for label, y in zip(year_labels, unique_years)}
+            
             default_idx = unique_years.index(st.session_state.cal_year) if st.session_state.cal_year in unique_years else 0
             
+            c_yr, c_nav = st.columns([1.5, 3])
             with c_yr:
                 selected_label = st.selectbox("연도 선택", year_labels, index=default_idx)
-                if label_to_year[selected_label] != st.session_state.cal_year:
-                    st.session_state.cal_year = label_to_year[selected_label]; st.rerun()
+                selected_year = label_to_year[selected_label]
+                if selected_year != st.session_state.cal_year:
+                    st.session_state.cal_year = selected_year
+                    st.rerun()
 
-            _, n1, n2, n3, _ = st.columns([1, 1, 2, 1, 1])
-            with n1: st.button("◀", on_click=shift_month, args=(-1,), key="cal_prev")
-            with n2: st.markdown(f"<h3 style='text-align:center;' class='num-text'>{st.session_state.cal_year}.{st.session_state.cal_month}</h3>", unsafe_allow_html=True)
-            with n3: st.button("▶", on_click=shift_month, args=(1,), key="cal_next")
+            # 이전달/다음달 버튼을 월 텍스트 양옆으로 촘촘히 중앙 배치
+            _, n1, n2, n3, _ = st.columns([1.5, 1, 2, 1, 1.5])
+            with n1:
+                st.markdown("<div style='height:15px;'></div>", unsafe_allow_html=True)
+                if st.button("◀ 이전달", use_container_width=True): shift_month(-1); st.rerun()
+            with n2:
+                st.markdown(f"<div style='text-align:center;' class='num-text'>{st.session_state.cal_year} / {st.session_state.cal_month}</div>", unsafe_allow_html=True)
+            with n3:
+                st.markdown("<div style='height:15px;'></div>", unsafe_allow_html=True)
+                if st.button("다음달 ▶", use_container_width=True): shift_month(1); st.rerun()
+
+            # 요일 헤더
+            days = ["월", "화", "수", "목", "금", "토", "일"]
+            h_cols = st.columns(7)
+            for i, d in enumerate(days):
+                color = "#2E5BFF" if i == 5 else "#FF4B4B" if i == 6 else "#888"
+                h_cols[i].markdown(f"<p style='text-align:center; font-weight:bold; color:{color};'>{d}</p>", unsafe_allow_html=True)
 
             cal = calendar.monthcalendar(st.session_state.cal_year, st.session_state.cal_month)
             month_df = all_df[(all_df['v_dt'].dt.year == st.session_state.cal_year) & (all_df['v_dt'].dt.month == st.session_state.cal_month)]
@@ -348,36 +332,71 @@ with tab2:
                 for i, day in enumerate(week):
                     if day == 0: continue
                     with cols[i]:
+                        st.markdown(f"<p class='num-text' style='font-size:30px; margin:0;'>{day}</p>", unsafe_allow_html=True)
                         day_items = month_df[month_df['v_dt'].dt.day == day]
-                        # 날짜 숫자 표시
-                        st.markdown(f"<p class='num-text' style='font-size:20px; text-align:center; margin:0;'>{day}</p>", unsafe_allow_html=True)
                         if not day_items.empty:
-                            if day_items.iloc[0]['img_url']:
-                                st.markdown(f'<div class="cal-img-wrapper"><img src="{day_items.iloc[0]["img_url"]}"></div>', unsafe_allow_html=True)
-                            if st.button("•", key=f"cal_btn_{day}", use_container_width=True):
-                                show_details(day_items.iloc[0])
+                            # 이미지 박스
+                            first_item = day_items.iloc[0]
+                            if first_item['img_url']:
+                                st.markdown(f'<div class="cal-img-box"><img src="{first_item["img_url"]}"></div>', unsafe_allow_html=True)
+                            
+                            for _, r in day_items.iterrows():
+                                if st.button(f"• {r['title'][:5]}", key=f"cal_{r['id']}", use_container_width=True):
+                                    show_details(r)
+                        else:
+                            st.markdown("<div style='height:80px;'></div>", unsafe_allow_html=True)
+        else:
+            st.info("기록이 없습니다.")
 
-        # --- [탭 1~5: 카테고리별 6열 그리드] ---
-        cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
-        for idx, c_name in enumerate(cats):
-            with sub_tabs[idx+1]:
-                cat_df = all_df[all_df['category'] == c_name].sort_values(by='v_dt', ascending=False)
-                if not cat_df.empty:
-                    # 데이터를 6개씩 묶어서 처리
-                    for i in range(0, len(cat_df), 6):
-                        row_items = cat_df.iloc[i:i+6]
-                        cols = st.columns(6)
-                        for j, (_, row) in enumerate(row_items.iterrows()):
-                            with cols[j]:
-                                # 1. 이미지 (정사각형)
-                                img = row['img_url'] if row['img_url'] else "https://via.placeholder.com/150"
-                                st.markdown(f'<div class="grid-img-box"><img src="{img}"></div>', unsafe_allow_html=True)
-                                
-                                # 2. 제목 버튼 (CSS로 줄바꿈 허용)
-                                if st.button(row['title'], key=f"grid_{row['id']}", use_container_width=True):
-                                    show_details(row)
-                else:
-                    st.info(f"{c_name} 기록이 없습니다.")
-
+# 카테고리별 탭
+    cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
+    for idx, c_name in enumerate(cats):
+        with sub_tabs[idx+1]:
+            with sqlite3.connect(DB_NAME) as conn:
+                # view_date가 있으면 사용하고, 없으면 save_date를 사용하여 정렬 (최신순)
+                query = f"""
+                    SELECT *, COALESCE(NULLIF(view_date, ''), save_date) as sort_date 
+                    FROM archive 
+                    WHERE category='{c_name}' 
+                    ORDER BY sort_date DESC
+                """
+                df = pd.read_sql_query(query, conn)
+            
+            if not df.empty:
+                # 한 줄에 4개씩 배치
+                cols = st.columns(4) 
+                for i, row in df.iterrows():
+                    with cols[i % 4]:
+                        if row['img_url']:
+                            # --- [이미지 정사각형 정렬 섹션] ---
+                            st.markdown(f"""
+                                <div style="
+                                    width: 100%;
+                                    aspect-ratio: 1 / 1;
+                                    overflow: hidden;
+                                    border-radius: 10px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    background-color: #f0f0f0;
+                                    margin-bottom: 5px;
+                                ">
+                                    <img src="{row['img_url']}" style="
+                                        width: 100%;
+                                        height: 100%;
+                                        object-fit: cover;
+                                    ">
+                                </div>
+                            """, unsafe_allow_html=True)
+                        
+                        # 날짜 표시 (감상일 우선 표시)
+                        v_date_display = row.get('view_date') if row.get('view_date') else row.get('save_date', '')
+                        st.markdown(f'<p class="date-text" style="font-size:15px; text-align:center;">🍿 {v_date_display}</p>', unsafe_allow_html=True)
+                        
+                        # 제목 버튼 (Key 중복 방지를 위해 idx 추가)
+                        if st.button(row['title'], key=f"list_{idx}_{row['id']}", use_container_width=True):
+                            show_details(row)
+            else:
+                st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
 
 
