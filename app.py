@@ -290,15 +290,30 @@ with tab2:
                             st.markdown(f"<p class='num-text' style='font-size:25px; color:{day_color};'>{day}</p>", unsafe_allow_html=True)
                             
                             if is_active:
-                                # ⭐ 흰색 빈 칸 버그 해결: 이미지가 확실히 있을 때만 박스 생성
-                                first_img = d_items.iloc[0]['img_url']
-                                if first_img and str(first_img).strip() not in ["", "None"]:
-                                    st.markdown(f"<div class='cal-img-box'><img src='{first_img}'></div>", unsafe_allow_html=True)
-                                
-                                for _, r in d_items.iterrows():
-                                    if st.button(f"{r['title'][:5]}..", key=f"cal_{r['id']}", use_container_width=True): 
-                                        show_details(r)
-                            st.markdown(f"</div>", unsafe_allow_html=True)
+    # 1. 데이터 확인: 첫 번째 이미지 URL 가져오기
+    first_img = d_items.iloc[0]['img_url']
+    
+    # 2. 이미지 유효성 검사 강화 (None, 공백, NaN 등 체크)
+    import pandas as pd
+    is_img_valid = pd.notnull(first_img) and str(first_img).strip() not in ["", "None", "nan"]
+
+    if is_img_valid:
+        # 3. HTML <img> 태그에 onerror 처리를 추가하여 로드 실패 시 박스 자체를 숨김 처리
+        img_html = f"""
+        <div class='cal-img-box'>
+            <img src='{first_img}' 
+                 style='width:100%; border-radius:5px;' 
+                 onerror="this.parentElement.style.display='none';">
+        </div>
+        """
+        st.markdown(img_html, unsafe_allow_html=True)
+    
+    # 활동 제목 버튼들
+    for _, r in d_items.iterrows():
+        if st.button(f"{r['title'][:5]}..", key=f"cal_{r['id']}", use_container_width=True): 
+            show_details(r)
+
+st.markdown(f"</div>", unsafe_allow_html=True)
 
         # --- [2. 카테고리 탭: 전체 기록 보기] ---
         cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
@@ -321,6 +336,7 @@ with tab2:
                     st.info(f"{cn} 카테고리에 아직 기록이 없습니다.")
     else:
         st.info("기록이 없습니다. 첫 기록을 남겨보세요!")
+
 
 
 
