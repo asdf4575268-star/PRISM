@@ -205,30 +205,17 @@ with tab1:
     search_query = st.text_input(f"🔍 {category} 검색")
     
     if search_query:
+        if search_query:
         if category == "BOOKS":
-            res = search_naver_books(search_query)
+            res = search_books(search_query)
             if res:
-                # 제목과 저자명에서 <b> 태그 제거 후 선택지 생성
-                def clean_html(raw_html):
-                    return re.sub('<[^<]+?>', '', raw_html)
-
-                opts = {f"📚 [{b['publisher']}] {clean_html(b['title'])} - {clean_html(b['author'])}": b for b in res}
-                sel = st.selectbox("검색 결과 (원하는 판본을 선택하세요)", list(opts.keys()))
-                
+                opts = {f"📚 {b['title']}": b for b in res}
+                sel = st.selectbox("결과 선택", list(opts.keys()))
                 if st.button("✨ 가져오기"):
                     b = opts[sel]
-                    # 데이터 세션 저장
-                    st.session_state.api_data = {
-                        'title': clean_html(b['title']), 
-                        'creator': f"{clean_html(b['author'])} (출판사: {b['publisher']})", 
-                        # 네이버 날짜 형식(YYYYMMDD)을 YYYY-MM-DD로 변환
-                        'date': f"{b['pubdate'][:4]}-{b['pubdate'][4:6]}-{b['pubdate'][6:]}" if len(b['pubdate'])==8 else b['pubdate'], 
-                        'img': b['image'], 
-                        'summary': f"{b['link']}\n\n{b.get('description', '')}"
-                    }
+                    st.session_state.api_data = {'title': b['title'], 'creator': f"{', '.join(b['authors'])}", 'date': b['datetime'][:10], 'img': b.get('thumbnail', '').replace("R120x174", "R400x0"), 'summary': f"{b['url']}\n\n{b.get('contents', '')}"}
                     st.rerun()
-            elif search_query:
-                st.warning("검색 결과가 없습니다. 직접 입력해 주세요.")
+
 
         elif category == "MUSIC":
             res = search_apple_music(search_query)
@@ -413,6 +400,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
