@@ -203,11 +203,10 @@ with sub_tabs[0]:
         all_df['save_date'] = pd.to_datetime(all_df['save_date'])
         all_df['year_str'] = all_df['save_date'].dt.year.astype(str)
 
-        # [복구] 연도 선택창 (작품 수 포함)
+        # 연도 선택창 (작품 수 포함)
         year_counts = all_df['year_str'].value_counts().sort_index(ascending=False)
         year_options = [f"{y} ({c})" for y, c in year_counts.items()]
         
-        # 현재 세션 연도에 맞는 옵션 인덱스 찾기
         curr_yr_str = str(st.session_state.cal_year)
         try:
             default_ix = [i for i, s in enumerate(year_options) if s.startswith(curr_yr_str)][0]
@@ -221,14 +220,13 @@ with sub_tabs[0]:
             new_year = int(selected_year_opt.split(' ')[0])
             if new_year != st.session_state.cal_year:
                 st.session_state.cal_year = new_year
-                # 연도 바뀔 때 월 유지 혹은 초기화 결정 가능
         
         # 월 이동 내비게이션
         nav_col1, nav_col2, nav_col3 = st.columns([1, 2, 1])
         with nav_col1:
             if st.button("◀ 저번달", use_container_width=True): shift_month(-1)
         with nav_col2:
-            st.markdown(f"<h4 style='text-align:center;'>{st.session_state.cal_year}년 {st.session_state.cal_month}월</h4>", unsafe_allow_html=True)
+            st.markdown(f"<h4 style='text-align:center; margin:0;'>{st.session_state.cal_year}년 {st.session_state.cal_month}월</h4>", unsafe_allow_html=True)
         with nav_col3:
             if st.button("다음달 ▶", use_container_width=True): shift_month(1)
 
@@ -236,7 +234,7 @@ with sub_tabs[0]:
         year_df = all_df[(all_df['save_date'].dt.year == st.session_state.cal_year) & 
                          (all_df['save_date'].dt.month == st.session_state.cal_month)]
 
-        # --- 달력 렌더링 (기존 목록형 로직 유지) ---
+        # --- 달력 렌더링 ---
         days = ["월", "화", "수", "목", "금", "토", "일"]
         header_cols = st.columns(7)
         for i, d in enumerate(days):
@@ -251,19 +249,27 @@ with sub_tabs[0]:
                     continue
                 
                 with cols[i]:
+                    # 오늘 날짜 확인
                     is_today = (st.session_state.cal_year == datetime.now().year and 
                                 st.session_state.cal_month == datetime.now().month and 
                                 day == datetime.now().day)
                     
-                    st.markdown(f"<p style='margin:0; font-size:12px; color:{'#FF4B4B' if is_today else '#333'}; font-weight:{'bold' if is_today else 'normal'};'>{day}</p>", unsafe_allow_html=True)
-                    
+                    # 해당 날짜 데이터 검색
                     day_items = year_df[year_df['save_date'].dt.day == day]
+                    
+                    # 날짜 색상 설정: 오늘(빨강), 기록있음(검정), 기록없음(연한회색)
+                    if is_today: date_color = "#FF4B4B"
+                    elif not day_items.empty: date_color = "#333"
+                    else: date_color = "#ccc"
+
+                    st.markdown(f"<p style='margin:0; font-size:12px; color:{date_color}; font-weight:{'bold' if not day_items.empty or is_today else 'normal'};'>{day}</p>", unsafe_allow_html=True)
+                    
                     if not day_items.empty:
-                        # 사진 1개 고정
+                        # 사진 1개 고정 (대표 이미지)
                         main_row = day_items.iloc[0]
                         if main_row['img_url']:
                             st.markdown(f"""
-                                <div style="width:100%; aspect-ratio:1/1; overflow:hidden; border-radius:4px; border:1px solid #eee; margin-bottom:4px;">
+                                <div style="width:100%; aspect-ratio:1/1; overflow:hidden; border-radius:4px; margin-bottom:4px;">
                                     <img src="{main_row['img_url']}" style="width:100%; height:100%; object-fit:cover;">
                                 </div>
                             """, unsafe_allow_html=True)
@@ -274,7 +280,8 @@ with sub_tabs[0]:
                             if st.button(f"• {display_title}", key=f"cal_{row['id']}", use_container_width=True):
                                 show_details(row)
                     else:
-                        st.markdown("<div style='width:100%; aspect-ratio:1/1; background:#fbfbfb; border-radius:4px; margin-bottom:4px;'></div>", unsafe_allow_html=True)
+                        # [수정] 빈 부분은 아무것도 렌더링하지 않음
+                        st.write("")
                     
     # 2. 기존 카테고리별 탭 (동일하게 유지)
     categories = ["BOOKS", "MUSIC", "MOVIES", "SERIES"]
@@ -292,6 +299,7 @@ with sub_tabs[0]:
                         st.markdown(f'<p class="save-date-tag">📅 기록일: {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"cat_btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
