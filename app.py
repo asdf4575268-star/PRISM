@@ -176,49 +176,38 @@ with sub_tabs[0]:
     if all_df.empty:
         st.info("기록이 없습니다.")
     else:
-        # 연도 추출 및 선택창 옵션 구성 (연도 (개수))
+        # 연도 추출 및 선택창 (연도 (개수))
         all_df['year'] = all_df['save_date'].apply(lambda x: str(x).split('-')[0])
         year_counts = all_df['year'].value_counts().sort_index(ascending=False)
         year_options = [f"{year} ({count})" for year, count in year_counts.items()]
         
         selected_option = st.selectbox("📅 연도 선택", year_options)
         selected_year = selected_option.split(' ')[0]
-        
         year_df = all_df[all_df['year'] == selected_year]
 
-        # --- 이미지 크기 통일을 위한 CSS 추가 ---
-        st.markdown("""
-            <style>
-            /* 모든 이미지를 1:1 비율의 고정된 크기로 통일 */
-            .annual-img-container img {
-                width: 100% !important;
-                height: 150px !important; /* 세로 높이 고정 */
-                object-fit: cover !important; /* 비율 유지하며 꽉 채움 */
-                border-radius: 8px;
-            }
-            </style>
-        """, unsafe_allow_html=True)
-
-        # 한 줄에 6개 배치 (이미지 사이즈 축소 효과)
+        # 한 줄에 6개 배치
         cols_per_row = 6 
         cols = st.columns(cols_per_row)
         
         for idx, row in year_df.reset_index().iterrows():
             with cols[idx % cols_per_row]:
                 if row['img_url']:
-                    # 이미지를 div로 감싸서 CSS 적용
-                    st.markdown(f'<div class="annual-img-container">', unsafe_allow_html=True)
-                    st.image(row['img_url'], use_container_width=True)
-                    st.markdown('</div>', unsafe_allow_html=True)
+                    # HTML을 사용해 이미지 크기와 비율을 강제로 고정 (1:1 정사각형 예시)
+                    st.markdown(f"""
+                        <div style="width:100%; aspect-ratio: 1 / 1; overflow:hidden; border-radius:8px;">
+                            <img src="{row['img_url']}" style="width:100%; height:100%; object-fit:cover;">
+                        </div>
+                    """, unsafe_allow_html=True)
                 
-                # 텍스트 정보 (소문자 단위 유지)
+                # 텍스트 정보 (소형화)
                 st.markdown(f"""
-                    <div style="text-align:center; font-size:11px; color:gray; margin-top:5px;">
+                    <div style="text-align:center; font-size:11px; color:gray; margin-top:5px; line-height:1.2;">
                         {row['save_date']}<br>
                         <b style="color:black; font-size:12px;">{row['title']}</b>
                     </div>
                 """, unsafe_allow_html=True)
                 
+                # 버튼 (기능 유지를 위해 st.button 사용)
                 if st.button("🔍", key=f"year_btn_{row['id']}", use_container_width=True):
                     show_details(row)
 
@@ -238,6 +227,7 @@ with sub_tabs[0]:
                         st.markdown(f'<p class="save-date-tag">📅 기록일: {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"cat_btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
