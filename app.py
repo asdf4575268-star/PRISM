@@ -277,7 +277,7 @@ with tab2:
                 for i, day in enumerate(week):
                     if day == 0: continue
                     with cols[i]:
-                        st.markdown(f"<p class='num-text' style='font-size:30px; margin:0;'>{day}</p>", unsafe_allow_html=True)
+                        st.markdown(f"<p class='num-text' style='font-size:20px; margin:0;'>{day}</p>", unsafe_allow_html=True)
                         day_items = month_df[month_df['v_dt'].dt.day == day]
                         if not day_items.empty:
                             # 이미지 박스
@@ -333,5 +333,6 @@ for idx, c_name in enumerate(cats):
                     
                     if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                         show_details(row)
+
 
 
