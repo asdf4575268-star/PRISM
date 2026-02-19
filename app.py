@@ -62,7 +62,7 @@ def show_details(item):
                 new_title = st.text_input("📌 제목", value=item['title'])
                 new_creator = st.text_input("👤 창작자", value=item['creator'])
                 new_rel_date = st.text_input("📅 작품 날짜", value=item['rel_date'])
-                new_view_date = st.text_input("🍿 실제 관람일", value=item.get('view_date') if item.get('view_date') else item['save_date'])
+                new_view_date = st.text_input("🍿 감상", value=item.get('view_date') if item.get('view_date') else item['save_date'])
                 new_brief = st.text_input("📝 요약", value=item['brief'])
                 new_summary = st.text_area("📖 줄거리", value=item['summary'], height=120)
                 new_highlights = st.text_area("✨ 인상 깊은 부분", value=item['highlights'], height=100)
@@ -314,3 +314,4 @@ with tab2:
                         st.markdown(f'<p class="date-text" style="font-size:14px; text-align:center;">📅 {display_date}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
+
