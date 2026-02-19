@@ -46,14 +46,14 @@ col_left, col_right = st.columns([0.4, 0.6])
 with col_left:
     st.subheader("📍 연동 정보")
     # 1. 연동 시 자동으로 데이터가 채워짐
+        # 이미지: 원본 크기 유지
+    img_url = data.get('thumbnail', '')
+    if img_url:
+        st.image(img_url, caption="연동 이미지", use_container_width=False)
     title = st.text_input("활동명 (제목)", value=data.get('title', ''))
     creator = st.text_input("창작자 (작가)", value=", ".join(data.get('authors', [])) if 'authors' in data else "")
     release_date = st.text_input("날짜", value=data.get('datetime', '')[:10] if data.get('datetime') else "")
     
-    # 이미지: 원본 크기 유지
-    img_url = data.get('thumbnail', '')
-    if img_url:
-        st.image(img_url, caption="연동 이미지", use_container_width=False)
 
 with col_right:
     st.subheader("🖋️ 아카이빙 기록")
@@ -71,3 +71,4 @@ with col_right:
     if st.button("✅ 최종 아카이브 저장", use_container_width=True):
         # 여기에 DB 저장 로직을 추가하면 끝!
         st.success(f"'{title}' 기록이 성공적으로 보관되었습니다.")
+
