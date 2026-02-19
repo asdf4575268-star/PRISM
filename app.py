@@ -126,7 +126,7 @@ with tab1:
     search_query = st.text_input(f"🔍 {category} 검색")
     
     if search_query:
-    if category == "BOOKS":
+        if category == "BOOKS":
         res = search_books(search_query, "BOOKS")
         if res:
             opts = {f"📚 {b['title']}": b for b in res}
@@ -269,6 +269,7 @@ with tab2:
                         
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
