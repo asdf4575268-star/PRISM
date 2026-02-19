@@ -36,19 +36,32 @@ def search_data_list(query, category):
                 })
         except: return []
 
-    elif category == "책":
-        res = requests.get(f"https://www.googleapis.com/books/v1/volumes?q={query}").json()
+def search_books(query):
+    try:
+        # 검색어 인코딩 및 결과 수 확대
+        url = f"https://www.googleapis.com/books/v1/volumes?q={query}&maxResults=10"
+        res = requests.get(url, timeout=5).json() # 타임아웃 설정
+        
+        options = []
         if "items" in res:
-            for item in res["items"][:5]:
-                info = item["volumeInfo"]
-                results.append({
-                    "label": f"📚 {info.get('title')} - {', '.join(info.get('authors', []))}",
-                    "title": info.get("title"), "creator": ", ".join(info.get("authors", [])),
-                    "performer": "-", "date": info.get("publishedDate"),
-                    "img": info.get("imageLinks", {}).get("thumbnail"), "desc": info.get("description", "")
+            for item in res["items"]:
+                info = item.get("volumeInfo", {})
+                title = info.get("title", "제목 없음")
+                authors = info.get("authors", ["작가 미상"])
+                options.append({
+                    "label": f"📚 {title} ({', '.join(authors)})",
+                    "title": title,
+                    "creator": ", ".join(authors),
+                    "performer": "-",
+                    "date": info.get("publishedDate", "날짜 미상"),
+                    "img": info.get("imageLinks", {}).get("thumbnail", ""),
+                    "desc": info.get("description", "설명 없음")
                 })
-    return results
-
+        return options
+    except Exception as e:
+        st.error(f"구글 북스 연결 오류: {e}")
+        return []
+        
 # --- [3. UI 레이아웃 및 로직] ---
 init_db()
 st.set_page_config(page_title="PRISM Archive", layout="wide")
@@ -142,3 +155,4 @@ with tab2:
         st.write(detail['impression'])
     else:
         st.write("아직 저장된 아카이브가 없습니다.")
+
