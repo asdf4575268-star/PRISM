@@ -76,7 +76,7 @@ with tab1:
     
     with col1:
         category = st.selectbox("카테고리", ["책"])
-        search_query = st.text_input("🔍 책 제목 검색 (데미안 등을 입력하고 엔터)")
+        search_query = st.text_input("🔍검색)
         
         if search_query:
             books = search_books(search_query)
@@ -138,4 +138,5 @@ with tab2:
         st.info(detail['note'])
     else:
         st.write("아카이브가 비어있습니다.")
+
 
