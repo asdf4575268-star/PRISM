@@ -6,6 +6,25 @@ import calendar
 import xml.etree.ElementTree as ET
 from datetime import date, datetime
 
+# --- [0. 세션 초기화 - 에러 방지용 최상단 배치] ---
+if 'cal_year' not in st.session_state:
+    st.session_state.cal_year = datetime.now().year
+if 'cal_month' not in st.session_state:
+    st.session_state.cal_month = datetime.now().month
+if 'api_data' not in st.session_state:
+    st.session_state.api_data = {}
+
+def shift_month(delta):
+    new_month = st.session_state.cal_month + delta
+    if new_month > 12:
+        st.session_state.cal_month = 1
+        st.session_state.cal_year += 1
+    elif new_month < 1:
+        st.session_state.cal_month = 12
+        st.session_state.cal_year -= 1
+    else:
+        st.session_state.cal_month = new_month
+
 # --- [1. 스타일 및 설정] ---
 st.set_page_config(layout="wide", page_title="PRISM")
 st.title("🌈PRISM")
@@ -18,7 +37,6 @@ st.markdown("""
     .date-text { font-size: 30px; color: #666; margin: 0; }
     .num-text { font-size: 60px; font-family: 'Jolly Lodger'; text-transform: lowercase; margin: 0; line-height: 1; }
     
-    /* 정사각형 이미지 박스 공통 스타일 */
     .square-img-box { 
         width:100%; aspect-ratio:1/1; overflow:hidden; border-radius:10px; 
         background-color: #f0f0f0; margin-bottom: 8px;
@@ -35,8 +53,6 @@ st.markdown("""
 
 DB_NAME = 'archive_prism_total_v4.db'
 TTB_KEY = "ttbckwntmd2101001"
-TMDB_API_KEY = "6e7c55b6259b7731655033f783f3fc5b"
-KOPIS_KEY = "7a919bc272204f06bbca10e2af376dea"
 
 def init_db():
     with sqlite3.connect(DB_NAME) as conn:
@@ -48,28 +64,23 @@ def init_db():
 
 init_db()
 
-# --- [2. 상세 정보 및 수정 팝업] ---
+# --- [2. 상세 정보 팝업] ---
 @st.dialog("📋 기록 상세 정보", width="large")
 def show_details(item):
     edit_mode = st.toggle("✏️ 수정 모드 켜기", key=f"tog_{item['id']}")
-
     if edit_mode:
         with st.form(key=f"edit_form_{item['id']}", clear_on_submit=False):
-            col_img, col_txt = st.columns([0.3, 0.7]) # 이미지 영역 비율 살짝 축소
+            col_img, col_txt = st.columns([0.3, 0.7])
             with col_img:
                 if item['img_url']:
-                    # 수정 폼 내 이미지도 정사각형 정렬
                     st.markdown(f'<div class="square-img-box"><img src="{item["img_url"]}"></div>', unsafe_allow_html=True)
-                # 요청사항: 이미지 URL 입력란 제거
                 new_img = item['img_url'] 
             with col_txt:
                 new_title = st.text_input("📌 제목", value=item['title'])
                 new_creator = st.text_input("👤 창작자", value=item['creator'])
                 new_rel_date = st.text_input("📅 작품 날짜", value=item['rel_date'])
-                
-                cur_v = datetime.strptime(item.get('view_date') or item['save_date'], '%Y-%m-%d').date() if item.get('view_date') or item.get('save_date') else date.today()
+                cur_v = datetime.strptime(item.get('view_date') or item['save_date'], '%Y-%m-%d').date() if (item.get('view_date') or item.get('save_date')) else date.today()
                 new_view_date = st.date_input("🍿 감상일 수정", value=cur_v)
-                
                 new_brief = st.text_input("📝 요약", value=item['brief'])
                 new_summary = st.text_area("📖 작품 소개", value=item['summary'], height=120)
                 new_highlights = st.text_area("✨ 인상 깊은 부분", value=item['highlights'], height=100)
@@ -96,23 +107,17 @@ def show_details(item):
             st.info(f"**📖 작품 소개:**\n\n{item['summary']}")
             st.warning(f"**✨ 인상 깊은 부분:**\n\n{item['highlights']}")
             st.write(f"**💬 감상:**\n\n{item['note']}")
-            
             if st.button("🗑️ 기록 삭제", key=f"del_{item['id']}", use_container_width=True):
                 with sqlite3.connect(DB_NAME) as conn:
                     conn.execute("DELETE FROM archive WHERE id=?", (int(item['id']),))
                 st.rerun()
 
-# --- [API 함수 수정] ---
 def search_books(query, category="BOOKS"):
     target = "Book"
     if category == "MUSIC": target = "Music"
     elif category in ["MOVIES", "SERIES", "STAGE"]: target = "DVD"
-    
     url = "http://www.aladin.co.kr/ttb/api/ItemSearch.aspx"
-    params = {
-        'ttbkey': TTB_KEY, 'Query': query, 'QueryType': 'Title',
-        'MaxResults': 10, 'start': 1, 'SearchTarget': target, 'output': 'js', 'Version': '20131101'
-    }
+    params = {'ttbkey': TTB_KEY, 'Query': query, 'QueryType': 'Title', 'MaxResults': 10, 'start': 1, 'SearchTarget': target, 'output': 'js', 'Version': '20131101'}
     try:
         res = requests.get(url, params=params)
         return res.json().get("item", []) if res.status_code == 200 else []
@@ -126,38 +131,27 @@ with tab1:
     search_query = st.text_input(f"🔍 {category} 검색")
     
     if search_query:
-        if category == "BOOKS":
-            res = search_books(search_query, "BOOKS")
+        # BOOKS와 MUSIC은 알라딘 API에서 고화질 처리를 적용합니다.
+        if category in ["BOOKS", "MUSIC"]:
+            res = search_books(search_query, category)
             if res:
-                opts = {f"📚 {b['title']}": b for b in res}
-                sel = st.selectbox("검색 결과", list(opts.keys()), key="book_sel")
-                if st.button("✨ 가져오기", key="book_btn"):
+                icon = "📚" if category == "BOOKS" else "🎵"
+                opts = {f"{icon} {b['title']}": b for b in res}
+                sel = st.selectbox("검색 결과", list(opts.keys()), key=f"search_{category}")
+                if st.button("✨ 가져오기", key=f"btn_{category}"):
                     b = opts[sel]
-                    
-                    # --- [선명도 업그레이드 치트키] ---
-                    # 아주 작은 'coversum'을 중간 크기인 'cover200'으로 교체합니다.
+                    # 고화질 이미지 처리 (cover200 사용)
                     raw_img = b.get('cover', '')
-                    better_img = raw_img.replace('/coversum/', '/cover200/')
+                    better_img = raw_img.replace('/coversum/', '/cover200/').replace('/mid/', '/cover200/')
                     
                     st.session_state.api_data = {
                         'title': b.get('title', ''),
                         'creator': b.get('author', ''), 
                         'date': b.get('pubDate', '')[:10], 
-                        'img': better_img, # 더 선명한 이미지 적용!
+                        'img': better_img,
                         'summary': b.get('description', '')
                     }
                     st.rerun()
-        # ... (MUSIC, STAGE, TMDB 로직 생략 - 필요시 위와 같은 get() 패턴 적용)
-        elif category == "MUSIC":
-            res = search_books(search_query, "MUSIC") # 알라딘 뮤직 검색 사용
-            if res:
-                opts = {f"🎵 {b['title']}": b for b in res}
-                sel = st.selectbox("검색 결과", list(opts.keys()))
-                if st.button("✨ 가져오기"):
-                    b = opts[sel]
-                    st.session_state.api_data = {'title': b['title'], 'creator': b.get('author',''), 'date': b.get('pubDate','')[:10], 'img': b.get('cover',''), 'summary': ''}
-                    st.rerun()
-        # ... (나머지 카테고리 로직 동일하게 적용)
 
     st.divider()
     data = st.session_state.get('api_data', {})
@@ -165,11 +159,9 @@ with tab1:
     with cl:
         img_url_val = st.text_input("이미지 URL", value=data.get('img', ''))
         if img_url_val:
-            # 미리보기 이미지도 정사각형
             st.markdown(f'<div class="square-img-box"><img src="{img_url_val}"></div>', unsafe_allow_html=True)
         title = st.text_input("제목", value=data.get('title', ''))
         creator = st.text_input("창작자 정보", value=data.get('creator', ''))
-        
         col1, col2 = st.columns(2)
         rel_date = col1.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
         view_date = col2.date_input("🍿 감상일", value=date.today())
@@ -187,11 +179,9 @@ with tab1:
             st.session_state.api_data = {}
             st.rerun()
 
-# --- TAB 2: ARCHIVE ---
 with tab2:
     sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
     
-    # ... (YEARLY 달력 로직은 기존 코드 유지)
     with sub_tabs[0]:
         with sqlite3.connect(DB_NAME) as conn:
             all_df = pd.read_sql_query("SELECT * FROM archive", conn)
@@ -204,7 +194,10 @@ with tab2:
             unique_years = sorted(list(set([datetime.now().year] + list(year_counts.keys()))), reverse=True)
             year_labels = [f"{y} ({year_counts.get(y, 0)})" for y in unique_years]
             label_to_year = {label: y for label, y in zip(year_labels, unique_years)}
-            default_idx = unique_years.index(st.session_state.cal_year) if st.session_state.cal_year in unique_years else 0
+            
+            # get()을 사용하여 안전하게 참조
+            current_cal_year = st.session_state.get('cal_year', datetime.now().year)
+            default_idx = unique_years.index(current_cal_year) if current_cal_year in unique_years else 0
             
             c_yr, c_nav = st.columns([1.5, 3])
             with c_yr:
@@ -249,7 +242,6 @@ with tab2:
                                     show_details(r)
                         else: st.markdown("<div style='height:80px;'></div>", unsafe_allow_html=True)
 
-    # --- [카테고리별 탭 이미지 정사각형 수정] ---
     cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
     for idx, c_name in enumerate(cats):
         with sub_tabs[idx+1]:
@@ -260,20 +252,8 @@ with tab2:
                 for i, row in df.iterrows():
                     with cols[i % 4]:
                         if row['img_url']:
-                            # 통합 스타일 square-img-box 적용
                             st.markdown(f'<div class="square-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
-                        
                         v_date_display = row.get('view_date') if row.get('view_date') else row.get('save_date', '')
                         st.markdown(f'<p class="date-text" style="font-size:15px; text-align:center;">🍿 {v_date_display}</p>', unsafe_allow_html=True)
-                        
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
-
-
-
-
-
-
-
-
-
