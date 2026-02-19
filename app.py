@@ -79,7 +79,7 @@ def show_details(item):
         st.write(f"**정보:** {item['creator']} | **작품날짜:** {item['rel_date']}")
         st.caption(f"기록일: {item['save_date']}")
         st.divider()
-        if item['brief']: st.success(f"**📝 한 줄 요약:** {item['brief']}")
+        if item['brief']: st.success(f"**📝 요약:** {item['brief']}")
         st.info(f"**📖 줄거리:**\n\n{item['summary']}")
         st.warning(f"**✨ 하이라이트:**\n\n{item['highlights']}")
         st.write(f"**💬 개인적 감상:**\n\n{item['note']}")
@@ -152,7 +152,7 @@ with tab1:
 
     with col_r:
         summary = st.text_area("📖 줄거리", value=data.get('summary', ''), height=150)
-        brief = st.text_input("📝 한 줄 요약")
+        brief = st.text_input("📝 요약")
         highlights = st.text_area("✨ 하이라이트", height=100)
         note = st.text_area("💬 개인적 감상", height=100)
 
@@ -182,4 +182,5 @@ with tab2:
                         st.markdown(f'<p class="save-date-tag">📅 기록일: {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
