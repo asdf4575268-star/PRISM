@@ -232,7 +232,7 @@ with tab1:
                 sel = st.selectbox("결과 선택", list(opts.keys()))
                 if st.button("✨ 가져오기"):
                     s = opts[sel]
-                    st.session_state.api_data = {'title': s['title'], 'creator': f"공연장: {s['venue']}", 'date': s['date'], 'img': s['img'], 'summary': ''}
+                    st.session_state.api_data = {'title': s['title'], 'creator': f"@{s['venue']}", 'date': s['date'], 'img': s['img'], 'summary': ''}
                     st.rerun()
 
         else: # MOVIES, SERIES
@@ -392,6 +392,7 @@ with tab2:
                                     show_details(row)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
