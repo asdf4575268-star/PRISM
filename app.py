@@ -125,7 +125,7 @@ def show_details(item):
     with col_img:
         # 이미지가 있으면 표시, 없으면 안내
         if item.get('img_url'):
-            st.image(item['img_url'], use_container_width=True)
+            st.image(item['img_url'], width=300)
         else:
             st.info("등록된 이미지가 없습니다.")
 
@@ -398,6 +398,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
