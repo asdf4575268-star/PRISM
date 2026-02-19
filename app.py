@@ -125,7 +125,12 @@ def show_details(item):
     with col_img:
         # 이미지가 있으면 표시, 없으면 안내
         if item.get('img_url'):
-            st.image(item['img_url'], width=300)
+        # HTML을 사용하여 크기를 300px로 강제 고정하고 가운데 정렬합니다.
+            st.markdown(f"""
+                <div style="display: flex; justify-content: center;">
+                    <img src="{item['img_url']}" style="width: 300px; border-radius: 10px;">
+                </div>
+        """, unsafe_allow_html=True)
         else:
             st.info("등록된 이미지가 없습니다.")
 
@@ -398,6 +403,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
