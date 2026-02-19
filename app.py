@@ -32,19 +32,7 @@ def search_books(query):
 
 init_db()
 
-# --- [2. 사이드바: 퀵 목록창] ---
-with st.sidebar:
-    st.header("🗂️ 퀵 보관함")
-    conn = sqlite3.connect('archive_final.db')
-    df_side = pd.read_sql_query("SELECT id, title, save_date FROM archive ORDER BY id DESC", conn)
-    if not df_side.empty:
-        for i, row in df_side.iterrows():
-            st.write(f"**{row['title']}** ({row['save_date']})")
-    else:
-        st.caption("저장된 기록이 없습니다.")
-    conn.close()
-
-# --- [3. 메인 화면: 탭 구성] ---
+# --- [2. 메인 화면: 탭 구성] ---
 tab1, tab2 = st.tabs(["🖋️ 아카이빙 입력", "📂 전체 목록 및 상세"])
 
 with tab1:
@@ -127,3 +115,4 @@ with tab2:
                 st.rerun()
     else:
         st.info("아직 저장된 아카이브가 없습니다.")
+
