@@ -12,16 +12,28 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Kirang+Haerang&family=Jolly+Lodger&family=Lacquer&display=swap');
     
-    /* 활동명(제목) 크기 90 */
     .act-name { font-size: 90px; font-family: 'Kirang Haerang'; line-height: 1.1; margin: 0; }
-    /* 날짜 크기 30 */
     .date-text { font-size: 30px; color: #666; margin: 0; }
-    /* 숫자 크기 60 (Jolly Lodger 적용) */
     .num-text { font-size: 60px; font-family: 'Jolly Lodger'; text-transform: lowercase; margin: 0; line-height: 1; }
+    
+    /* 이미지 클릭 효과 및 레이아웃 */
+    .img-clickable {
+        width: 100%;
+        aspect-ratio: 1/1;
+        overflow: hidden;
+        border-radius: 4px;
+        border: 1px solid #eee;
+        transition: transform 0.2s;
+        cursor: pointer;
+    }
+    .img-clickable:hover {
+        transform: scale(1.02);
+        border: 2px solid #FF4B4B;
+    }
+    .img-clickable img { width: 100%; height: 100%; object-fit: cover; }
     
     .cal-img-box { width:100%; aspect-ratio:1/1; overflow:hidden; border-radius:4px; margin-bottom:4px; border: 1px solid #eee; }
     .cal-img-box img { width:100%; height:100%; object-fit:cover; }
-    .save-date-tag { font-size: 14px; color: #888; margin-top: -10px; margin-bottom: 10px; text-align: center; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -65,7 +77,17 @@ def show_details(item):
                 conn.execute("DELETE FROM archive WHERE id=?", (int(item['id']),))
             st.rerun()
 
-# --- API 함수들 (WRITE용) ---
+# --- 이미지 클릭 감지 로직 ---
+q_params = st.query_params
+if "show_id" in q_params:
+    tid = q_params["show_id"]
+    with sqlite3.connect(DB_NAME) as conn:
+        res = pd.read_sql_query(f"SELECT * FROM archive WHERE id={tid}", conn)
+        if not res.empty:
+            st.query_params.clear()
+            show_details(res.iloc[0])
+
+# --- API 함수들 (생략 없이 유지) ---
 def get_tmdb_details(item_id, category):
     type_path = "movie" if category == "MOVIES" else "tv"
     url = f"https://api.themoviedb.org/3/{type_path}/{item_id}/credits?api_key={TMDB_API_KEY}&language=ko-KR"
@@ -162,17 +184,25 @@ with tab2:
         
         if not all_df.empty:
             all_df['save_date'] = pd.to_datetime(all_df['save_date'])
-            
-            # --- 연도 선택창 추가 ---
             all_df['year_int'] = all_df['save_date'].dt.year
-            available_years = sorted(all_df['year_int'].unique(), reverse=True)
-            if datetime.now().year not in available_years:
-                available_years = [datetime.now().year] + available_years
             
-            # 상단 컨트롤 영역
-            c_yr, c_nav = st.columns([1, 3])
+            # --- 연도 선택창 + 통계 괄호 표시 ---
+            year_counts = all_df['year_int'].value_counts().to_dict()
+            # 현재 연도 보장 및 정렬
+            current_y = datetime.now().year
+            unique_years = sorted(list(set([current_y] + list(year_counts.keys()))), reverse=True)
+            
+            # 표시될 라벨 리스트 생성 (예: "2026 (15)")
+            year_labels = [f"{y} ({year_counts.get(y, 0)})" for y in unique_years]
+            label_to_year = {label: y for label, y in zip(year_labels, unique_years)}
+            
+            # 기본 인덱스 설정
+            default_idx = unique_years.index(st.session_state.cal_year) if st.session_state.cal_year in unique_years else 0
+            
+            c_yr, c_nav = st.columns([1.5, 3])
             with c_yr:
-                selected_year = st.selectbox("연도 선택", available_years, index=available_years.index(st.session_state.cal_year) if st.session_state.cal_year in available_years else 0)
+                selected_label = st.selectbox("연도 선택", year_labels, index=default_idx)
+                selected_year = label_to_year[selected_label]
                 if selected_year != st.session_state.cal_year:
                     st.session_state.cal_year = selected_year
                     st.rerun()
@@ -181,18 +211,18 @@ with tab2:
             with n1:
                 if st.button("◀ 이전달"): shift_month(-1); st.rerun()
             with n2:
-                # 숫자 크기 60 적용
                 st.markdown(f"<div style='text-align:center;' class='num-text'>{st.session_state.cal_year} / {st.session_state.cal_month}</div>", unsafe_allow_html=True)
             with n3:
                 if st.button("다음달 ▶"): shift_month(1); st.rerun()
 
-            # 달력 렌더링
+            # 요일 헤더
             days = ["월", "화", "수", "목", "금", "토", "일"]
             h_cols = st.columns(7)
             for i, d in enumerate(days):
                 color = "#2E5BFF" if i == 5 else "#FF4B4B" if i == 6 else "#888"
                 h_cols[i].markdown(f"<p style='text-align:center; font-weight:bold; color:{color};'>{d}</p>", unsafe_allow_html=True)
 
+            # 달력 데이터 필터링 및 격자 생성
             cal = calendar.monthcalendar(st.session_state.cal_year, st.session_state.cal_month)
             month_df = all_df[(all_df['save_date'].dt.year == st.session_state.cal_year) & (all_df['save_date'].dt.month == st.session_state.cal_month)]
 
@@ -204,8 +234,17 @@ with tab2:
                         st.markdown(f"<p class='num-text' style='font-size:30px; margin:0;'>{day}</p>", unsafe_allow_html=True)
                         day_items = month_df[month_df['save_date'].dt.day == day]
                         if not day_items.empty:
-                            if day_items.iloc[0]['img_url']:
-                                st.markdown(f'<div class="cal-img-box"><img src="{day_items.iloc[0]["img_url"]}"></div>', unsafe_allow_html=True)
+                            # --- 이미지 클릭 기능 적용 ---
+                            first_item = day_items.iloc[0]
+                            if first_item['img_url']:
+                                st.markdown(f"""
+                                    <a href="/?show_id={first_item['id']}" target="_self" style="text-decoration: none;">
+                                        <div class="img-clickable">
+                                            <img src="{first_item['img_url']}">
+                                        </div>
+                                    </a>
+                                """, unsafe_allow_html=True)
+                            
                             for _, r in day_items.iterrows():
                                 if st.button(f"• {r['title'][:5]}", key=f"cal_{r['id']}", use_container_width=True):
                                     show_details(r)
@@ -214,7 +253,7 @@ with tab2:
         else:
             st.info("기록이 없습니다.")
 
-    # 나머지 카테고리 탭
+    # 나머지 카테고리 탭 (BOOKS, MUSIC 등)
     cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES"]
     for idx, c_name in enumerate(cats):
         with sub_tabs[idx+1]:
@@ -224,7 +263,13 @@ with tab2:
                 cols = st.columns(4)
                 for i, row in df.iterrows():
                     with cols[i % 4]:
-                        if row['img_url']: st.image(row['img_url'], use_container_width=True)
-                        st.markdown(f'<p class="date-text" style="font-size:14px; text-align:center;">📅 {row["save_date"]}</p>', unsafe_allow_html=True)
+                        # 리스트 뷰 이미지도 클릭 가능하게 하려면 아래처럼 HTML 적용 가능
+                        if row['img_url']:
+                            st.markdown(f"""
+                                <a href="/?show_id={row['id']}" target="_self">
+                                    <div class="img-clickable"><img src="{row['img_url']}"></div>
+                                </a>
+                            """, unsafe_allow_html=True)
+                        st.markdown(f'<p class="date-text" style="font-size:14px; text-align:center;">📅 {row["save_date"].date() if hasattr(row["save_date"], "date") else row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
