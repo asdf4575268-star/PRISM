@@ -161,7 +161,11 @@ def show_details(item):
         else:
             # --- [조회 모드] ---
             # 1. 활동명 (90px)
-            st.markdown(f'<p class="act-name">{item.get("title")}</p>', unsafe_allow_html=True)
+            st.markdown(f"""
+                <div style="font-size: 90px; font-weight: bold; line-height: 1.1; margin-bottom: 10px;">
+                    {item.get('title')}
+                </div>
+            """, unsafe_allow_html=True)
             
             # 2. URL 버튼 (summary 첫 줄에 URL이 있는 경우)
             content = str(item.get('summary', ''))
@@ -398,6 +402,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
