@@ -1,7 +1,8 @@
-import streamlit as st
+mport streamlit as st
 import sqlite3
 import pandas as pd
 import requests
+import time
 from datetime import date
 
 # --- [1. 데이터베이스 초기화] ---
@@ -17,58 +18,46 @@ def init_db():
     return conn
 
 # --- [2. 책 검색 전용 함수] ---
-def search_books(query):
+@st.cache_data(ttl=3600) # 1시간 동안 검색 결과 기억
+def search_books_safe(query):
     if not query: return []
     try:
-        # 1. 검색어 정제 (공백 제거 및 특수문자 처리)
-        query = query.strip()
+        # 요청 전 0.5초 대기 (구글 차단 회피용)
+        time.sleep(0.5)
         
-        # 2. 브라우저처럼 보이게 헤더 추가 (차단 방지)
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        }
+        url = f"https://www.googleapis.com/books/v1/volumes?q={query.strip()}&maxResults=10"
+        headers = {"User-Agent": "Mozilla/5.0"}
         
-        # 3. Google Books API 호출
-        url = f"https://www.googleapis.com/books/v1/volumes?q={query}&maxResults=10&orderBy=relevance"
         response = requests.get(url, headers=headers, timeout=10)
         
-        # 응답 상태 확인 로그 (에러 추적용)
+        if response.status_code == 429:
+            st.warning("⚠️ 구글 서버에서 일시적으로 요청을 제한했습니다. 1~2분 뒤에 다시 시도해 주세요.")
+            return []
+            
         if response.status_code != 200:
-            st.error(f"API 호출 실패 (상태 코드: {response.status_code})")
             return []
 
         res = response.json()
-        
         results = []
         if "items" in res:
             for item in res["items"]:
                 info = item.get("volumeInfo", {})
-                title = info.get("title", "제목 없음")
-                authors = info.get("authors", ["작가 미상"])
-                
-                # 이미지 링크 안전하게 가져오기
                 img_links = info.get("imageLinks", {})
                 img_url = img_links.get("thumbnail") or img_links.get("smallThumbnail") or ""
-                # http를 https로 변경 (보안 이슈 방지)
                 if img_url.startswith("http:"):
                     img_url = img_url.replace("http:", "https:")
                 
                 results.append({
-                    "label": f"📚 {title} ({', '.join(authors)})",
-                    "title": title,
-                    "creator": ", ".join(authors),
+                    "label": f"📚 {info.get('title')} ({', '.join(info.get('authors', ['미상']))})",
+                    "title": info.get("title", "제목 없음"),
+                    "creator": ", ".join(info.get("authors", ["작가 미상"])),
                     "performer": "-",
                     "date": info.get("publishedDate", "날짜 미상"),
                     "img": img_url,
-                    "desc": info.get("description", "등록된 요약 정보가 없습니다.")
+                    "desc": info.get("description", "정보 없음")
                 })
-        else:
-            # 검색 결과가 정말 없는 경우 로그
-            st.warning(f"'{query}'에 대한 검색 결과가 구글 서버에 없습니다.")
-            
         return results
-    except Exception as e:
-        st.error(f"네트워크 오류가 발생했습니다: {e}")
+    except Exception:
         return []
 
 # --- [3. 메인 UI] ---
@@ -178,4 +167,5 @@ with tab2:
                 st.rerun()
     else:
         st.write("아카이브가 비어있습니다.")
+
 
