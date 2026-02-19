@@ -216,7 +216,7 @@ with tab1:
             rel_date = st.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
         with col2:
             # 실제 감상한 날짜를 선택 (이 날짜가 달력의 기준이 됩니다)
-            view_date = st.date_input("🍿 실제 관람일", value=date.today())
+            view_date = st.date_input("🍿 감상일", value=date.today())
             
     with cr:
         summary = st.text_area("📖 줄거리", value=data.get('summary', ''), height=150)
@@ -309,9 +309,10 @@ with tab2:
                 for i, row in df.iterrows():
                     with cols[i % 4]:
                         if row['img_url']: st.image(row['img_url'], use_container_width=True)
-                        # 개별 리스트 탭에서도 실제 관람일(view_date) 우선 표시
+                        # 개별 리스트 탭에서도 감상일(view_date) 우선 표시
                         display_date = row.get('view_date') if row.get('view_date') else row['save_date']
                         st.markdown(f'<p class="date-text" style="font-size:14px; text-align:center;">📅 {display_date}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
