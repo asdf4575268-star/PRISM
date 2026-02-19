@@ -129,8 +129,7 @@ with tab1:
     data = st.session_state.get('api_data', {})
     cl, cr = st.columns([0.4, 0.6])
     with cl:
-        img_url = st.text_input("이미지 URL", value=data.get('img', ''))
-        if img_url: st.image(img_url, width=300)
+        img_url: st.image(img_url, width=300)
         title = st.text_input("제목", value=data.get('title', ''))
         creator = st.text_input("창작자 정보", value=data.get('creator', ''))
         rel_date = st.text_input("날짜", value=data.get('date', str(date.today())))
@@ -212,3 +211,4 @@ with tab2:
                         st.markdown(f'<p class="save-date-tag">📅 {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
+
