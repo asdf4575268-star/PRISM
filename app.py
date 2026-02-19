@@ -105,8 +105,6 @@ with tab1:
         note = st.text_area("감상 노트", value=data.get('desc', ''), height=200)
 
     with col2:
-        # (날짜/숫자/이미지 섹션은 동일)
-    with col2:
         st.markdown(f'<p class="date-text">{date.today()}</p>', unsafe_allow_html=True)
         score = st.slider("만족도", 0, 100, 80)
         st.markdown(f'<span class="number-text">{score}</span> bpm', unsafe_allow_html=True)
@@ -144,6 +142,7 @@ with tab2:
         st.info(detail['note'])
     else:
         st.write("아카이브가 비어있습니다.")
+
 
 
 
