@@ -127,7 +127,7 @@ with tab1:
     
     if search_query:
         if category == "BOOKS":
-        res = search_books(search_query, "BOOKS")
+            res = search_books(search_query, "BOOKS")
         if res:
             opts = {f"📚 {b['title']}": b for b in res}
             sel = st.selectbox("검색 결과", list(opts.keys()))
@@ -269,6 +269,7 @@ with tab2:
                         
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
