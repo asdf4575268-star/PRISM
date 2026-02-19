@@ -42,12 +42,10 @@ init_db()
 # --- [2. 상세 정보 및 수정 팝업] ---
 @st.dialog("📋 기록 상세 보기 / 수정", width="large")
 def show_details(item):
-    # 수정 모드 상태 관리
     if f"edit_mode_{item['id']}" not in st.session_state:
         st.session_state[f"edit_mode_{item['id']}"] = False
 
     is_edit = st.session_state[f"edit_mode_{item['id']}"]
-    
     col_img, col_txt = st.columns([0.4, 0.6])
     
     with col_img:
@@ -67,7 +65,7 @@ def show_details(item):
             new_note = st.text_area("💬 감상", value=item['note'], height=100)
             
             c1, c2 = st.columns(2)
-            if c1.button("💾 저장", use_container_width=True):
+            if c1.button("💾 저장", key=f"save_{item['id']}", use_container_width=True):
                 with sqlite3.connect(DB_NAME) as conn:
                     conn.execute("""UPDATE archive SET title=?, creator=?, rel_date=?, summary=?, 
                                     brief=?, highlights=?, note=?, img_url=? WHERE id=?""",
@@ -75,7 +73,7 @@ def show_details(item):
                                   new_brief, new_highlights, new_note, new_img, int(item['id'])))
                 st.session_state[f"edit_mode_{item['id']}"] = False
                 st.rerun()
-            if c2.button("🚫 취소", use_container_width=True):
+            if c2.button("🚫 취소", key=f"cancel_{item['id']}", use_container_width=True):
                 st.session_state[f"edit_mode_{item['id']}"] = False
                 st.rerun()
         else:
@@ -89,10 +87,10 @@ def show_details(item):
             st.write(f"**💬 감상:**\n\n{item['note']}")
             
             c1, c2 = st.columns(2)
-            if c1.button("✏️ 수정하기", use_container_width=True):
+            if c1.button("✏️ 수정하기", key=f"edit_btn_{item['id']}", use_container_width=True):
                 st.session_state[f"edit_mode_{item['id']}"] = True
                 st.rerun()
-            if c2.button("🗑️ 삭제하기", use_container_width=True):
+            if c2.button("🗑️ 삭제하기", key=f"del_btn_{item['id']}", use_container_width=True):
                 with sqlite3.connect(DB_NAME) as conn:
                     conn.execute("DELETE FROM archive WHERE id=?", (int(item['id']),))
                 st.rerun()
@@ -116,7 +114,7 @@ if "show_id" in q_params:
             st.query_params.clear()
             show_details(res.iloc[0])
 
-# --- API 함수들 (생략) ---
+# --- API 함수들 ---
 def get_tmdb_details(item_id, category):
     type_path = "movie" if category == "MOVIES" else "tv"
     url = f"https://api.themoviedb.org/3/{type_path}/{item_id}/credits?api_key={TMDB_API_KEY}&language=ko-KR"
@@ -148,7 +146,7 @@ def search_tmdb(query, category):
 # --- [4. 메인 화면 구성] ---
 tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 
-# --- TAB 1: WRITE (기존과 동일) ---
+# --- TAB 1: WRITE ---
 with tab1:
     category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES"], horizontal=True)
     search_query = st.text_input(f"🔍 {category} 검색")
@@ -195,7 +193,7 @@ with tab1:
         brief = st.text_input("📝 요약")
         highlights = st.text_area("✨ 인상 깊은 부분", height=100)
         note = st.text_area("💬 감상", height=100)
-        if st.button("✅ 저장", use_container_width=True):
+        if st.button("✅ 저장", key="final_save", use_container_width=True):
             with sqlite3.connect(DB_NAME) as conn:
                 conn.execute("INSERT INTO archive (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date) VALUES (?,?,?,?,?,?,?,?,?,?)",
                              (category, title, creator, rel_date, summary, brief, highlights, note, img_url_val, str(date.today())))
@@ -203,7 +201,7 @@ with tab1:
             st.session_state.api_data = {}
             st.rerun()
 
-# --- TAB 2: ARCHIVE (수정된 YEARLY + 통계) ---
+# --- TAB 2: ARCHIVE ---
 with tab2:
     sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES"])
     
@@ -212,8 +210,8 @@ with tab2:
             all_df = pd.read_sql_query("SELECT * FROM archive", conn)
         
         if not all_df.empty:
-            all_df['save_date'] = pd.to_datetime(all_df['save_date'])
-            all_df['year_int'] = all_df['save_date'].dt.year
+            all_df['save_date_dt'] = pd.to_datetime(all_df['save_date'])
+            all_df['year_int'] = all_df['save_date_dt'].dt.year
             
             year_counts = all_df['year_int'].value_counts().to_dict()
             unique_years = sorted(list(set([datetime.now().year] + list(year_counts.keys()))), reverse=True)
@@ -245,7 +243,7 @@ with tab2:
                 h_cols[i].markdown(f"<p style='text-align:center; font-weight:bold; color:{color};'>{d}</p>", unsafe_allow_html=True)
 
             cal = calendar.monthcalendar(st.session_state.cal_year, st.session_state.cal_month)
-            month_df = all_df[(all_df['save_date'].dt.year == st.session_state.cal_year) & (all_df['save_date'].dt.month == st.session_state.cal_month)]
+            month_df = all_df[(all_df['save_date_dt'].dt.year == st.session_state.cal_year) & (all_df['save_date_dt'].dt.month == st.session_state.cal_month)]
 
             for week in cal:
                 cols = st.columns(7)
@@ -253,7 +251,7 @@ with tab2:
                     if day == 0: continue
                     with cols[i]:
                         st.markdown(f"<p class='num-text' style='font-size:30px; margin:0;'>{day}</p>", unsafe_allow_html=True)
-                        day_items = month_df[month_df['save_date'].dt.day == day]
+                        day_items = month_df[month_df['save_date_dt'].dt.day == day]
                         if not day_items.empty:
                             first_item = day_items.iloc[0]
                             if first_item['img_url']:
@@ -270,7 +268,6 @@ with tab2:
         else:
             st.info("기록이 없습니다.")
 
-    # 카테고리 탭 (BOOKS, MUSIC 등)
     cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES"]
     for idx, c_name in enumerate(cats):
         with sub_tabs[idx+1]:
@@ -286,6 +283,8 @@ with tab2:
                                     <div class="img-clickable"><img src="{row['img_url']}"></div>
                                 </a>
                             """, unsafe_allow_html=True)
-                        st.markdown(f'<p class="date-text" style="font-size:14px; text-align:center;">📅 {row["save_date"].date()}</p>', unsafe_allow_html=True)
+                        # 에러 해결: .date() 대신 문자열 그대로 출력하거나 파싱 시도
+                        disp_date = row['save_date']
+                        st.markdown(f'<p class="date-text" style="font-size:14px; text-align:center;">📅 {disp_date}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
