@@ -54,10 +54,29 @@ st.set_page_config(page_title="PRISM Archive", layout="wide")
 # CSS 설정 (활동명 90 / 날짜 30 / 숫자 60 bpm)
 st.markdown("""
     <style>
-    .title-text { font-size: 90px !important; font-family: 'serif'; margin-bottom: -10px; line-height: 1.1; }
-    .date-text { font-size: 30px !important; color: #888; }
-    .number-text { font-size: 60px !important; font-weight: bold; }
-    </small>
+    .title-text { 
+        font-size: 70px !important; /* 90에서 70으로 살짝 조정 (너무 크면 가독성 저하) */
+        font-family: 'serif'; 
+        font-weight: 900;
+        color: #1d1d1d;
+        line-height: 1.0; 
+        margin: 20px 0px 10px 0px;
+        word-break: keep-all; /* 단어 단위로 줄바꿈 */
+    }
+    .date-text { 
+        font-size: 30px !important; 
+        color: #888; 
+        font-weight: 300;
+    }
+    .number-text { 
+        font-size: 60px !important; 
+        font-weight: bold; 
+        color: #ff4b4b;
+    }
+    .bpm-text {
+        font-size: 24px;
+        color: #333;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -135,3 +154,4 @@ with tab2:
         st.info(detail['note'])
     else:
         st.write("아카이브가 비어있습니다.")
+
