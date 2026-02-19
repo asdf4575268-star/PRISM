@@ -138,7 +138,7 @@ with tab1:
                         'title': b.get('title', ''),
                         'creator': b.get('author', ''), 
                         'date': b.get('pubDate', '')[:10], 
-                        'img': b.get('cover', ''), 
+                        'img': b.get('community', ''), 
                         'summary': b.get('description', '')
                     }
                     st.rerun()
@@ -263,3 +263,4 @@ with tab2:
                         
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
+
