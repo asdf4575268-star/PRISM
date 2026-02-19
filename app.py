@@ -286,17 +286,21 @@ with tab2:
                             st.markdown(f"<p class='num-text' style='font-size:25px; color:{day_color};'>{day}</p>", unsafe_allow_html=True)
                             
                             if is_active:
+                                # ⭐ 수정: 이미지 URL 유효성 검사 및 'http' 포함 여부 확인
                                 first_img = d_items.iloc[0]['img_url']
                                 import pandas as pd
-                                is_img_valid = pd.notnull(first_img) and str(first_img).strip() not in ["", "None", "nan"]
+                                
+                                # 문자열 변환 후 None/nan/공백/길이 체크
+                                img_str = str(first_img).strip() if pd.notnull(first_img) else ""
+                                is_img_valid = img_str not in ["", "None", "nan", "NULL"] and (img_str.startswith("http") or "/" in img_str)
 
                                 if is_img_valid:
-                                    # ⭐ 수정 포인트: onerror 시 display='none'이 아니라 parentElement를 remove() 하여 공간까지 제거
+                                    # onerror 발생 시 아예 해당 요소를 보이지 않게(visibility) 처리
                                     img_html = f"""
-                                    <div class='cal-img-box' style='background-color: transparent;'>
-                                        <img src='{first_img}' 
+                                    <div class='cal-img-box' style='background: none !important; border: none !important;'>
+                                        <img src='{img_str}' 
                                              style='width:100%; border-radius:5px; display:block;' 
-                                             onerror="this.parentElement.remove();">
+                                             onerror="this.style.display='none'; this.parentElement.style.display='none';">
                                     </div>
                                     """
                                     st.markdown(img_html, unsafe_allow_html=True)
@@ -307,7 +311,7 @@ with tab2:
                             
                             st.markdown(f"</div>", unsafe_allow_html=True)
 
-        # --- [2. 카테고리 탭 (나머지 동일)] ---
+        # --- [2. 카테고리 탭: 전체 기록 보기] ---
         cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
         for idx, cn in enumerate(cats):
             with sub_tabs[idx+1]:
@@ -316,7 +320,8 @@ with tab2:
                     cols = st.columns(4)
                     for i, (record_idx, row) in enumerate(c_df.iterrows()):
                         with cols[i % 4]:
-                            if row['img_url'] and str(row['img_url']).strip() not in ["", "None"]:
+                            img_url = str(row['img_url']).strip() if pd.notnull(row['img_url']) else ""
+                            if img_url not in ["", "None", "nan"]:
                                 st.image(row['img_url'], use_container_width=True)
                             st.markdown(f"<p style='text-align:center; font-size:14px; color:#888;'>🍿 {row['view_date']}</p>", unsafe_allow_html=True)
                             if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True): 
@@ -325,6 +330,7 @@ with tab2:
                     st.info(f"{cn} 카테고리에 아직 기록이 없습니다.")
     else:
         st.info("기록이 없습니다.")
+
 
 
 
