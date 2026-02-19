@@ -17,7 +17,6 @@ st.markdown(f"""
     .date-text {{ font-size: 30px; color: #666; margin: 0; }}
     .num-text {{ font-size: 50px; font-family: 'Jolly Lodger'; text-transform: lowercase; margin: 0; line-height: 1; }}
     
-    /* 기록이 있는 날을 위한 박스 스타일 */
     .cal-day-active {{
         border: 1px solid #eee;
         border-radius: 12px;
@@ -28,12 +27,11 @@ st.markdown(f"""
         margin-bottom: 10px;
     }}
     
-    /* 기록이 없는 평범한 날 스타일 */
     .cal-day-empty {{
         padding: 10px;
         min-height: 160px;
-        background-color: transparent; /* 배경 투명 */
-        border: 1px solid transparent; /* 테두리 제거 */
+        background-color: transparent;
+        border: 1px solid transparent;
         margin-bottom: 10px;
     }}
 
@@ -62,6 +60,15 @@ def init_db():
         except: pass
 
 init_db()
+
+# 데이터 로드 함수 (캐시 없이 실시간 반영을 위해 분리)
+def load_data():
+    with sqlite3.connect(DB_NAME) as conn:
+        df = pd.read_sql_query("SELECT * FROM archive", conn)
+    if not df.empty:
+        df['v_dt'] = pd.to_datetime(df['view_date'].fillna(df['save_date']))
+        df = df.sort_values('v_dt', ascending=False)
+    return df
 
 # --- [2. 상세 정보 다이얼로그] ---
 @st.dialog("📋 기록 상세 정보", width="large")
@@ -106,7 +113,7 @@ def show_details(item):
                     conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
                 st.rerun()
 
-# --- [3. 공통 세션/함수] ---
+# --- [3. 세션 및 함수] ---
 if 'cal_year' not in st.session_state: st.session_state.cal_year = datetime.now().year
 if 'cal_month' not in st.session_state: st.session_state.cal_month = datetime.now().month
 
@@ -184,35 +191,36 @@ with tab1:
             with sqlite3.connect(DB_NAME) as conn:
                 conn.execute("INSERT INTO archive (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                              (category, title, creator, rel_date, summary, brief, highlights, note, img_url, str(date.today()), str(view_date)))
-            st.session_state.api_data = {}; st.success("저장 완료!"); st.rerun()
+            st.session_state.api_data = {}
+            st.success("저장 완료!")
+            st.rerun() # 저장 즉시 리런하여 데이터 새로고침 유도
 
 with tab2:
-    with sqlite3.connect(DB_NAME) as conn:
-        all_df = pd.read_sql_query("SELECT * FROM archive", conn)
+    # 탭 이동 시마다 최신 데이터 로드
+    all_df = load_data()
     
     if not all_df.empty:
-        all_df['v_dt'] = pd.to_datetime(all_df['view_date'].fillna(all_df['save_date']))
-        all_df = all_df.sort_values('v_dt', ascending=False)
-        
+        # 연도 선택 필터
         f_col1, f_col2 = st.columns([1, 3])
         years = sorted(all_df['v_dt'].dt.year.unique(), reverse=True)
-        sel_year = f_col1.selectbox("📅 연도", years, index=0)
+        sel_year = f_col1.selectbox("📅 연도 선택", years, index=0)
         year_df = all_df[all_df['v_dt'].dt.year == sel_year]
         
         sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
         
         with sub_tabs[0]:
             c1, c2, c3 = st.columns([1, 2, 1])
-            if c1.button("◀", use_container_width=True):
+            if c1.button("◀", key="prev_btn"):
                 st.session_state.cal_month -= 1
                 if st.session_state.cal_month == 0: st.session_state.cal_month = 12; st.session_state.cal_year -= 1
                 st.rerun()
             c2.markdown(f"<div class='num-text' style='text-align:center;'>{st.session_state.cal_year} . {st.session_state.cal_month}</div>", unsafe_allow_html=True)
-            if c3.button("▶", use_container_width=True):
+            if c3.button("▶", key="next_btn"):
                 st.session_state.cal_month += 1
                 if st.session_state.cal_month == 13: st.session_state.cal_month = 1; st.session_state.cal_year += 1
                 st.rerun()
 
+            # 요일 헤더
             h_cols = st.columns(7)
             for i, d in enumerate(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]):
                 color = "#FF4B4B" if i == 6 else "#2E5BFF" if i == 5 else "#333"
@@ -227,11 +235,13 @@ with tab2:
                     if day != 0:
                         with cols[i]:
                             d_items = m_df[m_df['v_dt'].dt.day == day]
-                            # 기록이 있는지에 따라 박스 디자인 변경
                             box_class = "cal-day-active" if not d_items.empty else "cal-day-empty"
                             
+                            # 주말 색상 결정
+                            day_color = "#FF4B4B" if i == 6 else "#2E5BFF" if i == 5 else "#000"
+                            
                             st.markdown(f"<div class='{box_class}'>", unsafe_allow_html=True)
-                            st.markdown(f"<p class='num-text' style='font-size:25px;'>{day}</p>", unsafe_allow_html=True)
+                            st.markdown(f"<p class='num-text' style='font-size:25px; color:{day_color};'>{day}</p>", unsafe_allow_html=True)
                             
                             if not d_items.empty:
                                 if d_items.iloc[0]['img_url']: 
@@ -241,7 +251,7 @@ with tab2:
                                         show_details(r)
                             st.markdown(f"</div>", unsafe_allow_html=True)
 
-        # 카테고리 탭 (BOOKS 등)
+        # 카테고리별 탭
         cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
         for idx, cn in enumerate(cats):
             with sub_tabs[idx+1]:
