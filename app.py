@@ -104,7 +104,7 @@ with tab1:
                 sel = st.selectbox("검색 결과", list(opts.keys()))
                 if st.button("✨ 가져오기"):
                     b = opts[sel]
-                    st.session_state.api_data = {'title': b['title'], 'creator': f"저자: {', '.join(b['authors'])}", 'date': b['datetime'][:10], 'img': b['thumbnail'], 'summary': b['contents']}
+                    st.session_state.api_data = {'title': b['title'], 'creator': f"{', '.join(b['authors'])}", 'date': b['datetime'][:10], 'img': b['thumbnail'], 'summary': b['contents']}
                     st.rerun()
         elif category == "MUSIC":
             res = search_apple_music(search_query)
@@ -212,4 +212,5 @@ with tab2:
                         st.markdown(f'<p class="save-date-tag">📅 {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
