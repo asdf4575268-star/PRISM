@@ -134,21 +134,15 @@ with tab1:
                 if st.button("✨ 가져오기", key="book_btn"):
                     b = opts[sel]
                     
-                    # --- [고화질 이미지 치트키 보완] ---
-                    raw_img = b.get('cover', '')
-                    # coversum(소) -> community(대) -> mid(중) 순서로 시도
-                    if '/coversum/' in raw_img:
-                        high_res_img = raw_img.replace('/coversum/', '/community/')
-                    elif '/mid/' in raw_img:
-                        high_res_img = raw_img.replace('/mid/', '/community/')
-                    else:
-                        high_res_img = raw_img
+                    # --- [변경: 경로 조작 없이 안전하게 가져오기] ---
+                    # 주소를 바꾸지 않고 알라딘이 주는 주소 그대로 사용합니다.
+                    safe_img = b.get('cover', '')
                     
                     st.session_state.api_data = {
                         'title': b.get('title', ''),
                         'creator': b.get('author', ''), 
                         'date': b.get('pubDate', '')[:10], 
-                        'img': high_res_img, 
+                        'img': safe_img, 
                         'summary': b.get('description', '')
                     }
                     st.rerun()
@@ -273,6 +267,7 @@ with tab2:
                         
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
