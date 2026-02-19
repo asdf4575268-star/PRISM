@@ -128,26 +128,30 @@ with tab1:
     if search_query:
         if category == "BOOKS":
             res = search_books(search_query, "BOOKS")
-        if res:
-            opts = {f"📚 {b['title']}": b for b in res}
-            sel = st.selectbox("검색 결과", list(opts.keys()))
-            if st.button("✨ 가져오기"):
-                b = opts[sel]
-                
-                # --- [고화질 이미지 주소 변환] ---
-                # /coversum/ 이나 /mid/ 를 /community/ 로 바꾸면 원본급 화질이 나옵니다.
-                raw_img = b.get('cover', '')
-                high_res_img = raw_img.replace('/coversum/', '/community/').replace('/mid/', '/community/')
-                
-                # 알라딘 Key값에 맞춰 수정
-                st.session_state.api_data = {
-                    'title': b.get('title', ''),
-                    'creator': b.get('author', ''), 
-                    'date': b.get('pubDate', '')[:10], 
-                    'img': high_res_img, # 고화질 이미지 적용
-                    'summary': b.get('description', '')
-                }
-                st.rerun()
+            if res:
+                opts = {f"📚 {b['title']}": b for b in res}
+                sel = st.selectbox("검색 결과", list(opts.keys()), key="book_sel")
+                if st.button("✨ 가져오기", key="book_btn"):
+                    b = opts[sel]
+                    
+                    # --- [고화질 이미지 치트키 보완] ---
+                    raw_img = b.get('cover', '')
+                    # coversum(소) -> community(대) -> mid(중) 순서로 시도
+                    if '/coversum/' in raw_img:
+                        high_res_img = raw_img.replace('/coversum/', '/community/')
+                    elif '/mid/' in raw_img:
+                        high_res_img = raw_img.replace('/mid/', '/community/')
+                    else:
+                        high_res_img = raw_img
+                    
+                    st.session_state.api_data = {
+                        'title': b.get('title', ''),
+                        'creator': b.get('author', ''), 
+                        'date': b.get('pubDate', '')[:10], 
+                        'img': high_res_img, 
+                        'summary': b.get('description', '')
+                    }
+                    st.rerun()
         # ... (MUSIC, STAGE, TMDB 로직 생략 - 필요시 위와 같은 get() 패턴 적용)
         elif category == "MUSIC":
             res = search_books(search_query, "MUSIC") # 알라딘 뮤직 검색 사용
@@ -269,6 +273,7 @@ with tab2:
                         
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
