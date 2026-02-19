@@ -145,11 +145,22 @@ def search_apple_music(query):
     except:
         return []
         
-def search_tmdb(query, category):
-    search_type = "movie" if category == "MOVIES" else "tv"
-    url = f"https://api.themoviedb.org/3/search/{search_type}?api_key={TMDB_API_KEY}&query={query}&language=ko-KR"
-    try: return requests.get(url).json().get("results", [])
-    except: return []
+# --- [API 함수 정의 구역] ---
+
+def get_tmdb_details(item_id, category):
+    type_path = "movie" if category == "MOVIES" else "tv"
+    url = f"https://api.themoviedb.org/3/{type_path}/{item_id}/credits?api_key={TMDB_API_KEY}&language=ko-KR"
+    try:
+        res = requests.get(url).json()
+        # 감독(Director) 정보 추출
+        director = next((m['name'] for m in res.get('crew', []) if m.get('job') == 'Director'), "정보 없음")
+        # 주요 출연진 3명 추출
+        cast = ", ".join([c['name'] for c in res.get('cast', [])[:3]])
+        return f"감독: {director} / 출연: {cast}"
+    except:
+        return "정보 없음"
+
+# 이 아래에 search_books, search_apple_music 등 다른 def들이 오면 됩니다.
 def search_kopis(query):
     url = f"http://www.kopis.or.kr/openApi/restful/pblprfr?service={KOPIS_KEY}&shprfnm={query}&stdate=20200101&eddate=20261231&rows=10&cpage=1"
     try:
@@ -382,6 +393,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
