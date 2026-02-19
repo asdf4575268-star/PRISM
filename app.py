@@ -144,8 +144,6 @@ with tab1:
     with col_l:
         img_url = data.get('img', '')
         if img_url: st.image(img_url, width=300)
-        show_img_input = st.checkbox("이미지 주소 직접 입력", value=False if img_url else True)
-        if show_img_input: img_url = st.text_input("이미지 주소(URL)", value=img_url)
         title = st.text_input("제목", value=data.get('title', ''))
         creator = st.text_input("창작자/배우 정보", value=data.get('creator', ''))
         rel_date = st.text_input("작품 관련 날짜", value=data.get('date', str(date.today())))
@@ -182,6 +180,7 @@ with tab2:
                         st.markdown(f'<p class="save-date-tag">📅 기록일: {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
