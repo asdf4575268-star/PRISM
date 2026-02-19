@@ -11,7 +11,6 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Kirang+Haerang&family=Jolly+Lodger&family=Lacquer&display=swap');
     
-    /* 사용자 요청 폰트 크기 설정 */
     .act-name { font-size: 90px; font-family: 'Kirang Haerang'; line-height: 1.1; margin: 0; }
     .date-text { font-size: 30px; color: #666; margin: 0; }
     .num-text { font-size: 60px; font-family: 'Jolly Lodger'; text-transform: lowercase; margin: 0; }
@@ -27,7 +26,6 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 DB_NAME = 'archive_prism_total_v2.db'
-# 사용자님이 제공해주신 TMDB API 키 적용
 TMDB_API_KEY = "6e7c55b6259b7731655033f783f3fc5b"
 
 def init_db():
@@ -37,7 +35,6 @@ def init_db():
                          rel_date TEXT, summary TEXT, highlights TEXT, note TEXT, img_url TEXT, save_date TEXT)''')
 
 # --- [2. API 연동 함수들] ---
-
 def search_books(query):
     headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
     try:
@@ -53,9 +50,7 @@ def search_apple_music(query):
 def search_tmdb(query, category):
     search_type = "movie" if category == "영화" else "tv"
     url = f"https://api.themoviedb.org/3/search/{search_type}?api_key={TMDB_API_KEY}&query={query}&language=ko-KR"
-    try:
-        res = requests.get(url)
-        return res.json().get("results", [])
+    try: return requests.get(url).json().get("results", [])
     except: return []
 
 # --- [3. 상세 보기 팝업] ---
@@ -83,8 +78,9 @@ tab1, tab2 = st.tabs(["🖋️ 아카이빙 입력", "📂 보관함 폴더"])
 
 with tab1:
     category = st.radio("📂 카테고리 선택", ["도서", "음악", "영화", "시리즈"], horizontal=True)
-    search_query = st.text_input(f"🔍 {category} 제목 검색", placeholder="검색 후 데이터 연동 버튼을 눌러주세요")
+    search_query = st.text_input(f"🔍 {category} 제목 검색", placeholder="제목 입력 후 데이터 가져오기를 눌러주세요")
     
+    # API 검색 로직 (기존과 동일)
     if search_query:
         if category == "도서":
             res = search_books(search_query)
@@ -104,7 +100,7 @@ with tab1:
                     m = opts[sel]
                     st.session_state.api_data = {'title': m.get('trackName', m.get('collectionName')), 'creator': m['artistName'], 'date': m['releaseDate'][:10], 'img': m.get('artworkUrl100', '').replace('100x100bb', '600x600bb'), 'summary': ''}
                     st.rerun()
-        else: # 영화/시리즈 (TMDB)
+        else: # 영화/시리즈
             res = search_tmdb(search_query, category)
             if res:
                 opts = {}
@@ -125,11 +121,20 @@ with tab1:
 
     st.divider()
     data = st.session_state.get('api_data', {})
+    
     col_l, col_r = st.columns([0.4, 0.6])
     
     with col_l:
-        img_url = st.text_input("이미지 주소", value=data.get('img', ''))
-        if img_url: st.image(img_url, width=300)
+        # 이미지 주소창을 없애고, 이미지가 있을 때만 노출
+        img_url = data.get('img', '')
+        if img_url: 
+            st.image(img_url, width=300)
+        else:
+            st.info("검색을 통해 이미지를 불러오거나, 제목을 입력해주세요.")
+            # 혹시 수동 입력이 필요할 때를 위해 아주 작게 옵션 제공
+            if st.checkbox("이미지 직접 입력"):
+                img_url = st.text_input("이미지 주소 URL 붙여넣기")
+        
         title = st.text_input("제목", value=data.get('title', ''))
         creator = st.text_input("창작자/정보", value=data.get('creator', ''))
         rel_date = st.text_input("날짜", value=data.get('date', str(date.today())))
@@ -139,7 +144,7 @@ with tab1:
         highlights = st.text_area("✨ 하이라이트", height=100)
         note = st.text_area("💬 개인적 감상", height=100)
         
-        # 가이드 디자인 (활동명 90, 날짜 30, 숫자 60, 소문자 km/bpm)
+        # 가이드 디자인
         st.markdown(f'<p class="act-name">{title if title else "Title"}</p>', unsafe_allow_html=True)
         st.markdown(f'<p class="date-text">{rel_date if rel_date else "2026-00-00"}</p>', unsafe_allow_html=True)
         st.markdown(f'<p class="num-text">12.5 km / 145 bpm</p>', unsafe_allow_html=True)
