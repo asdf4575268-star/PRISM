@@ -64,9 +64,9 @@ def show_details(item):
                 new_view_date = st.date_input("🍿 감상일 수정", value=cur_v)
                 
                 new_brief = st.text_input("📝 요약", value=item['brief'])
-                new_summary = st.text_area("📖 줄거리", value=item['summary'], height=300)
-                new_highlights = st.text_area("✨ 인상 깊은 부분", value=item['highlights'], height=300)
-                new_note = st.text_area("💬 감상", value=item['note'], height=300)
+                new_summary = st.text_area("📖 줄거리", value=item['summary'], height=120)
+                new_highlights = st.text_area("✨ 인상 깊은 부분", value=item['highlights'], height=100)
+                new_note = st.text_area("💬 감상", value=item['note'], height=100)
                 
                 if st.form_submit_button("💾 변경사항 저장", use_container_width=True):
                     with sqlite3.connect(DB_NAME) as conn:
@@ -159,14 +159,7 @@ with tab1:
                 sel = st.selectbox("검색 결과", list(opts.keys()))
                 if st.button("✨ 가져오기"):
                     b = opts[sel]
-                    st.session_state.api_data = {
-                        'title': b.get('title', ''),
-                        'creator': ", ".join(b.get('authors', [])), 
-                        'date': b.get('datetime', '')[:10], 
-                        'img': high_res_img, 
-                        # 카카오 contents는 요약본일 수 있으므로, 사용자가 직접 붙여넣을 공간 확보
-                        'summary': b.get('contents', '') 
-                    }
+                    st.session_state.api_data = {'title': b['title'], 'creator': f"저자: {', '.join(b['authors'])}", 'date': b['datetime'][:10], 'img': b['thumbnail'], 'summary': b['contents']}
                     st.rerun()
         elif category == "MUSIC":
             res = search_apple_music(search_query)
@@ -337,5 +330,3 @@ for idx, c_name in enumerate(cats):
                     
                     if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                         show_details(row)
-
-
