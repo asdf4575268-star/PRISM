@@ -368,7 +368,7 @@ with tab2:
                                 ''', unsafe_allow_html=True)
                             
                             title_disp = first_item['title'][:5]
-                            if st.button(f"•{title_disp}", key=f"cal_{day}_{first_item['id']}", use_container_width=True):
+                            if st.button(f"{title_disp}", key=f"cal_{day}_{first_item['id']}", use_container_width=True):
                                 show_details(first_item)
                         else:
                             st.markdown("<div style='height:60px;'></div>", unsafe_allow_html=True)
@@ -405,6 +405,7 @@ with tab2:
                                     show_details(row)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
