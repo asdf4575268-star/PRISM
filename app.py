@@ -76,7 +76,7 @@ with tab1:
     
     with col1:
         category = st.selectbox("카테고리", ["책"])
-        search_query = st.text_input("🔍"검색")
+        search_query = st.text_input("🔍 책 제목 검색 (데미안 등을 입력하고 엔터)")
         
         if search_query:
             books = search_books(search_query)
@@ -94,7 +94,9 @@ with tab1:
         data = st.session_state.get('api_data', None)
         st.divider()
         
-        title_val = st.text_input("활동명", value=data['title'] if data else "")        
+        title_val = st.text_input("활동명", value=data['title'] if data else "")
+        st.markdown(f'<p class="title-text">{title_val if title_val else "PRISM"}</p>', unsafe_allow_html=True)
+        
         creator = st.text_input("창작자 (작가)", value=data['creator'] if data else "")
         release_date = st.text_input("출판일", value=data['date'] if data else "")
         impression = st.text_area("인상 깊은 부분 (수기)")
@@ -138,6 +140,3 @@ with tab2:
         st.info(detail['note'])
     else:
         st.write("아카이브가 비어있습니다.")
-
-
-
