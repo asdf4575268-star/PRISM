@@ -64,7 +64,7 @@ def show_details(item):
                 new_view_date = st.date_input("🍿 감상일 수정", value=cur_v)
                 
                 new_brief = st.text_input("📝 요약", value=item['brief'])
-                new_summary = st.text_area("📖 줄거리", value=item['summary'], height=120)
+                new_summary = st.text_area("📖 작품 소개", value=item['summary'], height=120)
                 new_highlights = st.text_area("✨ 인상 깊은 부분", value=item['highlights'], height=100)
                 new_note = st.text_area("💬 감상", value=item['note'], height=100)
                 
@@ -88,7 +88,7 @@ def show_details(item):
             st.markdown(f'<p class="date-text">🍿 감상일: {v_date}</p>', unsafe_allow_html=True)
             st.divider()
             if item['brief']: st.success(f"**📝 요약:** {item['brief']}")
-            st.info(f"**📖 줄거리:**\n\n{item['summary']}")
+            st.info(f"**📖 작품 소개:**\n\n{item['summary']}")
             st.warning(f"**✨ 인상 깊은 부분:**\n\n{item['highlights']}")
             st.write(f"**💬 감상:**\n\n{item['note']}")
             
@@ -204,7 +204,7 @@ with tab1:
         view_date = col2.date_input("🍿 감상일", value=date.today())
         
     with cr:
-        summary = st.text_area("📖 줄거리", value=data.get('summary', ''), height=150)
+        summary = st.text_area("📖 작품 소개", value=data.get('summary', ''), height=150)
         brief = st.text_input("📝 요약")
         highlights = st.text_area("✨ 인상 깊은 부분", height=100)
         note = st.text_area("💬 감상", height=100)
@@ -331,6 +331,7 @@ for idx, c_name in enumerate(cats):
                     
                     if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                         show_details(row)
+
 
 
 
