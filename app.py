@@ -114,8 +114,20 @@ def search_books(query):
     except: return []
 
 def search_apple_music(query):
-    url = f"https://itunes.apple.com/search?term={query}&limit=10&country=kr&entity=musicTrack"
+    url = f"https://itunes.apple.com/search?term={query}&limit=10&country=kr&entity=musicTrack,album"
     try: return requests.get(url).json().get("results", [])
+    except: return []
+def search_tmdb(query, category):
+    search_type = "movie" if category == "MOVIES" else "tv"
+    url = f"https://api.themoviedb.org/3/search/{search_type}?api_key={TMDB_API_KEY}&query={query}&language=ko-KR"
+    try: return requests.get(url).json().get("results", [])
+    except: return []
+def search_kopis(query):
+    url = f"http://www.kopis.or.kr/openApi/restful/pblprfr?service={KOPIS_KEY}&shprfnm={query}&stdate=20200101&eddate=20261231&rows=10&cpage=1"
+    try:
+        res = requests.get(url)
+        root = ET.fromstring(res.content)
+        return [{'title': d.findtext('prfnm'), 'id': d.findtext('mt20id'), 'img': d.findtext('poster'), 'date': d.findtext('prfpdfrom'), 'venue': d.findtext('fcltynm')} for d in root.findall('db')]
     except: return []
 
 # ... (다른 API 함수들 생략: 기존과 동일)
@@ -299,4 +311,5 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
