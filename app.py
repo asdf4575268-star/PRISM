@@ -174,7 +174,7 @@ with tab2:
 import calendar
 from datetime import datetime
 
-# 1. 세션 상태 초기화 (현재 보고 있는 연도/월 저장)
+# 1. 세션 상태 초기화 (이전/다음달 이동용)
 if 'cal_year' not in st.session_state:
     st.session_state.cal_year = datetime.now().year
 if 'cal_month' not in st.session_state:
@@ -193,31 +193,30 @@ def change_month(delta):
 
 # --- UI 구성 ---
 with sub_tabs[0]:
-    # 상단 내비게이션 바
-    nav_col1, nav_col2, nav_col3 = st.columns([1, 3, 1])
+    # 상단 이동 바
+    nav_col1, nav_col2, nav_col3 = st.columns([1, 2, 1])
     with nav_col1:
-        if st.button("◀ 저번달"): change_month(-1)
+        if st.button("◀ 저번달", use_container_width=True): change_month(-1)
     with nav_col2:
-        st.markdown(f"<h3 style='text-align:center;'>{st.session_state.cal_year}년 {st.session_state.cal_month}월</h3>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='text-align:center; margin:0;'>{st.session_state.cal_year}년 {st.session_state.cal_month}월</h3>", unsafe_allow_html=True)
     with nav_col3:
-        if st.button("다음달 ▶"): change_month(1)
+        if st.button("다음달 ▶", use_container_width=True): change_month(1)
 
     with sqlite3.connect(DB_NAME) as conn:
         all_df = pd.read_sql_query("SELECT * FROM archive", conn)
     
     if not all_df.empty:
         all_df['save_date'] = pd.to_datetime(all_df['save_date'])
-        # 해당 연도/월 데이터 필터링
         year_df = all_df[(all_df['save_date'].dt.year == st.session_state.cal_year) & 
                          (all_df['save_date'].dt.month == st.session_state.cal_month)]
 
         # 요일 헤더
         days = ["월", "화", "수", "목", "금", "토", "일"]
-        cols = st.columns(7)
+        header_cols = st.columns(7)
         for i, d in enumerate(days):
-            cols[i].markdown(f"<p style='text-align:center; font-weight:bold; color:#888;'>{d}</p>", unsafe_allow_html=True)
+            header_cols[i].markdown(f"<p style='text-align:center; font-weight:bold; color:#888; margin-bottom:5px;'>{d}</p>", unsafe_allow_html=True)
 
-        # 달력 본문
+        # 달력 날짜 생성
         cal = calendar.monthcalendar(st.session_state.cal_year, st.session_state.cal_month)
         for week in cal:
             cols = st.columns(7)
@@ -232,31 +231,30 @@ with sub_tabs[0]:
                                 st.session_state.cal_month == datetime.now().month and 
                                 day == datetime.now().day)
                     
-                    st.markdown(f"<p style='margin:0; font-weight:{'bold' if is_today else 'normal'}; color:{'#FF4B4B' if is_today else 'black'};'>{day}</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='margin:0; font-size:13px; font-weight:{'bold' if is_today else 'normal'}; color:{'#FF4B4B' if is_today else '#333'};'>{day}</p>", unsafe_allow_html=True)
                     
-                    # 해당 날짜의 모든 데이터 가져오기
+                    # 해당 날짜의 모든 데이터 필터링
                     day_items = year_df[year_df['save_date'].dt.day == day]
                     
                     if not day_items.empty:
-                        # 1. 대표 이미지 표시 (첫 번째 기록)
+                        # [대표 이미지] 가장 최근 혹은 첫 번째 사진 하나만 노출
                         main_row = day_items.iloc[0]
                         if main_row['img_url']:
                             st.markdown(f"""
-                                <div style="width:100%; aspect-ratio:1/1; overflow:hidden; border-radius:4px; border:1px solid #eee;">
+                                <div style="width:100%; aspect-ratio:1/1; overflow:hidden; border-radius:4px; border:1px solid #eee; margin-bottom:5px;">
                                     <img src="{main_row['img_url']}" style="width:100%; height:100%; object-fit:cover;">
                                 </div>
                             """, unsafe_allow_html=True)
                         
-                        # 2. 다중 기록 처리: 목록 버튼 생성
-                        # 날짜에 기록이 여러 개면 개수 표시 및 각각의 버튼 생성
-                        for idx, row in day_items.iterrows():
-                            # 버튼 이름을 "활동명" 또는 "제목"으로 설정 (공간 절약을 위해 작게)
-                            btn_label = f"📍 {row['title'][:5]}.." if len(day_items) > 1 else "🔍 상세보기"
-                            if st.button(btn_label, key=f"btn_{row['id']}", use_container_width=True):
+                        # [목록 형태] 해당 날짜의 모든 기록을 버튼 리스트로 표시
+                        for _, row in day_items.iterrows():
+                            # 버튼에 제목 표시 (너무 길면 생략)
+                            display_title = row['title'] if len(row['title']) <= 6 else row['title'][:5] + ".."
+                            if st.button(f"• {display_title}", key=f"cal_list_{row['id']}", use_container_width=True):
                                 show_details(row)
                     else:
-                        # 기록 없는 날 빈 칸 유지
-                        st.markdown("<div style='width:100%; aspect-ratio:1/1; background:#f9f9f9; border-radius:4px;'></div>", unsafe_allow_html=True)
+                        # 기록 없는 날 빈 영역 유지
+                        st.markdown("<div style='width:100%; aspect-ratio:1/1; background:#fbfbfb; border-radius:4px; margin-bottom:5px;'></div>", unsafe_allow_html=True)
                     
     # 2. 기존 카테고리별 탭 (동일하게 유지)
     categories = ["BOOKS", "MUSIC", "MOVIES", "SERIES"]
@@ -274,6 +272,7 @@ with sub_tabs[0]:
                         st.markdown(f'<p class="save-date-tag">📅 기록일: {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"cat_btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
