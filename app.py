@@ -195,32 +195,57 @@ with tab1:
             st.success("저장 완료!")
             st.rerun() # 저장 즉시 리런하여 데이터 새로고침 유도
 
+좋은 아이디어네요! YEARLY (달력) 모드는 아무래도 날짜 중심이다 보니 연도 선택이 필수적이지만, 나머지 카테고리 탭은 내가 기록한 전체 데이터를 훑어보는 게 더 편할 수 있죠.
+
+요청하신 대로 연도 선택 박스를 YEARLY 탭 안으로 이동시키고, 나머지 BOOKS, MOVIES 등의 탭에서는 연도 제한 없이 전체 기록이 나오도록 로직을 수정했습니다.
+
+🛠️ 주요 변경 사항
+필터 위치 조정: 연도 선택(selectbox)을 sub_tabs[0] (YEARLY) 내부로 옮겼습니다.
+
+데이터 범위 차별화: * YEARLY: 선택한 연도에 해당하는 데이터만 표시.
+
+나머지 카테고리: all_df(전체 데이터)를 사용하여 모든 기록을 카테고리별로 나열.
+
+정렬 유지: 모든 리스트는 최신 관람일 순서로 정렬되어 나타납니다.
+
+Python
+# (이전 코드의 스타일 및 데이터 로드 함수 부분은 동일하게 유지)
+
 with tab2:
-    # 탭 이동 시마다 최신 데이터 로드
+    # 실시간 데이터 로드
     all_df = load_data()
     
     if not all_df.empty:
-        # 연도 선택 필터
-        f_col1, f_col2 = st.columns([1, 3])
-        years = sorted(all_df['v_dt'].dt.year.unique(), reverse=True)
-        sel_year = f_col1.selectbox("📅 연도 선택", years, index=0)
-        year_df = all_df[all_df['v_dt'].dt.year == sel_year]
-        
+        # 아카이브 내 서브 탭 구성
         sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
         
+        # --- [1. YEARLY 탭: 연도별 달력 보기] ---
         with sub_tabs[0]:
+            # 연도 선택 필터를 달력 탭 안으로 이동
+            years = sorted(all_df['v_dt'].dt.year.unique(), reverse=True)
+            sel_year = st.selectbox("📅 연도 선택", years, index=0, key="year_filter")
+            
+            # 선택된 연도의 데이터만 필터링
+            year_df = all_df[all_df['v_dt'].dt.year == sel_year]
+
+            # 월 이동 컨트롤
             c1, c2, c3 = st.columns([1, 2, 1])
             if c1.button("◀", key="prev_btn"):
                 st.session_state.cal_month -= 1
-                if st.session_state.cal_month == 0: st.session_state.cal_month = 12; st.session_state.cal_year -= 1
+                if st.session_state.cal_month == 0: 
+                    st.session_state.cal_month = 12; st.session_state.cal_year -= 1
                 st.rerun()
+            
+            # 현재 달력 표시 (연도 선택과 세션 연도 동기화는 하지 않음 - 자유로운 탐색 위해)
             c2.markdown(f"<div class='num-text' style='text-align:center;'>{st.session_state.cal_year} . {st.session_state.cal_month}</div>", unsafe_allow_html=True)
+            
             if c3.button("▶", key="next_btn"):
                 st.session_state.cal_month += 1
-                if st.session_state.cal_month == 13: st.session_state.cal_month = 1; st.session_state.cal_year += 1
+                if st.session_state.cal_month == 13: 
+                    st.session_state.cal_month = 1; st.session_state.cal_year += 1
                 st.rerun()
 
-            # 요일 헤더
+            # 요일 헤더 및 달력 로직 (기존과 동일)
             h_cols = st.columns(7)
             for i, d in enumerate(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]):
                 color = "#FF4B4B" if i == 6 else "#2E5BFF" if i == 5 else "#333"
@@ -236,13 +261,10 @@ with tab2:
                         with cols[i]:
                             d_items = m_df[m_df['v_dt'].dt.day == day]
                             box_class = "cal-day-active" if not d_items.empty else "cal-day-empty"
-                            
-                            # 주말 색상 결정
                             day_color = "#FF4B4B" if i == 6 else "#2E5BFF" if i == 5 else "#000"
                             
                             st.markdown(f"<div class='{box_class}'>", unsafe_allow_html=True)
                             st.markdown(f"<p class='num-text' style='font-size:25px; color:{day_color};'>{day}</p>", unsafe_allow_html=True)
-                            
                             if not d_items.empty:
                                 if d_items.iloc[0]['img_url']: 
                                     st.markdown(f"<div class='cal-img-box'><img src='{d_items.iloc[0]['img_url']}'></div>", unsafe_allow_html=True)
@@ -251,19 +273,25 @@ with tab2:
                                         show_details(r)
                             st.markdown(f"</div>", unsafe_allow_html=True)
 
-        # 카테고리별 탭
+        # --- [2. 카테고리 탭: 전체 기록 보기] ---
         cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
         for idx, cn in enumerate(cats):
             with sub_tabs[idx+1]:
-                c_df = year_df[year_df['category'] == cn]
+                # year_df가 아닌 all_df에서 카테고리만 필터링 (전체 데이터)
+                c_df = all_df[all_df['category'] == cn]
+                
                 if not c_df.empty:
+                    # 한 줄에 4개씩 포스터 배치
                     cols = st.columns(4)
-                    for i, row in c_df.reset_index().iterrows():
+                    for i, (record_idx, row) in enumerate(c_df.iterrows()):
                         with cols[i % 4]:
-                            if row['img_url']: st.image(row['img_url'], use_container_width=True)
+                            if row['img_url']: 
+                                st.image(row['img_url'], use_container_width=True)
                             st.markdown(f"<p style='text-align:center; font-size:14px; color:#888;'>🍿 {row['view_date']}</p>", unsafe_allow_html=True)
-                            if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True): show_details(row)
+                            if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True): 
+                                show_details(row)
                 else:
-                    st.info(f"{cn} 카테고리에 기록이 없습니다.")
+                    st.info(f"{cn} 카테고리에 아직 기록이 없습니다.")
     else:
-        st.info("기록이 없습니다.")
+        st.info("기록이 없습니다. 첫 기록을 남겨보세요!")
+
