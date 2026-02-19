@@ -59,9 +59,9 @@ def show_details(item):
                 new_creator = st.text_input("👤 창작자", value=item['creator'])
                 new_rel_date = st.text_input("📅 작품 날짜", value=item['rel_date'])
                 
-                # 관람일 수정 기능 추가
+                # 감상일 수정 기능 추가
                 cur_v = datetime.strptime(item.get('view_date') or item['save_date'], '%Y-%m-%d').date() if item.get('view_date') or item.get('save_date') else date.today()
-                new_view_date = st.date_input("🍿 관람일 수정", value=cur_v)
+                new_view_date = st.date_input("🍿 감상일 수정", value=cur_v)
                 
                 new_brief = st.text_input("📝 요약", value=item['brief'])
                 new_summary = st.text_area("📖 줄거리", value=item['summary'], height=120)
@@ -85,7 +85,7 @@ def show_details(item):
             st.markdown(f'<p class="act-name">{item["title"]}</p>', unsafe_allow_html=True)
             st.write(f"**정보:** {item['creator']} | **작품날짜:** {item['rel_date']}")
             v_date = item.get('view_date') if item.get('view_date') else item['save_date']
-            st.markdown(f'<p class="date-text">🍿 관람일: {v_date}</p>', unsafe_allow_html=True)
+            st.markdown(f'<p class="date-text">🍿 감상일: {v_date}</p>', unsafe_allow_html=True)
             st.divider()
             if item['brief']: st.success(f"**📝 요약:** {item['brief']}")
             st.info(f"**📖 줄거리:**\n\n{item['summary']}")
@@ -200,8 +200,8 @@ with tab1:
         
         col1, col2 = st.columns(2)
         rel_date = col1.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
-        # 관람일 입력 추가 (기본값 오늘)
-        view_date = col2.date_input("🍿 관람일", value=date.today())
+        # 감상일 입력 추가 (기본값 오늘)
+        view_date = col2.date_input("🍿 감상일", value=date.today())
         
     with cr:
         summary = st.text_area("📖 줄거리", value=data.get('summary', ''), height=150)
@@ -225,7 +225,7 @@ with tab2:
             all_df = pd.read_sql_query("SELECT * FROM archive", conn)
         
         if not all_df.empty:
-            # 관람일이 없으면 기록일로 대체하여 v_dt(달력 기준일) 생성
+            # 감상일이 없으면 기록일로 대체하여 v_dt(달력 기준일) 생성
             if 'view_date' not in all_df.columns:
                 all_df['view_date'] = all_df['save_date']
             all_df['view_date_filled'] = all_df['view_date'].fillna(all_df['save_date'])
@@ -307,6 +307,7 @@ with tab2:
                         st.markdown(f'<p class="date-text" style="font-size:14px; text-align:center;">🍿 {v_date_display}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
