@@ -7,9 +7,6 @@ import xml.etree.ElementTree as ET
 from datetime import date, datetime
 
 # --- [1. 스타일 및 설정] ---
-# 여기에 로고 주소를 넣으세요 (없으면 이모지 "🌈"로 유지됩니다)
-LOGO_URL = "https://raw.githubusercontent.com/사용자명/저장소명/main/LOGO1.jpg" 
-
 st.set_page_config(
     layout="wide", 
     page_title="PRISM", 
@@ -295,4 +292,5 @@ with tab2:
                         st.markdown(f'<p class="date-text" style="font-size:14px; text-align:center;">📅 {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
