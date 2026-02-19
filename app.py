@@ -15,7 +15,7 @@ st.markdown(f"""
     
     .act-name {{ font-size: 90px; font-family: 'Kirang Haerang'; line-height: 1.1; margin: 0; }}
     .date-text {{ font-size: 30px; color: #666; margin: 0; }}
-    .num-text {{ font-size: 50px; font-family: 'Jolly Lodger'; text-transform: lowercase; margin: 0; line-height: 1; }}
+    .num-text {{ font-size: 60px; font-family: 'Jolly Lodger'; text-transform: lowercase; margin: 0; line-height: 1; }}
     
     .cal-day-active {{
         border: 1px solid #eee;
@@ -61,7 +61,6 @@ def init_db():
 
 init_db()
 
-# 데이터 로드 함수 (캐시 없이 실시간 반영을 위해 분리)
 def load_data():
     with sqlite3.connect(DB_NAME) as conn:
         df = pd.read_sql_query("SELECT * FROM archive", conn)
@@ -69,6 +68,33 @@ def load_data():
         df['v_dt'] = pd.to_datetime(df['view_date'].fillna(df['save_date']))
         df = df.sort_values('v_dt', ascending=False)
     return df
+
+# --- [API 상세 연동 함수] ---
+@st.cache_data(ttl=3600)
+def get_tmdb_details(item_id, category):
+    t_type = "movie" if category == "MOVIES" else "tv"
+    url = f"https://api.themoviedb.org/3/{t_type}/{item_id}?api_key={TMDB_API_KEY}&language=ko-KR&append_to_response=credits"
+    try:
+        r = requests.get(url).json()
+        director = ""
+        if t_type == "movie":
+            directors = [m['name'] for m in r.get('credits', {}).get('crew', []) if m['job'] == 'Director']
+            director = f"감독: {', '.join(directors)}" if directors else ""
+        else:
+            creators = [c['name'] for c in r.get('created_by', [])]
+            director = f"제작: {', '.join(creators)}" if creators else ""
+        cast = [c['name'] for c in r.get('credits', {}).get('cast', [])[:3]]
+        cast_str = f" / 출연: {', '.join(cast)}" if cast else ""
+        return f"{director}{cast_str}".strip(" /")
+    except: return ""
+
+@st.cache_data(ttl=3600)
+def search_itunes(query):
+    url = f"https://itunes.apple.com/search?term={query}&entity=song&limit=5"
+    try:
+        res = requests.get(url).json()
+        return res.get('results', [])
+    except: return []
 
 # --- [2. 상세 정보 다이얼로그] ---
 @st.dialog("📋 기록 상세 정보", width="large")
@@ -113,7 +139,7 @@ def show_details(item):
                     conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
                 st.rerun()
 
-# --- [3. 세션 및 함수] ---
+# --- [3. 세션 및 검색 함수] ---
 if 'cal_year' not in st.session_state: st.session_state.cal_year = datetime.now().year
 if 'cal_month' not in st.session_state: st.session_state.cal_month = datetime.now().month
 
@@ -144,6 +170,7 @@ tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 with tab1:
     category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"], horizontal=True)
     search_query = st.text_input(f"🔍 {category} 검색")
+    
     if search_query:
         if category == "BOOKS":
             res = search_books(search_query)
@@ -152,6 +179,20 @@ with tab1:
                 if st.button("✨ 가져오기"):
                     b = next(x for x in res if f"📚 {x['title']}" == sel)
                     st.session_state.api_data = {'title': b['title'], 'creator': f"저자: {', '.join(b['authors'])}", 'date': b['datetime'][:10], 'img': b['thumbnail'], 'summary': b['contents']}
+                    st.rerun()
+        elif category == "MUSIC":
+            res = search_itunes(search_query)
+            if res:
+                sel = st.selectbox("검색 결과", [f"🎵 {m.get('trackName')} - {m.get('artistName')}" for m in res])
+                if st.button("✨ 가져오기"):
+                    m = next(x for x in res if f"🎵 {x.get('trackName')} - {x.get('artistName')}" == sel)
+                    st.session_state.api_data = {
+                        'title': m['trackName'], 
+                        'creator': f"아티스트: {m['artistName']} ({m.get('collectionName', 'Single')})", 
+                        'date': m['releaseDate'][:10], 
+                        'img': m['artworkUrl100'].replace('100x100bb', '600x600bb'), 
+                        'summary': f"장르: {m.get('primaryGenreName')}"
+                    }
                     st.rerun()
         elif category == "STAGE":
             res = search_kopis(search_query)
@@ -168,7 +209,8 @@ with tab1:
                 sel = st.selectbox("검색 결과", [f"🎬 {r[t_key]}" for r in res])
                 if st.button("✨ 가져오기"):
                     r = next(x for x in res if f"🎬 {x[t_key]}" == sel)
-                    st.session_state.api_data = {'title': r[t_key], 'date': r.get('release_date', r.get('first_air_date')), 'img': f"https://image.tmdb.org/t/p/w500{r.get('poster_path')}", 'summary': r.get('overview', '')}
+                    c_info = get_tmdb_details(r['id'], category)
+                    st.session_state.api_data = {'title': r[t_key], 'creator': c_info, 'date': r.get('release_date', r.get('first_air_date')), 'img': f"https://image.tmdb.org/t/p/w500{r.get('poster_path')}", 'summary': r.get('overview', '')}
                     st.rerun()
 
     st.divider()
@@ -192,46 +234,27 @@ with tab1:
                 conn.execute("INSERT INTO archive (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                              (category, title, creator, rel_date, summary, brief, highlights, note, img_url, str(date.today()), str(view_date)))
             st.session_state.api_data = {}
-            st.success("저장 완료!")
-            st.rerun() # 저장 즉시 리런하여 데이터 새로고침 유도
-
-# (이전 코드의 스타일 및 데이터 로드 함수 부분은 동일하게 유지)
+            st.success("저장 완료!"); st.rerun()
 
 with tab2:
-    # 실시간 데이터 로드
     all_df = load_data()
-    
     if not all_df.empty:
-        # 아카이브 내 서브 탭 구성
         sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
-        
-        # --- [1. YEARLY 탭: 연도별 달력 보기] ---
         with sub_tabs[0]:
-            # 연도 선택 필터를 달력 탭 안으로 이동
             years = sorted(all_df['v_dt'].dt.year.unique(), reverse=True)
             sel_year = st.selectbox("📅 연도 선택", years, index=0, key="year_filter")
             
-            # 선택된 연도의 데이터만 필터링
-            year_df = all_df[all_df['v_dt'].dt.year == sel_year]
-
-            # 월 이동 컨트롤
             c1, c2, c3 = st.columns([1, 2, 1])
             if c1.button("◀", key="prev_btn"):
                 st.session_state.cal_month -= 1
-                if st.session_state.cal_month == 0: 
-                    st.session_state.cal_month = 12; st.session_state.cal_year -= 1
+                if st.session_state.cal_month == 0: st.session_state.cal_month = 12; st.session_state.cal_year -= 1
                 st.rerun()
-            
-            # 현재 달력 표시 (연도 선택과 세션 연도 동기화는 하지 않음 - 자유로운 탐색 위해)
             c2.markdown(f"<div class='num-text' style='text-align:center;'>{st.session_state.cal_year} . {st.session_state.cal_month}</div>", unsafe_allow_html=True)
-            
             if c3.button("▶", key="next_btn"):
                 st.session_state.cal_month += 1
-                if st.session_state.cal_month == 13: 
-                    st.session_state.cal_month = 1; st.session_state.cal_year += 1
+                if st.session_state.cal_month == 13: st.session_state.cal_month = 1; st.session_state.cal_year += 1
                 st.rerun()
 
-            # 요일 헤더 및 달력 로직 (기존과 동일)
             h_cols = st.columns(7)
             for i, d in enumerate(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]):
                 color = "#FF4B4B" if i == 6 else "#2E5BFF" if i == 5 else "#333"
@@ -248,36 +271,25 @@ with tab2:
                             d_items = m_df[m_df['v_dt'].dt.day == day]
                             box_class = "cal-day-active" if not d_items.empty else "cal-day-empty"
                             day_color = "#FF4B4B" if i == 6 else "#2E5BFF" if i == 5 else "#000"
-                            
                             st.markdown(f"<div class='{box_class}'>", unsafe_allow_html=True)
                             st.markdown(f"<p class='num-text' style='font-size:25px; color:{day_color};'>{day}</p>", unsafe_allow_html=True)
                             if not d_items.empty:
                                 if d_items.iloc[0]['img_url']: 
                                     st.markdown(f"<div class='cal-img-box'><img src='{d_items.iloc[0]['img_url']}'></div>", unsafe_allow_html=True)
                                 for _, r in d_items.iterrows():
-                                    if st.button(f"{r['title'][:5]}..", key=f"cal_{r['id']}", use_container_width=True): 
-                                        show_details(r)
+                                    if st.button(f"{r['title'][:5]}..", key=f"cal_{r['id']}", use_container_width=True): show_details(r)
                             st.markdown(f"</div>", unsafe_allow_html=True)
 
-        # --- [2. 카테고리 탭: 전체 기록 보기] ---
         cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
         for idx, cn in enumerate(cats):
             with sub_tabs[idx+1]:
-                # year_df가 아닌 all_df에서 카테고리만 필터링 (전체 데이터)
                 c_df = all_df[all_df['category'] == cn]
-                
                 if not c_df.empty:
-                    # 한 줄에 4개씩 포스터 배치
                     cols = st.columns(4)
                     for i, (record_idx, row) in enumerate(c_df.iterrows()):
                         with cols[i % 4]:
-                            if row['img_url']: 
-                                st.image(row['img_url'], use_container_width=True)
+                            if row['img_url']: st.image(row['img_url'], use_container_width=True)
                             st.markdown(f"<p style='text-align:center; font-size:14px; color:#888;'>🍿 {row['view_date']}</p>", unsafe_allow_html=True)
-                            if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True): 
-                                show_details(row)
-                else:
-                    st.info(f"{cn} 카테고리에 아직 기록이 없습니다.")
-    else:
-        st.info("기록이 없습니다. 첫 기록을 남겨보세요!")
-
+                            if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True): show_details(row)
+                else: st.info(f"{cn} 카테고리에 아직 기록이 없습니다.")
+    else: st.info("기록이 없습니다. 첫 기록을 남겨보세요!")
