@@ -147,7 +147,7 @@ def search_apple_music(query):
         
 # --- [API 함수 정의 구역] ---
 
-def get_tmdb_details(item_id, category):
+def search_tmdb_details(item_id, category):
     type_path = "movie" if category == "MOVIES" else "tv"
     url = f"https://api.themoviedb.org/3/{type_path}/{item_id}/credits?api_key={TMDB_API_KEY}&language=ko-KR"
     try:
@@ -393,6 +393,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
