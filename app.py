@@ -171,45 +171,48 @@ with tab2:
     # 1. 연도별 통합 보기 탭
 with sub_tabs[0]:
     with sqlite3.connect(DB_NAME) as conn:
+        # 전체 데이터를 가져옴
         all_df = pd.read_sql_query("SELECT * FROM archive ORDER BY save_date DESC, id DESC", conn)
     
     if all_df.empty:
         st.info("기록이 없습니다.")
     else:
-        all_df['year'] = all_df['save_date'].apply(lambda x: x.split('-')[0])
+        # 연도 추출
+        all_df['year'] = all_df['save_date'].apply(lambda x: str(x).split('-')[0])
         years = sorted(all_df['year'].unique(), reverse=True)
         
-        selected_year = st.selectbox("📅 연도 선택", years)
+        # 연도 선택 필터
+        selected_year = st.selectbox("📅 연도 선택", years, label_visibility="collapsed")
         
-        # 선택된 연도의 데이터 필터링
+        # 선택된 연도 데이터 필터링
         year_df = all_df[all_df['year'] == selected_year]
-        
-        # [추가] 연도 옆에 작품 수 표시: 2026 (128)
-        item_count = len(year_df)
+        item_count = len(year_df) # 작품 수 계산
+
+        # --- 핵심: 연도 옆에 작품 수 표시 (예: 2026 (128)) ---
         st.markdown(f"### {selected_year} ({item_count})")
-        
-        # [변경] 연간 모드에서는 이미지를 더 작게 보기 위해 컬럼 수를 6개로 늘림
-        # 기존 cols = st.columns(4)에서 6으로 변경하여 사이즈 축소 효과
-        cols = st.columns(6) 
+        st.divider() # 시각적 구분선
+
+        # 이미지 사이즈를 줄이기 위해 한 줄에 6~8개 배치 (숫자가 커질수록 이미지는 작아짐)
+        cols_per_row = 6 
+        cols = st.columns(cols_per_row)
         
         for idx, row in year_df.reset_index().iterrows():
-            with cols[idx % 6]:
-                # 이미지 출력
+            with cols[idx % cols_per_row]:
+                # 이미지 출력 (사이즈 자동 축소됨)
                 if row['img_url']: 
                     st.image(row['img_url'], use_container_width=True)
                 
-                 category = row['category']
-                save_date = row['save_date']
-                
-                # 필요 시 제목/데이터 출력 (단위는 소문자로 처리)
+                # 텍스트 정보 (소형화 및 km/bpm 소문자 유지)
+                # 불필요한 큰 폰트 설정 제거
                 st.markdown(f"""
-                    <div style="text-align:center; line-height:1.2;">
-                        <p style="font-size:12px; margin:0; color:#666;">{save_date}</p>
-                        <p style="font-size:14px; font-weight:bold; margin:2px 0;">{row['title']}</p>
+                    <div style="text-align:center; font-size:11px; color:gray; line-height:1.2;">
+                        {row['save_date']}<br>
+                        <b style="color:black;">{row['title']}</b>
                     </div>
                 """, unsafe_allow_html=True)
                 
-                if st.button("상세보기", key=f"year_btn_{row['id']}", use_container_width=True):
+                # 상세보기 버튼
+                if st.button("🔍", key=f"year_btn_{row['id']}", use_container_width=True):
                     show_details(row)
 
     # 2. 기존 카테고리별 탭 (동일하게 유지)
@@ -228,6 +231,7 @@ with sub_tabs[0]:
                         st.markdown(f'<p class="save-date-tag">📅 기록일: {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"cat_btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
