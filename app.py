@@ -168,38 +168,49 @@ with tab2:
     # 탭 메뉴에 'YEARLY' 추가
     sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES"])
     
-    # 1. 연도별 통합 보기 탭 (새로 추가)
-    with sub_tabs[0]:
-        with sqlite3.connect(DB_NAME) as conn:
-            # 전체 데이터를 가져옴
-            all_df = pd.read_sql_query("SELECT * FROM archive ORDER BY save_date DESC, id DESC", conn)
+    # 1. 연도별 통합 보기 탭
+with sub_tabs[0]:
+    with sqlite3.connect(DB_NAME) as conn:
+        all_df = pd.read_sql_query("SELECT * FROM archive ORDER BY save_date DESC, id DESC", conn)
+    
+    if all_df.empty:
+        st.info("기록이 없습니다.")
+    else:
+        all_df['year'] = all_df['save_date'].apply(lambda x: x.split('-')[0])
+        years = sorted(all_df['year'].unique(), reverse=True)
         
-        if all_df.empty:
-            st.info("기록이 없습니다.")
-        else:
-            # save_date에서 연도만 추출 (YYYY-MM-DD -> YYYY)
-            all_df['year'] = all_df['save_date'].apply(lambda x: x.split('-')[0])
-            years = sorted(all_df['year'].unique(), reverse=True)
-            
-            # 연도 선택 필터
-            selected_year = st.selectbox("📅 연도 선택", years)
-            
-            # 선택된 연도의 데이터만 필터링
-            year_df = all_df[all_df['year'] == selected_year]
-            
-            cols = st.columns(4)
-            for idx, row in year_df.reset_index().iterrows():
-                with cols[idx % 4]:
-                    if row['img_url']: st.image(row['img_url'], use_container_width=True)
-                    # 카테고리 태그와 기록일 표시
-                    st.markdown(f"""
-                        <div style="text-align:center;">
-                            <span style="background-color:#eee; padding:2px 5px; border-radius:4px; font-size:12px;">{row['category']}</span>
-                            <p class="save-date-tag">📅 {row['save_date']}</p>
-                        </div>
-                    """, unsafe_allow_html=True)
-                    if st.button(row['title'], key=f"year_btn_{row['id']}", use_container_width=True):
-                        show_details(row)
+        selected_year = st.selectbox("📅 연도 선택", years)
+        
+        # 선택된 연도의 데이터 필터링
+        year_df = all_df[all_df['year'] == selected_year]
+        
+        # [추가] 연도 옆에 작품 수 표시: 2026 (128)
+        item_count = len(year_df)
+        st.markdown(f"### {selected_year} ({item_count})")
+        
+        # [변경] 연간 모드에서는 이미지를 더 작게 보기 위해 컬럼 수를 6개로 늘림
+        # 기존 cols = st.columns(4)에서 6으로 변경하여 사이즈 축소 효과
+        cols = st.columns(6) 
+        
+        for idx, row in year_df.reset_index().iterrows():
+            with cols[idx % 6]:
+                # 이미지 출력
+                if row['img_url']: 
+                    st.image(row['img_url'], use_container_width=True)
+                
+                 category = row['category']
+                save_date = row['save_date']
+                
+                # 필요 시 제목/데이터 출력 (단위는 소문자로 처리)
+                st.markdown(f"""
+                    <div style="text-align:center; line-height:1.2;">
+                        <p style="font-size:12px; margin:0; color:#666;">{save_date}</p>
+                        <p style="font-size:14px; font-weight:bold; margin:2px 0;">{row['title']}</p>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                if st.button("상세보기", key=f"year_btn_{row['id']}", use_container_width=True):
+                    show_details(row)
 
     # 2. 기존 카테고리별 탭 (동일하게 유지)
     categories = ["BOOKS", "MUSIC", "MOVIES", "SERIES"]
@@ -217,6 +228,7 @@ with tab2:
                         st.markdown(f'<p class="save-date-tag">📅 기록일: {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"cat_btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
