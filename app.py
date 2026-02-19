@@ -42,9 +42,11 @@ KOPIS_KEY = "7a919bc272204f06bbca10e2af376dea"
 
 def init_db():
     with sqlite3.connect(DB_NAME) as conn:
+        # view_date 컬럼이 포함된 테이블 생성
         conn.execute('''CREATE TABLE IF NOT EXISTS archive 
                         (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
-                         rel_date TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, img_url TEXT, save_date TEXT)''')
+                         rel_date TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, 
+                         img_url TEXT, save_date TEXT, view_date TEXT)''')
 
 init_db()
 
@@ -293,3 +295,4 @@ with tab2:
                         st.markdown(f'<p class="date-text" style="font-size:14px; text-align:center;">📅 {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
+
