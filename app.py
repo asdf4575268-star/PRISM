@@ -3,29 +3,42 @@ import sqlite3
 import requests
 import pandas as pd
 import calendar
+import xml.etree.ElementTree as ET
 from datetime import date, datetime
 
 # --- [1. 스타일 및 설정] ---
-st.set_page_config(layout="wide", page_title="PRISM")
+# 여기에 로고 주소를 넣으세요 (없으면 이모지 "🌈"로 유지됩니다)
+LOGO_URL = "https://raw.githubusercontent.com/사용자명/저장소명/main/LOGO1.jpg" 
 
-st.markdown("""
+st.set_page_config(
+    layout="wide", 
+    page_title="PRISM", 
+    page_icon="🌈"  # 로고 주소가 확실치 않으면 이모지가 가장 안전합니다.
+)
+
+st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Kirang+Haerang&family=Jolly+Lodger&family=Lacquer&display=swap');
     
-    .act-name { font-size: 90px; font-family: 'Kirang Haerang'; line-height: 1.1; margin: 0; }
-    .date-text { font-size: 30px; color: #666; margin: 0; }
-    .num-text { font-size: 60px; font-family: 'Jolly Lodger'; text-transform: lowercase; margin: 0; line-height: 1; }
+    .act-name {{ font-size: 90px; font-family: 'Kirang Haerang'; line-height: 1.1; margin: 0; }}
+    .date-text {{ font-size: 30px; color: #666; margin: 0; }}
+    .num-text {{ font-size: 60px; font-family: 'Jolly Lodger'; text-transform: lowercase; margin: 0; line-height: 1; }}
     
-    .cal-img-box { 
+    .cal-img-box {{ 
         width:100%; aspect-ratio:1/1; overflow:hidden; border-radius:4px; 
         margin-bottom:4px; border: 1px solid #eee; 
-    }
-    .cal-img-box img { width:100%; height:100%; object-fit:cover; }
+    }}
+    .cal-img-box img {{ width:100%; height:100%; object-fit:cover; }}
     </style>
+    <head>
+        <link rel="apple-touch-icon" href="{LOGO_URL}">
+        <link rel="icon" href="{LOGO_URL}">
+    </head>
     """, unsafe_allow_html=True)
 
 DB_NAME = 'archive_prism_total_v4.db'
 TMDB_API_KEY = "6e7c55b6259b7731655033f783f3fc5b"
+KOPIS_KEY = "7a919bc272204f06bbca10e2af376dea"
 
 def init_db():
     with sqlite3.connect(DB_NAME) as conn:
@@ -38,11 +51,9 @@ init_db()
 # --- [2. 상세 정보 및 수정 팝업] ---
 @st.dialog("📋 기록 상세 정보", width="large")
 def show_details(item):
-    # 팝업 내부에서만 동작하는 수정 모드 스위치 (창이 닫히지 않음)
     edit_mode = st.toggle("✏️ 수정 모드 켜기", key=f"tog_{item['id']}")
 
     if edit_mode:
-        # --- [수정 모드 화면] ---
         with st.form(key=f"edit_form_{item['id']}", clear_on_submit=False):
             col_img, col_txt = st.columns([0.4, 0.6])
             with col_img:
@@ -65,12 +76,10 @@ def show_details(item):
                                       new_brief, new_highlights, new_note, new_img, int(item['id'])))
                     st.rerun()
     else:
-        # --- [기존 상세보기 화면 (완성창)] ---
         col_img, col_txt = st.columns([0.4, 0.6])
         with col_img:
             if item['img_url']: st.image(item['img_url'], use_container_width=True)
         with col_txt:
-            # 설정하신 글자 크기(90, 30) 유지
             st.markdown(f'<p class="act-name">{item["title"]}</p>', unsafe_allow_html=True)
             st.write(f"**정보:** {item['creator']} | **작품날짜:** {item['rel_date']}")
             st.markdown(f'<p class="date-text">기록일: {item["save_date"]}</p>', unsafe_allow_html=True)
@@ -95,7 +104,7 @@ def shift_month(delta):
     elif new_month < 1: st.session_state.cal_month = 12; st.session_state.cal_year -= 1
     else: st.session_state.cal_month = new_month
 
-# --- API 함수들 (생략 없이 유지) ---
+# --- API 함수들 ---
 def get_tmdb_details(item_id, category):
     type_path = "movie" if category == "MOVIES" else "tv"
     url = f"https://api.themoviedb.org/3/{type_path}/{item_id}/credits?api_key={TMDB_API_KEY}&language=ko-KR"
@@ -124,13 +133,30 @@ def search_tmdb(query, category):
     try: return requests.get(url).json().get("results", [])
     except: return []
 
+def search_kopis(query):
+    url = f"http://www.kopis.or.kr/openApi/restful/pblprfr?service={KOPIS_KEY}&shprfnm={query}&stdate=20200101&eddate=20261231&rows=10&cpage=1"
+    try:
+        response = requests.get(url)
+        root = ET.fromstring(response.content)
+        results = []
+        for db in root.findall('db'):
+            results.append({
+                'title': db.findtext('prfnm'),
+                'id': db.findtext('mt20id'),
+                'img': db.findtext('poster'),
+                'date': db.findtext('prfpdfrom'),
+                'venue': db.findtext('fcltynm')
+            })
+        return results
+    except: return []
+
 # --- [4. 메인 화면 구성] ---
 tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 
-# --- TAB 1: WRITE ---
 with tab1:
-    category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES"], horizontal=True)
+    category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"], horizontal=True)
     search_query = st.text_input(f"🔍 {category} 검색")
+    
     if search_query:
         if category == "BOOKS":
             res = search_books(search_query)
@@ -150,6 +176,15 @@ with tab1:
                     m = opts[sel]
                     st.session_state.api_data = {'title': m.get('trackName', m.get('collectionName')), 'creator': f"아티스트: {m['artistName']}", 'date': m['releaseDate'][:10], 'img': m.get('artworkUrl100', '').replace('100x100bb', '600x600bb'), 'summary': ''}
                     st.rerun()
+        elif category == "STAGE":
+            res = search_kopis(search_query)
+            if res:
+                opts = {f"🎭 {r['title']} ({r['venue']})": r for r in res}
+                sel = st.selectbox("검색 결과", list(opts.keys()))
+                if st.button("✨ 가져오기"):
+                    s = opts[sel]
+                    st.session_state.api_data = {'title': s['title'], 'creator': f"공연장: {s['venue']}", 'date': s['date'], 'img': s['img'], 'summary': ''}
+                    st.rerun()
         else:
             res = search_tmdb(search_query, category)
             if res:
@@ -164,10 +199,10 @@ with tab1:
     data = st.session_state.get('api_data', {})
     cl, cr = st.columns([0.4, 0.6])
     with cl:
-        img_url_val = data.get('img', '')
+        img_url_val = st.text_input("🖼️ 이미지 URL", value=data.get('img', ''))
         if img_url_val: st.image(img_url_val, width=300)
         title = st.text_input("제목", value=data.get('title', ''))
-        creator = st.text_input("창작자 정보", value=data.get('creator', ''))
+        creator = st.text_input("창작자/공연장", value=data.get('creator', ''))
         rel_date = st.text_input("날짜", value=data.get('date', str(date.today())))
     with cr:
         summary = st.text_area("📖 줄거리", value=data.get('summary', ''), height=150)
@@ -182,9 +217,9 @@ with tab1:
             st.session_state.api_data = {}
             st.rerun()
 
-# --- TAB 2: ARCHIVE ---
 with tab2:
-    sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES"])
+    # 카테고리 탭에 STAGE 추가
+    sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
     
     with sub_tabs[0]:
         with sqlite3.connect(DB_NAME) as conn:
@@ -194,7 +229,6 @@ with tab2:
             all_df['save_date_dt'] = pd.to_datetime(all_df['save_date'])
             all_df['year_int'] = all_df['save_date_dt'].dt.year
             
-            # 연도 선택 + 통계
             year_counts = all_df['year_int'].value_counts().to_dict()
             unique_years = sorted(list(set([datetime.now().year] + list(year_counts.keys()))), reverse=True)
             year_labels = [f"{y} ({year_counts.get(y, 0)})" for y in unique_years]
@@ -202,7 +236,7 @@ with tab2:
             
             default_idx = unique_years.index(st.session_state.cal_year) if st.session_state.cal_year in unique_years else 0
             
-            c_yr, c_nav = st.columns([1.5, 3])
+            c_yr, _ = st.columns([1.5, 3])
             with c_yr:
                 selected_label = st.selectbox("연도 선택", year_labels, index=default_idx)
                 selected_year = label_to_year[selected_label]
@@ -218,7 +252,6 @@ with tab2:
             with n3:
                 if st.button("다음달 ▶"): shift_month(1); st.rerun()
 
-            # 요일 헤더
             days = ["월", "화", "수", "목", "금", "토", "일"]
             h_cols = st.columns(7)
             for i, d in enumerate(days):
@@ -236,11 +269,9 @@ with tab2:
                         st.markdown(f"<p class='num-text' style='font-size:30px; margin:0;'>{day}</p>", unsafe_allow_html=True)
                         day_items = month_df[month_df['save_date_dt'].dt.day == day]
                         if not day_items.empty:
-                            # 이미지 클릭 태그 제거, 순수 이미지 박스만 유지
                             first_item = day_items.iloc[0]
                             if first_item['img_url']:
                                 st.markdown(f'<div class="cal-img-box"><img src="{first_item["img_url"]}"></div>', unsafe_allow_html=True)
-                            
                             for _, r in day_items.iterrows():
                                 if st.button(f"• {r['title'][:5]}", key=f"cal_{r['id']}", use_container_width=True):
                                     show_details(r)
@@ -249,8 +280,7 @@ with tab2:
         else:
             st.info("기록이 없습니다.")
 
-    # 카테고리별 탭
-    cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES"]
+    cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
     for idx, c_name in enumerate(cats):
         with sub_tabs[idx+1]:
             with sqlite3.connect(DB_NAME) as conn:
@@ -259,9 +289,7 @@ with tab2:
                 cols = st.columns(4)
                 for i, row in df.iterrows():
                     with cols[i % 4]:
-                        if row['img_url']:
-                            st.image(row['img_url'], use_container_width=True)
+                        if row['img_url']: st.image(row['img_url'], use_container_width=True)
                         st.markdown(f'<p class="date-text" style="font-size:14px; text-align:center;">📅 {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
-
