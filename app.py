@@ -155,10 +155,7 @@ with tab1:
         brief = st.text_input("📝 한 줄 요약")
         highlights = st.text_area("✨ 하이라이트", height=100)
         note = st.text_area("💬 개인적 감상", height=100)
-        
-        st.markdown(f'<p class="act-name">{title if title else "Title"}</p>', unsafe_allow_html=True)
-        st.markdown(f'<p class="date-text">{rel_date if rel_date else "2026-00-00"}</p>', unsafe_allow_html=True)
-        st.markdown(f'<p class="num-text">12.5 km / 145 bpm</p>', unsafe_allow_html=True)
+
         
         if st.button("✅ 저장", use_container_width=True):
             with sqlite3.connect(DB_NAME) as conn:
@@ -185,3 +182,4 @@ with tab2:
                         st.markdown(f'<p class="save-date-tag">📅 기록일: {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
