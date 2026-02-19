@@ -198,7 +198,7 @@ with tab1:
         rel_date = col1.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
         view_date = col2.date_input("🍿 감상일", value=date.today())
     with cr:
-        summary = st.text_area("📖 줄거리(첫 줄 URL)", value=data.get('summary', ''), height=150)
+        summary = st.text_area("📖 줄거리", value=data.get('summary', ''), height=150)
         brief = st.text_input("📝 요약")
         highlights = st.text_area("✨ 인상 깊은 부분", height=100)
         note = st.text_area("💬 감상", height=100)
@@ -333,6 +333,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
