@@ -5,7 +5,7 @@ import pandas as pd
 from datetime import date
 
 # --- [1. 스타일 및 설정] ---
-st.set_page_config(layout="wide", page_title="My Prism Archive")
+st.set_page_config(layout="wide", page_title="PRISM")
 
 st.markdown("""
     <style>
@@ -217,6 +217,7 @@ with tab2:
                         st.markdown(f'<p class="save-date-tag">📅 기록일: {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"cat_btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
