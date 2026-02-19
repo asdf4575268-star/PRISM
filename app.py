@@ -84,6 +84,16 @@ def search_books(query):
     return res.json().get("documents", []) if res.status_code == 200 else []
 
 # --- [4. 메인 화면 WRITE] ---
+tab1에서 발생한 에러는 주로 **들여쓰기(Indentation)**가 일관되지 않거나(공백 vs 탭), 상단에서 tab1, tab2 = st.tabs(...)를 선언할 때와 with tab1:을 사용할 때 사이의 코드가 잘못 닫혔을 때 발생합니다.
+
+사용자께서 주신 전체 코드 구조를 유지하면서, 이미지 URL 대신 정보 URL을 우선적으로 처리하고 들여쓰기 오류를 완벽하게 수정한 tab1 영역 전체 코드를 드립니다. 이 부분을 그대로 복사해서 덮어씌우세요.
+
+🛠 수정된 TAB 1: WRITE (정보 URL 연동 및 에러 수정)
+Python
+# --- [4. 메인 화면 구성] ---
+tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
+
+# --- TAB 1: WRITE ---
 with tab1:
     category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"], horizontal=True)
     search_query = st.text_input(f"🔍 {category} 검색")
@@ -92,47 +102,80 @@ with tab1:
         if category == "BOOKS":
             res = search_books(search_query)
             if res:
+                # 책 정보와 함께 상세 URL을 매핑
                 opts = {f"📚 {b['title']}": b for b in res}
                 sel = st.selectbox("검색 결과", list(opts.keys()))
                 if st.button("✨ 가져오기"):
                     b = opts[sel]
+                    # 카카오 썸네일 고화질 처리
+                    raw_img = b.get('thumbnail', '')
+                    high_res_img = raw_img.replace("R120x174", "R400x0") if "R120x174" in raw_img else raw_img
+                    
+                    # 정보 URL(b['url'])을 summary 맨 처음에 포함
                     st.session_state.api_data = {
                         'title': b['title'], 
-                        'creator': f"{', '.join(b['authors'])}", 
-                        'date': b['datetime'][:10], 
-                        'img': b['thumbnail'], 
-                        # 줄거리 맨 위에 정보 URL을 박아넣음
-                        'summary': f"{b['url']}\n\n{b['contents']}"
+                        'creator': ", ".join(b.get('authors', [])), 
+                        'date': b.get('datetime', '')[:10], 
+                        'img': high_res_img, 
+                        'summary': f"{b.get('url', '')}\n\n{b.get('contents', '')}"
                     }
                     st.rerun()
-        # (기타 MUSIC, MOVIES 등에서도 b['url'] 이나 상세 링크를 summary 첫줄에 추가하는 로직 동일 적용)
+        
+        elif category == "MUSIC":
+            res = search_apple_music(search_query)
+            if res:
+                opts = {f"🎵 {m.get('trackName', m.get('collectionName'))}": m for m in res}
+                sel = st.selectbox("검색 결과", list(opts.keys()))
+                if st.button("✨ 가져오기"):
+                    m = opts[sel]
+                    # 정보 URL은 trackViewUrl 또는 collectionViewUrl 사용
+                    info_url = m.get('trackViewUrl', m.get('collectionViewUrl', ''))
+                    st.session_state.api_data = {
+                        'title': m.get('trackName', m.get('collectionName')), 
+                        'creator': m.get('artistName', ''), 
+                        'date': m.get('releaseDate', '')[:10], 
+                        'img': m.get('artworkUrl100', '').replace('100x100bb', '600x600bb'), 
+                        'summary': f"{info_url}\n\n"
+                    }
+                    st.rerun()
+        
+        # ... (기타 카테고리 로직 생략, 필요시 동일 패턴 적용)
 
     st.divider()
+    
+    # --- [입력 폼 영역] ---
     data = st.session_state.get('api_data', {})
     cl, cr = st.columns([0.4, 0.6])
+    
     with cl:
-        # 이미지 URL은 자동으로 들어가되, 사용자에게는 제목과 창작자 확인 위주로 보여줌
+        # 정보 URL은 summary 칸에서 관리하므로 이미지 URL은 숨김 처리하거나 표시만 함
         img_url_val = data.get('img', '')
-        if img_url_val: 
+        if img_url_val:
             st.markdown(f'<div class="square-img-box"><img src="{img_url_val}"></div>', unsafe_allow_html=True)
+        
         title = st.text_input("제목", value=data.get('title', ''))
         creator = st.text_input("창작자 정보", value=data.get('creator', ''))
         
+        col1, col2 = st.columns(2)
+        rel_date = col1.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
+        view_date = col2.date_input("🍿 감상일", value=date.today())
+        
     with cr:
-        # 요약/줄거리 칸에 URL이 자동으로 포함됨
-        summary = st.text_area("📖 작품 상세 정보 (맨 위는 정보 URL)", value=data.get('summary', ''), height=200)
+        # 줄거리 칸의 맨 윗줄이 '정보 URL'이 됩니다.
+        summary = st.text_area("📖 상세 정보 (첫 줄에 URL 유지)", value=data.get('summary', ''), height=200)
         brief = st.text_input("📝 요약")
-        highlights = st.text_area("✨ 인상 깊은 부분", height=100)
-        note = st.text_area("💬 감상", height=100)
+        highlights = st.text_area("✨ 인상 깊은 부분", height=120)
+        note = st.text_area("💬 감상", height=120)
         
         if st.button("✅ 저장", key="final_save", use_container_width=True):
             with sqlite3.connect(DB_NAME) as conn:
-                conn.execute("INSERT INTO archive (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                             (category, title, creator, data.get('date'), summary, brief, highlights, note, img_url_val, str(date.today()), str(date.today())))
+                conn.execute("""INSERT INTO archive 
+                    (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) 
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                    (category, title, creator, rel_date, summary, brief, highlights, note, img_url_val, str(date.today()), str(view_date)))
             st.success("정보 URL과 함께 저장되었습니다!")
             st.session_state.api_data = {}
             st.rerun()
-
 # --- TAB 2: ARCHIVE ---
 with tab2:
     sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
@@ -257,6 +300,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
