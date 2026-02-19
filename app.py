@@ -293,46 +293,57 @@ with tab2:
         else:
             st.info("기록이 없습니다.")
 
-    # 카테고리별 탭
-cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
-for idx, c_name in enumerate(cats):
-    with sub_tabs[idx+1]:
-        with sqlite3.connect(DB_NAME) as conn:
-            df = pd.read_sql_query(f"SELECT * FROM archive WHERE category='{c_name}' ORDER BY id DESC", conn)
-        
-        if not df.empty:
-            # 한 줄에 4개씩 배치 (너무 크다면 5나 6으로 숫자를 키워보세요)
-            cols = st.columns(4) 
-            for i, row in df.iterrows():
-                with cols[i % 4]:
-                    if row['img_url']:
-                        # --- [이미지 정사각형 정렬 섹션] ---
-                        # CSS를 사용하여 강제로 1:1 비율을 만들고 이미지를 꽉 채웁니다.
-                        st.markdown(f"""
-                            <div style="
-                                width: 100%;
-                                aspect-ratio: 1 / 1;
-                                overflow: hidden;
-                                border-radius: 10px;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                background-color: #f0f0f0;
-                                margin-bottom: 5px;
-                            ">
-                                <img src="{row['img_url']}" style="
+# 카테고리별 탭
+    cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
+    for idx, c_name in enumerate(cats):
+        with sub_tabs[idx+1]:
+            with sqlite3.connect(DB_NAME) as conn:
+                # view_date가 있으면 사용하고, 없으면 save_date를 사용하여 정렬 (최신순)
+                query = f"""
+                    SELECT *, COALESCE(NULLIF(view_date, ''), save_date) as sort_date 
+                    FROM archive 
+                    WHERE category='{c_name}' 
+                    ORDER BY sort_date DESC
+                """
+                df = pd.read_sql_query(query, conn)
+            
+            if not df.empty:
+                # 한 줄에 4개씩 배치
+                cols = st.columns(4) 
+                for i, row in df.iterrows():
+                    with cols[i % 4]:
+                        if row['img_url']:
+                            # --- [이미지 정사각형 정렬 섹션] ---
+                            st.markdown(f"""
+                                <div style="
                                     width: 100%;
-                                    height: 100%;
-                                    object-fit: cover;
+                                    aspect-ratio: 1 / 1;
+                                    overflow: hidden;
+                                    border-radius: 10px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    background-color: #f0f0f0;
+                                    margin-bottom: 5px;
                                 ">
-                            </div>
-                        """, unsafe_allow_html=True)
-                    
-                    v_date_display = row.get('view_date') if row.get('view_date') else row.get('save_date', '')
-                    st.markdown(f'<p class="date-text" style="font-size:15px; text-align:center;">🍿 {v_date_display}</p>', unsafe_allow_html=True)
-                    
-                    if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
-                        show_details(row)
+                                    <img src="{row['img_url']}" style="
+                                        width: 100%;
+                                        height: 100%;
+                                        object-fit: cover;
+                                    ">
+                                </div>
+                            """, unsafe_allow_html=True)
+                        
+                        # 날짜 표시 (감상일 우선 표시)
+                        v_date_display = row.get('view_date') if row.get('view_date') else row.get('save_date', '')
+                        st.markdown(f'<p class="date-text" style="font-size:15px; text-align:center;">🍿 {v_date_display}</p>', unsafe_allow_html=True)
+                        
+                        # 제목 버튼 (Key 중복 방지를 위해 idx 추가)
+                        if st.button(row['title'], key=f"list_{idx}_{row['id']}", use_container_width=True):
+                            show_details(row)
+            else:
+                st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
