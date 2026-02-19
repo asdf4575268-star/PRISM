@@ -191,26 +191,30 @@ with sub_tabs[0]:
         
         for idx, row in year_df.reset_index().iterrows():
             with cols[idx % cols_per_row]:
+                # 1. 이미지 (정사각형 강제 고정)
                 if row['img_url']:
-                    # HTML을 사용해 이미지 크기와 비율을 강제로 고정 (1:1 정사각형 예시)
                     st.markdown(f"""
-                        <div style="width:100%; aspect-ratio: 1 / 1; overflow:hidden; border-radius:8px;">
+                        <div style="width:100%; aspect-ratio: 1 / 1; overflow:hidden; border-radius:8px; margin-bottom:8px;">
                             <img src="{row['img_url']}" style="width:100%; height:100%; object-fit:cover;">
                         </div>
                     """, unsafe_allow_html=True)
                 
-                # 텍스트 정보 (소형화)
+                # 2. 활동명 및 상세 정보 (소문자 km, bpm 적용)
+                # 활동명(category/activity)과 제목(title)을 모두 표시합니다.
+                activity_info = f"{row.get('activity_name', '')}".strip() # 활동명 컬럼명 확인 필요
+                
                 st.markdown(f"""
-                    <div style="text-align:center; font-size:11px; color:gray; margin-top:5px; line-height:1.2;">
-                        {row['save_date']}<br>
-                        <b style="color:black; font-size:12px;">{row['title']}</b>
+                    <div style="text-align:center; line-height:1.3;">
+                        <p style="font-size:11px; color:#888; margin:0;">{row['save_date']}</p>
+                        <p style="font-size:13px; font-weight:bold; color:#333; margin:2px 0;">{row['category']}</p>
+                        <p style="font-size:12px; color:#555; margin:0;">{row['title']}</p>
                     </div>
                 """, unsafe_allow_html=True)
                 
-                # 버튼 (기능 유지를 위해 st.button 사용)
+                # 3. 상세보기 버튼
                 if st.button("🔍", key=f"year_btn_{row['id']}", use_container_width=True):
                     show_details(row)
-
+                    
     # 2. 기존 카테고리별 탭 (동일하게 유지)
     categories = ["BOOKS", "MUSIC", "MOVIES", "SERIES"]
     for i, category_name in enumerate(categories):
@@ -227,6 +231,7 @@ with sub_tabs[0]:
                         st.markdown(f'<p class="save-date-tag">📅 기록일: {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"cat_btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
