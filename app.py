@@ -54,10 +54,10 @@ with tab1:
     col_l, col_r = st.columns([0.4, 0.6])
     
     with col_l:
+        img_url = data.get('thumbnail', '')
         title = st.text_input("활동명 (제목)", value=data.get('title', ''))
         creator = st.text_input("창작자 (작가)", value=", ".join(data.get('authors', [])) if 'authors' in data else "")
         rel_date = st.text_input("날짜", value=data.get('datetime', '')[:10] if data.get('datetime') else "")
-        img_url = data.get('thumbnail', '')
         if img_url:
             st.image(img_url, use_container_width=False, caption="원본 크기 유지")
     with col_r:
@@ -107,6 +107,7 @@ with tab2:
                 st.rerun()
     else:
         st.info("아직 저장된 아카이브가 없습니다.")
+
 
 
 
