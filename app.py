@@ -58,13 +58,6 @@ def show_details(item):
                 new_title = st.text_input("📌 제목", value=item['title'])
                 new_creator = st.text_input("👤 창작자", value=item['creator'])
                 new_rel_date = st.text_input("📅 작품 날짜", value=item['rel_date'])
-                if "🔗 상세정보: " in item['summary']:
-                    parts = item['summary'].split("\n\n", 1)
-                    link = parts[0].replace("🔗 상세정보: ", "")
-                    st.link_button("🌐 공식 정보 확인하기", link, use_container_width=True)
-                    display_summary = parts[1] if len(parts) > 1 else ""
-                else:
-                    display_summary = item['summary']
             
             st.info(f"**📖 작품 소개:**\n\n{display_summary}")
                 
@@ -356,6 +349,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
