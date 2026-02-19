@@ -291,22 +291,47 @@ with tab2:
             st.info("기록이 없습니다.")
 
     # 카테고리별 탭
-    cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
-    for idx, c_name in enumerate(cats):
-        with sub_tabs[idx+1]:
-            with sqlite3.connect(DB_NAME) as conn:
-                df = pd.read_sql_query(f"SELECT * FROM archive WHERE category='{c_name}' ORDER BY id DESC", conn)
-            if not df.empty:
-                cols = st.columns(4)
-                for i, row in df.iterrows():
-                    with cols[i % 4]:
-                        if row['img_url']:
-                            st.image(row['img_url'], use_container_width=True)
-                        
-                        v_date_display = row.get('view_date') if row.get('view_date') else row.get('save_date', '')
-                        st.markdown(f'<p class="date-text" style="font-size:14px; text-align:center;">🍿 {v_date_display}</p>', unsafe_allow_html=True)
-                        if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
-                            show_details(row)
+cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
+for idx, c_name in enumerate(cats):
+    with sub_tabs[idx+1]:
+        with sqlite3.connect(DB_NAME) as conn:
+            df = pd.read_sql_query(f"SELECT * FROM archive WHERE category='{c_name}' ORDER BY id DESC", conn)
+        
+        if not df.empty:
+            # 한 줄에 4개씩 배치 (너무 크다면 5나 6으로 숫자를 키워보세요)
+            cols = st.columns(4) 
+            for i, row in df.iterrows():
+                with cols[i % 4]:
+                    if row['img_url']:
+                        # --- [이미지 정사각형 정렬 섹션] ---
+                        # CSS를 사용하여 강제로 1:1 비율을 만들고 이미지를 꽉 채웁니다.
+                        st.markdown(f"""
+                            <div style="
+                                width: 100%;
+                                aspect-ratio: 1 / 1;
+                                overflow: hidden;
+                                border-radius: 10px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                background-color: #f0f0f0;
+                                margin-bottom: 5px;
+                            ">
+                                <img src="{row['img_url']}" style="
+                                    width: 100%;
+                                    height: 100%;
+                                    object-fit: cover;
+                                ">
+                            </div>
+                        """, unsafe_allow_html=True)
+                    
+                    v_date_display = row.get('view_date') if row.get('view_date') else row.get('save_date', '')
+                    # 날짜 크기 30 설정 (요청사항 반영)
+                    st.markdown(f'<p class="date-text" style="font-size:30px; text-align:center;">🍿 {v_date_display}</p>', unsafe_allow_html=True)
+                    
+                    if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
+                        show_details(row)
+
 
 
 
