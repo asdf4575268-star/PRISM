@@ -36,51 +36,54 @@ def init_db():
 init_db()
 
 # --- [2. 상세 정보 및 수정 팝업] ---
-@st.dialog("📋 기록 상세 정보 및 수정", width="large")
+@st.dialog("📋 기록 상세 정보", width="large")
 def show_details(item):
-    # 폼을 사용하여 입력값이 변경되어도 창이 바로 닫히지 않도록 보호합니다.
-    with st.form(key=f"edit_form_{item['id']}", clear_on_submit=False):
-        col_img, col_txt = st.columns([0.4, 0.6])
-        
-        with col_img:
-            if item['img_url']: 
-                st.image(item['img_url'], use_container_width=True)
-            new_img = st.text_input("🖼️ 이미지 URL", value=item['img_url'])
-        
-        with col_txt:
-            # 제목, 창작자 등을 바로 입력창(text_input)으로 표시하여 즉시 수정 가능하게 함
-            new_title = st.text_input("📌 제목", value=item['title'])
-            new_creator = st.text_input("👤 창작자 정보", value=item['creator'])
-            new_rel_date = st.text_input("📅 작품 날짜", value=item['rel_date'])
-            st.write(f"⏱️ **기록일:** {item['save_date']}")
-            st.divider()
-            
-            new_brief = st.text_input("📝 요약", value=item['brief'])
-            new_summary = st.text_area("📖 줄거리", value=item['summary'], height=120)
-            new_highlights = st.text_area("✨ 인상 깊은 부분", value=item['highlights'], height=100)
-            new_note = st.text_area("💬 감상", value=item['note'], height=100)
-            
-            st.divider()
-            # 저장 버튼과 삭제 버튼 배치
-            c1, c2 = st.columns(2)
-            submit = c1.form_submit_button("💾 변경사항 저장", use_container_width=True)
-            
-            # 삭제는 폼 제출과 별개로 작동해야 하므로 form 외부에 두거나 처리가 필요하지만, 
-            # 편의상 삭제 버튼도 폼 안에 배치하되 로직을 분리합니다.
-            if submit:
-                with sqlite3.connect(DB_NAME) as conn:
-                    conn.execute("""UPDATE archive SET title=?, creator=?, rel_date=?, summary=?, 
-                                    brief=?, highlights=?, note=?, img_url=? WHERE id=?""",
-                                 (new_title, new_creator, new_rel_date, new_summary, 
-                                  new_brief, new_highlights, new_note, new_img, int(item['id'])))
-                st.success("수정되었습니다!")
-                st.rerun()
+    # 팝업 내부에서만 동작하는 수정 모드 스위치 (창이 닫히지 않음)
+    edit_mode = st.toggle("✏️ 수정 모드 켜기", key=f"tog_{item['id']}")
 
-    # 삭제 버튼은 폼 아래에 별도로 배치 (실수로 누르는 것 방지)
-    if st.button("🗑️ 기록 삭제하기", key=f"del_final_{item['id']}", use_container_width=True):
-        with sqlite3.connect(DB_NAME) as conn:
-            conn.execute("DELETE FROM archive WHERE id=?", (int(item['id']),))
-        st.rerun()
+    if edit_mode:
+        # --- [수정 모드 화면] ---
+        with st.form(key=f"edit_form_{item['id']}", clear_on_submit=False):
+            col_img, col_txt = st.columns([0.4, 0.6])
+            with col_img:
+                if item['img_url']: st.image(item['img_url'], use_container_width=True)
+                new_img = st.text_input("🖼️ 이미지 URL", value=item['img_url'])
+            with col_txt:
+                new_title = st.text_input("📌 제목", value=item['title'])
+                new_creator = st.text_input("👤 창작자", value=item['creator'])
+                new_rel_date = st.text_input("📅 날짜", value=item['rel_date'])
+                new_brief = st.text_input("📝 요약", value=item['brief'])
+                new_summary = st.text_area("📖 줄거리", value=item['summary'], height=120)
+                new_highlights = st.text_area("✨ 인상 깊은 부분", value=item['highlights'], height=100)
+                new_note = st.text_area("💬 감상", value=item['note'], height=100)
+                
+                if st.form_submit_button("💾 변경사항 저장", use_container_width=True):
+                    with sqlite3.connect(DB_NAME) as conn:
+                        conn.execute("""UPDATE archive SET title=?, creator=?, rel_date=?, summary=?, 
+                                        brief=?, highlights=?, note=?, img_url=? WHERE id=?""",
+                                     (new_title, new_creator, new_rel_date, new_summary, 
+                                      new_brief, new_highlights, new_note, new_img, int(item['id'])))
+                    st.rerun()
+    else:
+        # --- [기존 상세보기 화면 (완성창)] ---
+        col_img, col_txt = st.columns([0.4, 0.6])
+        with col_img:
+            if item['img_url']: st.image(item['img_url'], use_container_width=True)
+        with col_txt:
+            # 설정하신 글자 크기(90, 30) 유지
+            st.markdown(f'<p class="act-name">{item["title"]}</p>', unsafe_allow_html=True)
+            st.write(f"**정보:** {item['creator']} | **작품날짜:** {item['rel_date']}")
+            st.markdown(f'<p class="date-text">기록일: {item["save_date"]}</p>', unsafe_allow_html=True)
+            st.divider()
+            if item['brief']: st.success(f"**📝 요약:** {item['brief']}")
+            st.info(f"**📖 줄거리:**\n\n{item['summary']}")
+            st.warning(f"**✨ 인상 깊은 부분:**\n\n{item['highlights']}")
+            st.write(f"**💬 감상:**\n\n{item['note']}")
+            
+            if st.button("🗑️ 기록 삭제", key=f"del_{item['id']}", use_container_width=True):
+                with sqlite3.connect(DB_NAME) as conn:
+                    conn.execute("DELETE FROM archive WHERE id=?", (int(item['id']),))
+                st.rerun()
 
 # --- [3. 세션 및 내비게이션] ---
 if 'cal_year' not in st.session_state: st.session_state.cal_year = datetime.now().year
@@ -261,4 +264,5 @@ with tab2:
                         st.markdown(f'<p class="date-text" style="font-size:14px; text-align:center;">📅 {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"list_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
