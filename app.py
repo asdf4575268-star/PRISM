@@ -81,7 +81,7 @@ init_db()
 tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 
 with tab1:
-    category = st.radio("📂 카테고리 선택", ["BOOKS", "MUSIC", "MOVIES", "SERIES"], horizontal=True)
+    category = st.radio("📂 ", ["BOOKS", "MUSIC", "MOVIES", "SERIES"], horizontal=True)
     search_query = st.text_input(f"🔍 {category} 제목 검색")
     
     if search_query:
@@ -173,5 +173,6 @@ with tab2:
                         if row['img_url']: st.image(row['img_url'], use_container_width=True)
                         if st.button(row['title'], key=f"btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
