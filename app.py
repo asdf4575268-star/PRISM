@@ -20,9 +20,24 @@ def init_db():
 def search_books(query):
     if not query: return []
     try:
-        # Google Books API 호출 (결과 10개)
-        url = f"https://www.googleapis.com/books/v1/volumes?q={query}&maxResults=10"
-        res = requests.get(url, timeout=5).json()
+        # 1. 검색어 정제 (공백 제거 및 특수문자 처리)
+        query = query.strip()
+        
+        # 2. 브라우저처럼 보이게 헤더 추가 (차단 방지)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        
+        # 3. Google Books API 호출
+        url = f"https://www.googleapis.com/books/v1/volumes?q={query}&maxResults=10&orderBy=relevance"
+        response = requests.get(url, headers=headers, timeout=10)
+        
+        # 응답 상태 확인 로그 (에러 추적용)
+        if response.status_code != 200:
+            st.error(f"API 호출 실패 (상태 코드: {response.status_code})")
+            return []
+
+        res = response.json()
         
         results = []
         if "items" in res:
@@ -30,22 +45,30 @@ def search_books(query):
                 info = item.get("volumeInfo", {})
                 title = info.get("title", "제목 없음")
                 authors = info.get("authors", ["작가 미상"])
-                # 썸네일 이미지 처리 (없을 경우 빈 문자열)
+                
+                # 이미지 링크 안전하게 가져오기
                 img_links = info.get("imageLinks", {})
                 img_url = img_links.get("thumbnail") or img_links.get("smallThumbnail") or ""
+                # http를 https로 변경 (보안 이슈 방지)
+                if img_url.startswith("http:"):
+                    img_url = img_url.replace("http:", "https:")
                 
                 results.append({
                     "label": f"📚 {title} ({', '.join(authors)})",
                     "title": title,
                     "creator": ", ".join(authors),
-                    "performer": "-", # 책은 실연자 없음
+                    "performer": "-",
                     "date": info.get("publishedDate", "날짜 미상"),
                     "img": img_url,
                     "desc": info.get("description", "등록된 요약 정보가 없습니다.")
                 })
+        else:
+            # 검색 결과가 정말 없는 경우 로그
+            st.warning(f"'{query}'에 대한 검색 결과가 구글 서버에 없습니다.")
+            
         return results
     except Exception as e:
-        st.error(f"연결 오류가 발생했습니다: {e}")
+        st.error(f"네트워크 오류가 발생했습니다: {e}")
         return []
 
 # --- [3. 메인 UI] ---
@@ -155,3 +178,4 @@ with tab2:
                 st.rerun()
     else:
         st.write("아카이브가 비어있습니다.")
+
