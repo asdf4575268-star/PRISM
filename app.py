@@ -113,7 +113,7 @@ def search_books(query):
         return res.json().get("documents", []) if res.status_code == 200 else []
     except: return []
 
-elif category == "MUSIC":
+    elif category == "MUSIC":
             res = search_apple_music(search_query)
             if res:
                 # 노래 제목이 있으면 노래 제목, 없으면 앨범명을 가져오는 단순한 방식
@@ -327,6 +327,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
