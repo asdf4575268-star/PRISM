@@ -54,7 +54,6 @@ with tab1:
     col_l, col_r = st.columns([0.4, 0.6])
     
     with col_l:
-        st.subheader("📍 기본 정보")
         title = st.text_input("활동명 (제목)", value=data.get('title', ''))
         creator = st.text_input("창작자 (작가)", value=", ".join(data.get('authors', [])) if 'authors' in data else "")
         rel_date = st.text_input("날짜", value=data.get('datetime', '')[:10] if data.get('datetime') else "")
@@ -63,10 +62,9 @@ with tab1:
             st.image(img_url, use_container_width=False, caption="원본 크기")
 
     with col_r:
-        st.subheader("🖋️ 아카이빙")
-        summary = st.text_area("📖 핵심 요약", height=80, placeholder="내용을 요약해 주세요.")
+        summary = st.text_area("📖 요약", height=80, placeholder="내용을 요약해 주세요.")
         highlights = st.text_area("✨ 인상 깊은 부분 (쪽수 포함)", height=150, placeholder="p.123 - 문장 내용")
-        note = st.text_area("💬 감상 노트", value=data.get('contents', ''), height=150)
+        note = st.text_area("💬 감상", value=data.get('contents', ''), height=150)
         
         # 하단 폰트 시각화
         st.markdown(f'<p class="act-name">{title if title else "활동명"}</p>', unsafe_allow_html=True)
@@ -115,4 +113,5 @@ with tab2:
                 st.rerun()
     else:
         st.info("아직 저장된 아카이브가 없습니다.")
+
 
