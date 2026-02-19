@@ -283,14 +283,18 @@ with tab1:
 with tab2:
     sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
     
-    # 1. 공통 스타일 (한 번만 선언)
+    # 1. 스타일 업데이트 (그리드 및 달력 간격 조정)
     st.markdown("""
         <style>
-        .archive-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 10px; }
+        .archive-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 20px; }
         .archive-item { text-align: center; }
-        .img-box { width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 8px; background: #333; }
+        .img-box { width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 6px; background: #222; }
         .img-box img { width: 100%; height: 100%; object-fit: cover; }
-        .archive-item p { font-size: 10px; color: #ccc; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .archive-item p { font-size: 10px; color: #aaa; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        /* 달력 숫자와 이미지 사이 여백 강제 주입 */
+        .cal-day-num { font-size: 14px; margin-bottom: 4px; font-weight: bold; }
+        .cal-img-wrapper { margin-top: 5px; margin-bottom: 5px; border-radius: 4px; overflow: hidden; height: 35px; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -300,56 +304,73 @@ with tab2:
     if all_df.empty:
         st.info("기록이 없습니다.")
     else:
-        # 데이터 전처리 (공통)
         all_df['v_dt'] = pd.to_datetime(all_df['view_date'].fillna(all_df['save_date']))
         
         # --- [탭 0: YEARLY (달력)] ---
         with sub_tabs[0]:
-            # 연도/월 선택 및 네비게이션 (기존 로직 유지하되 간소화)
+            # 달력 상단 네비게이션
             c1, c2, c3 = st.columns([1, 2, 1])
             with c1: 
-                if st.button("◀", key="prev"): shift_month(-1); st.rerun()
+                if st.button("◀", key="p_mon"): shift_month(-1); st.rerun()
             with c2: 
                 st.markdown(f"<h3 style='text-align:center;'>{st.session_state.cal_year}.{st.session_state.cal_month}</h3>", unsafe_allow_html=True)
             with c3: 
-                if st.button("▶", key="next"): shift_month(1); st.rerun()
+                if st.button("▶", key="n_mon"): shift_month(1); st.rerun()
 
-            # 달력 그리드 (7열)
             cal = calendar.monthcalendar(st.session_state.cal_year, st.session_state.cal_month)
             for week in cal:
                 cols = st.columns(7)
                 for i, day in enumerate(week):
                     if day == 0: continue
                     with cols[i]:
-                        st.markdown(f"<p style='text-align:center; margin:0;'>{day}</p>", unsafe_allow_html=True)
+                        # 날짜 숫자 (클래스 적용으로 간격 확보)
+                        st.markdown(f"<div class='cal-day-num'>{day}</div>", unsafe_allow_html=True)
+                        
                         day_items = all_df[(all_df['v_dt'].dt.year == st.session_state.cal_year) & 
                                            (all_df['v_dt'].dt.month == st.session_state.cal_month) & 
                                            (all_df['v_dt'].dt.day == day)]
+                        
                         if not day_items.empty:
                             img = day_items.iloc[0]['img_url']
-                            if img: st.image(img, use_container_width=True)
-                            if st.button("•", key=f"cal_{day}"): show_details(day_items.iloc[0])
+                            if img:
+                                # 이미지를 래퍼로 감싸서 높이와 간격 고정
+                                st.markdown(f'<div class="cal-img-wrapper"><img src="{img}" style="width:100%; height:100%; object-fit:cover;"></div>', unsafe_allow_html=True)
+                            
+                            # 버튼 클릭 시 상세 보기
+                            if st.button("•", key=f"c_btn_{day}", use_container_width=True):
+                                show_details(day_items.iloc[0])
+                        else:
+                            # 데이터 없는 날 공간 확보
+                            st.markdown("<div style='height:45px;'></div>", unsafe_allow_html=True)
 
-        # --- [탭 1~5: 카테고리별 그리드] ---
+        # --- [탭 1~5: 카테고리별] ---
         cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
         for idx, c_name in enumerate(cats):
             with sub_tabs[idx+1]:
                 df = all_df[all_df['category'] == c_name].sort_values(by='v_dt', ascending=False)
                 if not df.empty:
-                    # HTML 그리드 생성
+                    # 1. 목록 선택창을 위로 올림
+                    with st.expander("🔍 바로 상세 선택", expanded=False):
+                        for _, row in df.iterrows():
+                            # 날짜와 함께 표시하여 구분력 강화
+                            display_date = row['v_dt'].strftime('%m.%d')
+                            if st.button(f"[{display_date}] {row['title']}", key=f"l_btn_{row['id']}", use_container_width=True):
+                                show_details(row)
+                    
+                    # 2. 하단에 그리드 배치 (도감 용도)
                     grid_html = '<div class="archive-grid">'
                     for _, row in df.iterrows():
                         img = row['img_url'] if row['img_url'] else "https://via.placeholder.com/150"
-                        grid_html += f'<div class="archive-item"><div class="img-box"><img src="{img}"></div><p>{row["title"][:5]}</p></div>'
+                        grid_html += f'''
+                            <div class="archive-item">
+                                <div class="img-box"><img src="{img}"></div>
+                                <p>{row["title"][:5]}</p>
+                            </div>'''
                     grid_html += '</div>'
                     st.markdown(grid_html, unsafe_allow_html=True)
-                    
-                    # 상세 선택 (간결하게)
-                    with st.expander("📖 목록에서 선택"):
-                        for _, row in df.iterrows():
-                            if st.button(f"{row['title']}", key=f"list_{row['id']}"): show_details(row)
                 else:
                     st.info("기록이 없습니다.")
+
 
 
 
