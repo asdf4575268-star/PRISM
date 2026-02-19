@@ -7,6 +7,13 @@ import xml.etree.ElementTree as ET
 from datetime import date, datetime
 import re
 
+if 'cal_year' not in st.session_state:
+    st.session_state.cal_year = datetime.now().year
+if 'cal_month' not in st.session_state:
+    st.session_state.cal_month = datetime.now().month
+if 'api_data' not in st.session_state:
+    st.session_state.api_data = {}
+
 # --- [1. 스타일 및 설정] ---
 st.set_page_config(layout="wide", page_title="PRISM")
 st.title("🌈PRISM")
@@ -293,6 +300,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
