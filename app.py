@@ -276,7 +276,7 @@ with tab1:
 
 # --- TAB 2: ARCHIVE ---
 with tab2:
-    # 모바일 6열 강제 유지 및 버튼 스타일 설정
+    # 1. 스타일 설정 (모바일 6열 강제, 버튼 최적화, km/bpm 소문자 스타일)
     st.markdown("""
         <style>
         @media (max-width: 768px) {
@@ -287,6 +287,7 @@ with tab2:
                 padding: 0 2px !important;
             }
         }
+        /* 버튼 내 텍스트 스타일 및 km, bpm 소문자 강제 (Display용) */
         div.stButton > button {
             white-space: normal !important;
             word-break: keep-all !important;
@@ -295,28 +296,41 @@ with tab2:
             min-height: 38px !important;
             height: auto !important;
             line-height: 1.2 !important;
+            text-transform: lowercase !important; /* 화면에 보이는 단위를 소문자로 고정 */
         }
         </style>
     """, unsafe_allow_html=True)
 
     sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
     
+    # 데이터 로드
+    with sqlite3.connect(DB_NAME) as conn:
+        all_df = pd.read_sql_query("SELECT * FROM archive", conn)
+
     with sub_tabs[0]:
-        with sqlite3.connect(DB_NAME) as conn:
-            all_df = pd.read_sql_query("SELECT * FROM archive", conn)
-        
         if not all_df.empty:
+            # 날짜 데이터 보정
             all_df['view_date_filled'] = all_df['view_date'].fillna(all_df['save_date'])
             all_df['v_dt'] = pd.to_datetime(all_df['view_date_filled'])
             all_df['year_int'] = all_df['v_dt'].dt.year
             
-            # 연도 선택 네비게이션
-            unique_years = sorted(list(set([datetime.now().year] + all_df['year_int'].tolist())), reverse=True)
-            default_idx = unique_years.index(st.session_state.cal_year) if st.session_state.cal_year in unique_years else 0
+            # 연도별 누적 숫자 계산 및 라벨 생성
+            year_counts = all_df['year_int'].value_counts().to_dict()
+            current_year = datetime.now().year
+            raw_years = sorted(list(set([current_year] + list(year_counts.keys()))), reverse=True)
+            year_labels = [f"{y} ({year_counts.get(y, 0)})" for y in raw_years]
+            label_to_year = {label: y for label, y in zip(year_labels, raw_years)}
             
+            try:
+                default_idx = raw_years.index(st.session_state.cal_year)
+            except ValueError:
+                default_idx = 0
+            
+            # 연도 선택 네비게이션
             c_yr, c_nav = st.columns([1.5, 3])
             with c_yr:
-                selected_year = st.selectbox("연도 선택", unique_years, index=default_idx)
+                selected_label = st.selectbox("연도 선택", year_labels, index=default_idx)
+                selected_year = label_to_year[selected_label]
                 if selected_year != st.session_state.cal_year:
                     st.session_state.cal_year = selected_year
                     st.rerun()
@@ -330,8 +344,7 @@ with tab2:
             with n3:
                 if st.button("▶", key="next_btn", use_container_width=True): shift_month(1); st.rerun()
 
-            # 요일 헤더(월~일)는 삭제됨
-
+            # 달력 본문 (요일 헤더 없음)
             cal = calendar.monthcalendar(st.session_state.cal_year, st.session_state.cal_month)
             month_df = all_df[(all_df['v_dt'].dt.year == st.session_state.cal_year) & (all_df['v_dt'].dt.month == st.session_state.cal_month)]
 
@@ -340,9 +353,8 @@ with tab2:
                 for i, day in enumerate(week):
                     if day == 0: continue
                     with cols[i]:
-                        # 💡 토요일(i=5)은 파란색, 일요일(i=6)은 빨간색, 나머지는 흰색/기본색
+                        # 토요일(5) 파랑, 일요일(6) 빨강, 평일 흰색
                         day_color = "#2E5BFF" if i == 5 else "#FF4B4B" if i == 6 else "#FFFFFF"
-                        
                         st.markdown(f"<p class='num-text' style='font-size:28px; margin:0; text-align:center; color:{day_color};'>{day}</p>", unsafe_allow_html=True)
                         
                         day_items = month_df[month_df['v_dt'].dt.day == day]
@@ -355,7 +367,6 @@ with tab2:
                                     </div>
                                 ''', unsafe_allow_html=True)
                             
-                            # 여러 개일 경우 점(•)으로 표시하거나 첫 제목만 표시
                             title_disp = first_item['title'][:5]
                             if st.button(f"•{title_disp}", key=f"cal_{day}_{first_item['id']}", use_container_width=True):
                                 show_details(first_item)
@@ -368,16 +379,17 @@ with tab2:
     cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
     for idx, c_name in enumerate(cats):
         with sub_tabs[idx+1]:
-            with sqlite3.connect(DB_NAME) as conn:
-                query = f"SELECT *, COALESCE(NULLIF(view_date, ''), save_date) as sort_date FROM archive WHERE category='{c_name}' ORDER BY sort_date DESC"
-                df = pd.read_sql_query(query, conn)
-            
-            if not df.empty:
-                for i in range(0, len(df), 6):
+            # 최신순 정렬 쿼리
+            cat_df = all_df[all_df['category'] == c_name].copy()
+            if not cat_df.empty:
+                cat_df = cat_df.sort_values(by='v_dt', ascending=False)
+                
+                # 6개씩 끊어서 가로 배치 (정렬 보장)
+                for i in range(0, len(cat_df), 6):
                     cols = st.columns(6)
                     for j in range(6):
-                        if i + j < len(df):
-                            row = df.iloc[i + j]
+                        if i + j < len(cat_df):
+                            row = cat_df.iloc[i + j]
                             with cols[j]:
                                 if row['img_url']:
                                     st.markdown(f'''
@@ -386,12 +398,14 @@ with tab2:
                                         </div>
                                     ''', unsafe_allow_html=True)
                                 
-                                v_date_disp = row.get('view_date') if row.get('view_date') else row.get('save_date', '')
+                                v_date_disp = row['view_date'] if row['view_date'] else row['save_date']
                                 st.markdown(f'<p style="font-size:12px; text-align:center; margin-bottom:3px;">🍿 {v_date_disp}</p>', unsafe_allow_html=True)
+                                # 버튼 텍스트 내 KM/BPM은 CSS text-transform으로 소문자 처리됨
                                 if st.button(row['title'], key=f"cat_{idx}_{row['id']}", use_container_width=True):
                                     show_details(row)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
