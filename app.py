@@ -194,17 +194,23 @@ with tab2:
             
             # 연도 선택 + 통계
             year_counts = all_df['year_int'].value_counts().to_dict()
-            unique_years = sorted(list(set([datetime.now().year] + list(year_counts.keys()))), reverse=True)
+            
+            # 현재 연도와 데이터에 있는 연도를 합쳐서 리스트 생성
+            current_year = datetime.now().year
+            unique_years = sorted(list(set([current_year] + list(year_counts.keys()))), reverse=True)
+            
             year_labels = [f"{y} ({year_counts.get(y, 0)})" for y in unique_years]
             label_to_year = {label: y for label, y in zip(year_labels, unique_years)}
             
-            default_idx = unique_years.index(st.session_state.cal_year) if st.session_state.cal_year in unique_years else 0
+            # 세션에서 값을 가져오되, 없으면 현재 연도를 기본값으로 사용 (AttributeError 방지)
+            saved_year = st.session_state.get('cal_year', current_year)
+            default_idx = unique_years.index(saved_year) if saved_year in unique_years else 0
             
-            c_yr, c_nav = st.columns([1.5, 3])
+            c_yr, _ = st.columns([1.5, 3])
             with c_yr:
                 selected_label = st.selectbox("연도 선택", year_labels, index=default_idx)
                 selected_year = label_to_year[selected_label]
-                if selected_year != st.session_state.cal_year:
+                if selected_year != st.session_state.get('cal_year'):
                     st.session_state.cal_year = selected_year
                     st.rerun()
 
@@ -300,6 +306,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
