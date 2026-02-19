@@ -171,16 +171,6 @@ with tab2:
     # 탭 메뉴에 'YEARLY' 추가
     sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES"])
     
-연도 선택창이 사라진 이유는 월 이동 내비게이션(◀ 저번달, 다음달 ▶) 로직을 넣으면서 기존의 연도 선택 셀렉트박스를 대체했기 때문인 것 같네요!
-
-사용자님이 직접 연도를 점프해서 선택할 수도 있고, 화살표로 월을 넘길 수도 있게 두 기능을 합쳐서 다시 구성했습니다. 또한, 연도 옆에 해당 연도의 전체 작품 수가 표시되도록 복구했습니다.
-
-📅 연도 선택 + 월 이동 통합 달력 모드
-Python
-import calendar
-from datetime import datetime
-import streamlit as st
-
 # 1. 세션 상태 초기화 (연도/월 유지)
 if 'cal_year' not in st.session_state:
     st.session_state.cal_year = datetime.now().year
@@ -302,6 +292,7 @@ with sub_tabs[0]:
                         st.markdown(f'<p class="save-date-tag">📅 기록일: {row["save_date"]}</p>', unsafe_allow_html=True)
                         if st.button(row['title'], key=f"cat_btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
 
 
 
