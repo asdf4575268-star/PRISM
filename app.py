@@ -113,55 +113,61 @@ def search_kopis(query):
 # --- [3. 팝업 함수] ---
 @st.dialog("📋 기록 상세 정보", width="large")
 def show_details(item):
-    edit_mode = st.toggle("✏️ 수정 모드 켜기", key=f"tog_{item['id']}")
-    if edit_mode:
-        with st.form(key=f"edit_form_{item['id']}", clear_on_submit=False):
-            col_img, col_txt = st.columns([0.4, 0.6])
-            with col_img:
-                # 이미지는 확인용으로만 띄우고 URL 수정 칸은 제거 (깔끔!)
-                if item['img_url']: 
-                    st.image(item['img_url'], use_container_width=True)
-                new_img = item['img_url'] # 기존 이미지 URL 유지
-                
-            with col_txt:
-                new_title = st.text_input("📌 제목", value=item['title'])
-                new_creator = st.text_input("👤 창작자", value=item['creator'])
-                new_rel_date = st.text_input("📅 작품 날짜", value=item['rel_date'])
-                
-                # 감상일 수정 (기본값 설정 로직)
-                raw_v = item.get('view_date') or item['save_date']
-                try:
-                    cur_v = datetime.strptime(raw_v, '%Y-%m-%d').date()
-                except:
-                    cur_v = date.today()
-                new_view_date = st.date_input("🍿 감상일 수정", value=cur_v)
+    edit_mode = st.toggle("✏️ 수정 모드", key=f"tog_{item['id']}")
+    col_img, col_txt = st.columns([0.4, 0.6])
 
-                # --- 누락되었던 핵심 필드 추가 ---
-                new_brief = st.text_input("📝 요약", value=item.get('brief', ''))
-                new_summary = st.text_area("📖 줄거리(첫줄에 URL)", value=item.get('summary', ''), height=150)
-                new_highlights = st.text_area("✨ 인상 깊은 부분", value=item.get('highlights', ''), height=100)
-                new_note = st.text_area("💬 감상", value=item.get('note', ''), height=100)
+    with col_img:
+        if item['img_url']: st.image(item['img_url'], use_container_width=True)
+
+    with col_txt:
+        if edit_mode:
+            with st.form(f"edit_{item['id']}"):
+                # 한 줄 입력 요소들
+                new_title = st.text_input("📌 제목", item['title'])
+                new_creator = st.text_input("👤 창작자", item['creator'])
+                new_rel = st.text_input("📅 작품 날짜", item['rel_date'])
                 
-                if st.form_submit_button("💾 변경사항 저장", use_container_width=True):
+                # 날짜 처리
+                raw_v = item.get('view_date') or item['save_date']
+                try: v_dt = datetime.strptime(raw_v, '%Y-%m-%d').date()
+                except: v_dt = date.today()
+                new_view = st.date_input("🍿 감상일", v_dt)
+
+                # 텍스트 영역
+                new_brief = st.text_input("📝 요약", item.get('brief', ''))
+                new_sum = st.text_area("📖 줄거리(첫줄 URL)", item.get('summary', ''), height=150)
+                new_high = st.text_area("✨ 인상 깊은 부분", item.get('highlights', ''), height=100)
+                new_note = st.text_area("💬 감상", item.get('note', ''), height=100)
+
+                if st.form_submit_button("💾 저장", use_container_width=True):
                     with sqlite3.connect(DB_NAME) as conn:
-                        conn.execute("""UPDATE archive SET 
-                                        title=?, creator=?, rel_date=?, summary=?, 
-                                        brief=?, highlights=?, note=?, img_url=?, view_date=? 
-                                        WHERE id=?""",
-                                     (new_title, new_creator, new_rel_date, new_summary, 
-                                      new_brief, new_highlights, new_note, new_img, str(new_view_date), int(item['id'])))
+                        conn.execute("""UPDATE archive SET title=?, creator=?, rel_date=?, summary=?, 
+                                        brief=?, highlights=?, note=?, view_date=? WHERE id=?""",
+                                     (new_title, new_creator, new_rel, new_sum, new_brief, new_high, new_note, str(new_view), item['id']))
                     st.rerun()
-    else:
-        st.markdown(f'<p class="act-name">{item["title"]}</p>', unsafe_allow_html=True)
-        content_text = item.get('summary', '')
-        urls = re.findall(r'(https?://[^\s]+)', content_text)
-        if urls: st.link_button("🌐 공식 정보 확인", urls[0], use_container_width=True)
-        st.image(item['img_url'], width=300)
-        st.write(f"**창작자:** {item['creator']} | **작품날짜:** {item['rel_date']}")
-        st.info(f"**줄거리:**\n\n{item['summary']}")
-        if st.button("🗑️ 삭제"):
-            with sqlite3.connect(DB_NAME) as conn: conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
-            st.rerun()
+        else:
+            # --- 조회 모드 ---
+            st.markdown(f'<p class="act-name">{item["title"]}</p>', unsafe_allow_html=True)
+            
+            # URL 버튼
+            urls = re.findall(r'(https?://[^\s]+)', item.get('summary', ''))
+            if urls: st.link_button("🌐 공식 정보", urls[0], use_container_width=True)
+            
+            st.write(f"**정보:** {item['creator']} | **작품날짜:** {item['rel_date']}")
+            v_date = item.get('view_date') or item['save_date']
+            st.markdown(f'<p class="date-text">🍿 감상일: {v_date}</p>', unsafe_allow_html=True)
+            st.divider()
+
+            # 본문 (데이터가 있을 때만 표시)
+            if item.get('brief'): st.success(f"**📝 요약**\n\n{item['brief']}")
+            st.info(f"**📖 줄거리**\n\n{item.get('summary', '')}")
+            if item.get('highlights'): st.warning(f"**✨ 인상 깊은 부분**\n\n{item['highlights']}")
+            if item.get('note'): st.write(f"**💬 감상**\n\n{item['note']}")
+            
+            if st.button("🗑️ 삭제", key=f"del_{item['id']}", use_container_width=True):
+                with sqlite3.connect(DB_NAME) as conn:
+                    conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
+                st.rerun()
 
 # --- [4. 메인 화면 구성] ---
 tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
@@ -364,6 +370,7 @@ with tab2:
                             show_details(row)
             else:
                 st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+
 
 
 
