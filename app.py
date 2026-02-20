@@ -320,62 +320,58 @@ with tab2:
 
     sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
 
-# --- [1] YEARLY 탭 (월별 리스트 형식으로 변경) ---
-# --- [1] YEARLY 탭 (카드형 리스트 형식) ---
+# --- [1] YEARLY 탭 (중앙 정렬 카드형 리스트) ---
 with sub_tabs[0]:
     if not all_df.empty:
-        # 날짜 데이터 처리 및 정렬
+        # 데이터 전처리 (날짜 기준 최신순)
         all_df['v_dt'] = pd.to_datetime(all_df['view_date'].fillna(all_df['save_date']))
         all_df['year_int'] = all_df['v_dt'].dt.year
         all_df['month_int'] = all_df['v_dt'].dt.month
-        
-        # 최신순 정렬
         yearly_df = all_df.sort_values(by='v_dt', ascending=False)
         
-        # 연도 선택 바
+        # 연도 선택
+        raw_years = sorted(list(yearly_df['year_int'].unique()), reverse=True)
         year_counts = yearly_df['year_int'].value_counts().to_dict()
-        raw_years = sorted(list(year_counts.keys()), reverse=True)
         year_labels = [f"{y} ({year_counts.get(y, 0)})" for y in raw_years]
         
         c_yr, _ = st.columns([2, 5])
         with c_yr:
             default_y = st.session_state.cal_year if st.session_state.cal_year in raw_years else raw_years[0]
-            sel_y_label = st.selectbox("연도 선택", year_labels, index=raw_years.index(default_y), key="yr_select_box")
+            sel_y_label = st.selectbox("연도 선택", year_labels, index=raw_years.index(default_y))
             st.session_state.cal_year = int(sel_y_label.split(" ")[0])
 
-        # 선택된 연도의 데이터 필터링
         year_data = yearly_df[yearly_df['year_int'] == st.session_state.cal_year]
         
-        # 월별 그룹화 출력
+        # 월별 루프
         for month in range(12, 0, -1):
             month_data = year_data[year_data['month_int'] == month]
             if not month_data.empty:
                 st.markdown(f"### 🗓️ {month}월")
                 
-                # 카드들을 배치 (모바일에서도 보기 좋게 2열 정도로 구성하거나 1열로 구성)
-                # 여기서는 한 줄에 하나씩 큼직하게 배치합니다.
                 for _, row in month_data.iterrows():
-                    # 카드 컨테이너 시작
-                    with st.container():
-                        # 1. 이미지 표시 (상단)
+                    # 중앙 정렬을 위한 컬럼 배치 (이미지 너비에 맞춰 조절 가능)
+                    _, mid_col, _ = st.columns([1, 10, 1]) 
+                    
+                    with mid_col:
+                        # 1. 이미지 (비율 유지 및 테두리 둥글게)
                         if row['img_url']:
                             st.markdown(f'''
-                                <div class="cal-img-box" style="width: 100%; max-width: 300px; margin-bottom: 5px;">
-                                    <img src="{row['img_url']}" style="width: 100%; border-radius: 8px;">
+                                <div style="display: flex; justify-content: center;">
+                                    <img src="{row['img_url']}" style="width: 100%; border-radius: 12px; border: 1px solid #333;">
                                 </div>
                             ''', unsafe_allow_html=True)
                         
-                        # 2. 날짜 표시
+                        # 2. 날짜 및 버튼 간격 조절
                         v_date = row['view_date'] if row['view_date'] else row['save_date']
-                        st.markdown(f'<p style="font-size:12px; color:gray; margin-bottom:2px;">{v_date}</p>', unsafe_allow_html=True)
+                        st.markdown(f'<p style="font-size:13px; color:gray; margin-top:8px; margin-bottom:4px; text-align:left;">{v_date}</p>', unsafe_allow_html=True)
                         
-                        # 3. 제목 버튼 (이미지 바로 아래 위치)
-                        # 제목은 5자 제한 없이 전체가 나오도록 하거나, 원하시는 만큼 조절 가능합니다.
-                        if st.button(row['title'], key=f"yr_card_{row['id']}", use_container_width=True):
+                        # 3. 제목 버튼 (이미지 너비에 꽉 차게)
+                        # km, bpm은 시스템적으로 소문자 변환됨
+                        if st.button(row['title'], key=f"yr_list_{row['id']}", use_container_width=True):
                             show_details(row)
                         
-                        st.markdown("<div style='margin-bottom: 25px;'></div>", unsafe_allow_html=True) # 항목 간 간격
-                st.divider() 
+                        st.markdown("<div style='margin-bottom: 40px;'></div>", unsafe_allow_html=True)
+                st.divider()
     else:
         st.info("기록이 없습니다.")
 
@@ -408,6 +404,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
