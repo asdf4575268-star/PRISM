@@ -224,24 +224,23 @@ with tab1:
         note = st.text_area("💬 감상", height=100)
         
         if st.button("✅ 저장"):
-            # KM, BPM 소문자 처리 디자인 가이드 반영
-            processed_note = note.replace("KM", "km").replace("BPM", "bpm")
-            
-            # 날짜 데이터 분리 (구글 설문지 날짜 형식 대응)
-            # rel_date가 '2026-02-13' 형태라고 가정
+            # 작품 날짜(rel_date)가 'YYYY-MM-DD' 형식이 아닐 경우를 대비
             try:
-                r_date_obj = datetime.strptime(rel_date, '%Y-%m-%d')
+                # 숫자만 남기고 제거 (예: 2026.02.13 -> 2026-02-13)
+                clean_rel_date = re.sub(r'[^0-9]', '-', rel_date).strip('-')
+                if len(clean_rel_date) > 10: clean_rel_date = clean_rel_date[:10]
+                r_date_obj = datetime.strptime(clean_rel_date, '%Y-%m-%d')
             except:
                 r_date_obj = datetime.now()
             
-            # 1. 로컬 SQLite DB 저장
+            # 3. 로컬 SQLite DB 저장
             with sqlite3.connect(DB_NAME) as conn:
                 conn.execute("""INSERT INTO archive 
                     (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) 
                     VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
                     (category, title, creator, rel_date, summary, brief, highlights, processed_note, img_url_val, str(date.today()), str(view_date)))
             
-            # 2. 구글 설문지 백업 전송 (찾으신 진짜 번호 적용)
+            # 4. 구글 설문지 백업 전송 (찾으신 번호 정밀 매칭)
             BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
             
             payload = {
@@ -254,25 +253,27 @@ with tab1:
                 "entry.891180756": processed_note,# 감상
                 "entry.2056153041": img_url_val,  # 이미지 URL
                 
-                # 작품 날짜 (rel_date) 분할 입력
+                # 날짜 전송 방식: 연, 월, 일을 각각 문자열로 확실히 변환
                 "entry.780422311_year": str(r_date_obj.year),
                 "entry.780422311_month": str(r_date_obj.month),
                 "entry.780422311_day": str(r_date_obj.day),
                 
-                # 감상일 (view_date) 분할 입력
                 "entry.1446643193_year": str(view_date.year),
                 "entry.1446643193_month": str(view_date.month),
                 "entry.1446643193_day": str(view_date.day)
             }
             
             try:
-                res = requests.post(BACKUP_URL, data=payload)
+                # 💡 구글 설문지는 headers가 없으면 거부하는 경우가 있어 추가합니다.
+                headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+                res = requests.post(BACKUP_URL, data=payload, headers=headers)
+                
                 if res.status_code == 200:
-                    st.success("✅ 로컬 저장 및 구글 시트 백업이 완료되었습니다!")
+                    st.success("✅ 로컬 저장 및 구글 시트 백업 완료!")
                 else:
-                    st.warning(f"⚠️ 전송 성공했으나 응답 확인 필요 (코드: {res.status_code})")
+                    st.warning(f"⚠️ 전송 결과 코드: {res.status_code}. (응답 탭을 확인해 보세요!)")
             except Exception as e:
-                st.error(f"❌ 전송 중 오류 발생: {e}")
+                st.error(f"❌ 전송 오류: {e}")
 
             st.session_state.api_data = {}
             st.rerun()
@@ -344,6 +345,7 @@ with tab2:
                                 if row['img_url']: st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
