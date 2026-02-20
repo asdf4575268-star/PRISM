@@ -240,16 +240,16 @@ with tab1:
             
             # 실제 설문지 소스코드에서 추출한 entry 번호들입니다.
             payload = {
-                "entry.1691522079": category,
-                "entry.244349141": title,
-                "entry.311354399": creator,
-                "entry.1345517865": rel_date,
-                "entry.1594917533": summary,
-                "entry.1042571285": brief,
-                "entry.1534346761": highlights,
-                "entry.109869818": processed_note,
-                "entry.162234033": img_url_val,
-                "entry.1568212621": str(view_date)
+                "entry.2062451053": category,    # category 칸의 번호
+                "entry.1018617887": title,       # title 칸의 번호
+                "entry.1384065615": creator,     # creator 칸의 번호
+                "entry.1187428751": rel_date,    # rel_date 칸의 번호
+                "entry.156550275": summary,      # summary 칸의 번호
+                "entry.1352327581": brief,       # brief 칸의 번호
+                "entry.1983582121": highlights,  # highlights 칸의 번호
+                "entry.2079250041": processed_note, # note 칸의 번호
+                "entry.59593108": img_url_val,   # img_url 칸의 번호
+                "entry.448507851": str(view_date) # view_date 칸의 번호
             }
             
             try:
@@ -333,4 +333,5 @@ with tab2:
                                 if row['img_url']: st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
