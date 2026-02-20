@@ -240,9 +240,6 @@ with tab1:
             # 1. 변수 안전장치 (NameError 방지)
             safe_img_url = img_url_val if 'img_url_val' in locals() else ""
             
-            # 2. 디자인 가이드: KM, BPM 소문자 처리
-            processed_note = note.replace("KM", "km").replace("BPM", "bpm")
-
             # 3. 날짜 에러(AttributeError) 해결: 문자열을 날짜 객체로 변환
             import pandas as pd
             try:
@@ -406,6 +403,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
