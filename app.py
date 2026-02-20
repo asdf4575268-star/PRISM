@@ -109,6 +109,28 @@ def search_kopis(query):
         root = ET.fromstring(res.content)
         return [{'title': d.findtext('prfnm'), 'id': d.findtext('mt20id'), 'img': d.findtext('poster'), 'date': d.findtext('prfpdfrom'), 'venue': d.findtext('fcltynm')} for d in root.findall('db')]
     except: return []
+def auto_fill_data():
+    """기존 DB 기록 선택 시 입력 폼을 자동으로 채우는 콜백 함수"""
+    selected_title = st.session_state.get('selected_archive_title')
+    if selected_title and selected_title != "선택하세요":
+        with sqlite3.connect(DB_NAME) as conn:
+            # 선택한 제목의 데이터 불러오기
+            df = pd.read_sql("SELECT * FROM archive WHERE title = ?", conn, params=(selected_title,))
+            if not df.empty:
+                row = df.iloc[0]
+                
+                # 💡 세션 상태에 데이터 입력 (폼 위젯의 key들과 연결)
+                st.session_state.api_data = {
+                    'title': row['title'].lower(), # km, bpm 소문자 유지 [2026-02-13]
+                    'creator': row['creator'],
+                    'date': row['rel_date'],
+                    'img': row['img_url'],
+                    'summary': row['summary']
+                }
+                # 추가 필드들 (요약, 인상 깊은 점 등)을 폼에 직접 넣고 싶다면 여기에 추가
+                st.session_state.input_brief = row['brief']
+                st.session_state.input_highlights = row['highlights']
+                st.session_state.input_note = row['note']
 
 # --- [3. 팝업 함수] ---
 @st.dialog("📋 기록 상세 정보", width="large")
@@ -425,6 +447,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
