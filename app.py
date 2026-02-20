@@ -203,12 +203,7 @@ def show_details(item):
             show_box("📖 줄거리 / 상세", item.get('summary'), "info")
             show_box("✨ 인상 깊은 부분", item.get('highlights'), "warning")
             show_box("💬 감상", item.get('note'), "write")
-
-            st.divider()
-            if st.button("🗑️ 삭제", key=f"del_{item['id']}", use_container_width=True):
-                with sqlite3.connect(DB_NAME) as conn:
-                    conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
-                st.rerun()
+            
 # --- [4. 메인 화면 구성] ---
 tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 
@@ -422,6 +417,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
