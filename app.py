@@ -275,34 +275,27 @@ with tab1:
             st.rerun()
 
 # --- TAB 2: ARCHIVE ---
+# --- TAB 2: ARCHIVE ---
 with tab2:
-    # 1. 반응형 레이아웃 CSS
+    # 1. 반응형 및 요소 가시성 강화 CSS
     st.markdown("""
         <style>
-        /* 기본: 데스크탑/가로모드 (6열 그리드) */
+        /* 기본: 6열/7열 그리드 유지 */
         [data-testid="column"] {
-            width: 16.6% !important;
-            flex: 0 0 16.6% !important;
-            min-width: 16.6% !important;
-            padding: 0 2px !important;
+            padding: 1px !important;
         }
 
-        /* 📱 세로모드 대응 (화면 너비 600px 이하) */
+        /* 📱 세로모드 대응 */
         @media (max-width: 600px) {
             .cat-container [data-testid="column"] {
                 width: 100% !important;
                 flex: 0 0 100% !important;
-                min-width: 100% !important;
                 margin-bottom: 8px;
                 padding: 10px !important;
                 background: #262730; 
                 border-radius: 8px;
             }
-            .cat-container div.stButton > button {
-                text-align: left !important;
-                padding-left: 10px !important;
-                font-size: 14px !important;
-            }
+            /* 달력은 세로에서도 7열을 유지해야 하므로 칸 너비 강제 */
             .cal-container [data-testid="column"] {
                 width: 14.28% !important;
                 flex: 0 0 14.28% !important;
@@ -310,35 +303,45 @@ with tab2:
             }
         }
 
-        /* km, bpm 소문자 강제 */
-        div.stButton > button {
-            text-transform: lowercase !important;
-            white-space: normal !important;
-            word-break: keep-all !important;
+        /* 달력 내 이미지 박스 (가시성 확보) */
+        .cal-img-box {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            overflow: hidden;
+            border-radius: 4px;
+            margin-top: 2px;
+            background: #444; /* 이미지가 없을 때 구분용 */
+        }
+        .cal-img-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
-        .cat-img-box img {
-            width: 100%;
-            aspect-ratio: 1/1;
-            object-fit: cover;
-            border-radius: 6px;
+        /* 버튼 스타일 (소문자 및 크기) */
+        div.stButton > button {
+            text-transform: lowercase !important;
+            font-size: 10px !important;
+            padding: 0px !important;
+            min-height: 24px !important;
         }
         </style>
     """, unsafe_allow_html=True)
 
-    # 💡 데이터 로드를 모든 탭 공통으로 최상단에서 수행 (NameError 방지)
+    # 데이터 로드
     with sqlite3.connect(DB_NAME) as conn:
         all_df = pd.read_sql_query("SELECT * FROM archive", conn)
 
     sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
 
-    # 1️⃣ YEARLY 탭 (달력)
+    # 1️⃣ YEARLY 탭 (달력 이미지/버튼 복구)
     with sub_tabs[0]:
         if not all_df.empty:
             all_df['view_date_filled'] = all_df['view_date'].fillna(all_df['save_date'])
             all_df['v_dt'] = pd.to_datetime(all_df['view_date_filled'])
             all_df['year_int'] = all_df['v_dt'].dt.year
             
+            # 연도 선택
             year_counts = all_df['year_int'].value_counts().to_dict()
             raw_years = sorted(list(set([datetime.now().year] + list(year_counts.keys()))), reverse=True)
             year_labels = [f"{y} ({year_counts.get(y, 0)})" for y in raw_years]
@@ -352,12 +355,13 @@ with tab2:
 
             _, n1, n2, n3, _ = st.columns([1, 1, 2, 1, 1])
             with n1: 
-                if st.button("◀", key="p_btn"): shift_month(-1); st.rerun()
+                if st.button("◀", key="p_cal"): shift_month(-1); st.rerun()
             with n2: 
-                st.markdown(f"<p class='num-text' style='text-align:center; font-size:24px;'>{st.session_state.cal_year}.{st.session_state.cal_month}</p>", unsafe_allow_html=True)
+                st.markdown(f"<p style='text-align:center; font-size:20px; font-weight:bold; margin:0;'>{st.session_state.cal_year}.{st.session_state.cal_month}</p>", unsafe_allow_html=True)
             with n3: 
-                if st.button("▶", key="n_btn"): shift_month(1); st.rerun()
+                if st.button("▶", key="n_cal"): shift_month(1); st.rerun()
 
+            # 📅 달력 본문
             st.markdown('<div class="cal-container">', unsafe_allow_html=True)
             cal = calendar.monthcalendar(st.session_state.cal_year, st.session_state.cal_month)
             month_df = all_df[(all_df['v_dt'].dt.year == st.session_state.cal_year) & (all_df['v_dt'].dt.month == st.session_state.cal_month)]
@@ -367,22 +371,35 @@ with tab2:
                 for i, day in enumerate(week):
                     if day == 0: continue
                     with cols[i]:
+                        # 주말 색상
                         day_color = "#2E5BFF" if i == 5 else "#FF4B4B" if i == 6 else "#FFFFFF"
-                        st.markdown(f"<p style='text-align:center; color:{day_color}; margin:0;'>{day}</p>", unsafe_allow_html=True)
+                        st.markdown(f"<p style='text-align:center; color:{day_color}; margin:0; font-size:14px;'>{day}</p>", unsafe_allow_html=True)
+                        
                         day_items = month_df[month_df['v_dt'].dt.day == day]
                         if not day_items.empty:
                             first = day_items.iloc[0]
-                            if st.button("•", key=f"d_{day}_{first['id']}", use_container_width=True):
+                            # 🖼️ 이미지 출력 (복구됨)
+                            if first['img_url']:
+                                st.markdown(f'''
+                                    <div class="cal-img-box">
+                                        <img src="{first['img_url']}">
+                                    </div>
+                                ''', unsafe_allow_html=True)
+                            
+                            # 🔘 상세 보기 버튼 (가로 폭에 맞춰 점으로 표시)
+                            if st.button("•", key=f"btn_{day}_{first['id']}", use_container_width=True):
                                 show_details(first)
+                        else:
+                            # 데이터 없는 날 공간 확보
+                            st.markdown("<div style='height:40px;'></div>", unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.info("데이터가 없습니다.")
 
-    # 2️⃣ 카테고리별 탭 (반응형 리스트형)
+    # 2️⃣ 카테고리별 탭 (반응형 유지)
     cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
     for idx, c_name in enumerate(cats):
         with sub_tabs[idx+1]:
-            # 💡 이제 여기서 all_df를 안전하게 참조할 수 있습니다.
             cat_df = all_df[all_df['category'] == c_name].copy()
             if not cat_df.empty:
                 cat_df['sort_dt'] = pd.to_datetime(cat_df['view_date'].fillna(cat_df['save_date']))
@@ -396,16 +413,17 @@ with tab2:
                             row = cat_df.iloc[i + j]
                             with cols[j]:
                                 if row['img_url']:
-                                    st.markdown(f'<div class="cat-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
+                                    st.markdown(f'<div class="cat-img-box"><img src="{row["img_url"]}" style="width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:6px;"></div>', unsafe_allow_html=True)
                                 
                                 display_date = row['view_date'] if row['view_date'] else row['save_date']
                                 st.markdown(f'<p style="font-size:10px; color:gray; margin:0; text-align:center;">{display_date}</p>', unsafe_allow_html=True)
                                 
-                                if st.button(row['title'], key=f"t_{idx}_{row['id']}", use_container_width=True):
+                                if st.button(row['title'], key=f"cat_t_{idx}_{row['id']}", use_container_width=True):
                                     show_details(row)
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
