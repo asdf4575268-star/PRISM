@@ -133,8 +133,8 @@ def show_details(item):
         if edit_mode:
             # --- [수정 모드] ---
             with st.form(key=f"edit_v2_{item['id']}"):
-                n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
-                n_creator = st.text_input("👤 창작자", value=str(item.get('creator', '')))
+                n_title = st.text_input("📌 Title", value=str(item.get('title', '')))
+                n_creator = st.text_input("👤 Creator", value=str(item.get('creator', '')))
                 n_rel = st.text_input("📅 작품 날짜", value=str(item.get('rel_date', '')))
                 
                 # 감상일 날짜 객체 변환
@@ -161,18 +161,15 @@ def show_details(item):
         else:
             # --- [조회 모드] ---
             # 1. 활동명 (90px)
-            st.markdown(f'<p class="act-name">{item.get("title")}</p>', unsafe_allow_html=True)
+            st.markdown(f'<p style="font-size: 30px; font-weight: bold; line-height: 1.1; margin-bottom: 5px;">{item.get("title")}</p>', unsafe_allow_html=True)
             
-            # 2. URL 버튼 (summary 첫 줄에 URL이 있는 경우)
-            content = str(item.get('summary', ''))
-            urls = re.findall(r'(https?://[^\s]+)', content)
-            if urls:
-                st.link_button("🌐 공식 정보 확인", urls[0], use_container_width=True)
+           
+            # 2. 기본 정보
+            st.write(f"**Creator:** {item.get('creator')})
+            st.write(f"**작품날짜:** {item.get('rel_date')}")
+
             
-            # 3. 기본 정보
-            st.write(f"**창작자:** {item.get('creator')} | **작품날짜:** {item.get('rel_date')}")
-            
-            # 4. 감상일 (30px)
+            # 3. 감상일 (30px)
             v_date = item.get('view_date') or item.get('save_date', '')
             st.markdown(f'<p class="date-text">🍿 감상일: {v_date}</p>', unsafe_allow_html=True)
             
@@ -410,5 +407,6 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
