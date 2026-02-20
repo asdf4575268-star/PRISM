@@ -360,7 +360,7 @@ with tab2:
                                     st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 
                                 v_date = row['view_date'] if row['view_date'] else row['save_date']
-                                display_title = row['title'][:5] + ".." if len(row['title']) > 5 else row['title']
+                                display_title = row['title'][:10] + ".." if len(row['title']) > 5 else row['title']
                                 
                                 # 🍿 날짜와 버튼
                                 st.markdown(f'<p style="font-size:11px; color:gray; margin:0;">{v_date}</p>', unsafe_allow_html=True)
@@ -369,6 +369,7 @@ with tab2:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
