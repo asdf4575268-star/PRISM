@@ -322,71 +322,58 @@ with tab2:
 
     # --- [1] YEARLY 탭 (달력 모드) ---
     with sub_tabs[0]:
-        if not all_df.empty:
-            # 날짜 데이터 처리
-            all_df['v_dt'] = pd.to_datetime(all_df['view_date'].fillna(all_df['save_date']))
-            all_df['year_int'] = all_df['v_dt'].dt.year
-            
-            # 연도 선택 바
-            year_counts = all_df['year_int'].value_counts().to_dict()
-            raw_years = sorted(list(set([datetime.now().year] + list(year_counts.keys()))), reverse=True)
-            year_labels = [f"{y} ({year_counts.get(y, 0)})" for y in raw_years]
-            
-            c_yr, _ = st.columns([2, 5])
-            with c_yr:
-                y_idx = raw_years.index(st.session_state.cal_year) if st.session_state.cal_year in raw_years else 0
-                sel_y_label = st.selectbox("연도 선택", year_labels, index=y_idx, key="year_sel")
-                sel_y = int(sel_y_label.split(" ")[0])
-                if sel_y != st.session_state.cal_year:
-                    st.session_state.cal_year = sel_y
-                    st.rerun()
+    if not all_df.empty:
+        # 날짜 데이터 처리 및 정렬
+        all_df['v_dt'] = pd.to_datetime(all_df['view_date'].fillna(all_df['save_date']))
+        all_df['year_int'] = all_df['v_dt'].dt.year
+        all_df['month_int'] = all_df['v_dt'].dt.month
+        
+        # 최신순 정렬
+        yearly_df = all_df.sort_values(by='v_dt', ascending=False)
+        
+        # 연도 선택 바
+        year_counts = yearly_df['year_int'].value_counts().to_dict()
+        raw_years = sorted(list(year_counts.keys()), reverse=True)
+        year_labels = [f"{y} ({year_counts.get(y, 0)})" for y in raw_years]
+        
+        c_yr, _ = st.columns([2, 5])
+        with c_yr:
+            # 세션에 저장된 연도가 없으면 최신 연도 선택
+            default_y = st.session_state.cal_year if st.session_state.cal_year in raw_years else raw_years[0]
+            sel_y_label = st.selectbox("연도 선택", year_labels, index=raw_years.index(default_y))
+            selected_year = int(sel_y_label.split(" ")[0])
+            st.session_state.cal_year = selected_year
 
-            # 월 이동 네비게이션
-            _, n1, n2, n3, _ = st.columns([1, 1, 2, 1, 1])
-            with n1: 
-                if st.button("◀", key="prev_mo"): 
-                    st.session_state.cal_month -= 1
-                    if st.session_state.cal_month < 1: 
-                        st.session_state.cal_month = 12
-                        st.session_state.cal_year -= 1
-                    st.rerun()
-            with n2: 
-                st.markdown(f"<p style='text-align:center; font-size:20px; font-weight:bold;'>{st.session_state.cal_year}.{st.session_state.cal_month}</p>", unsafe_allow_html=True)
-            with n3: 
-                if st.button("▶", key="next_mo"): 
-                    st.session_state.cal_month += 1
-                    if st.session_state.cal_month > 12: 
-                        st.session_state.cal_month = 1
-                        st.session_state.cal_year += 1
-                    st.rerun()
-
-            # 📅 달력 본문
-            st.markdown('<div class="cal-mode">', unsafe_allow_html=True)
-            cal = calendar.monthcalendar(st.session_state.cal_year, st.session_state.cal_month)
-            month_df = all_df[(all_df['v_dt'].dt.year == st.session_state.cal_year) & (all_df['v_dt'].dt.month == st.session_state.cal_month)]
-
-            for week in cal:
-                cols = st.columns(7)
-                for i, day in enumerate(week):
-                    if day == 0: continue
-                    with cols[i]:
-                        day_color = "#2E5BFF" if i == 5 else "#FF4B4B" if i == 6 else "#FFFFFF"
-                        st.markdown(f"<p style='text-align:center; color:{day_color}; margin:0; font-size:14px;'>{day}</p>", unsafe_allow_html=True)
+        # 선택된 연도의 데이터만 필터링
+        year_data = yearly_df[yearly_df['year_int'] == selected_year]
+        
+        # 월별로 그룹화하여 리스트 출력
+        for month in range(12, 0, -1):
+            month_data = year_data[year_data['month_int'] == month]
+            if not month_data.empty:
+                st.markdown(f"#### 🗓️ {month}월")
+                
+                # 리스트 모드 스타일 적용 (세로로 나열)
+                st.markdown('<div class="list-mode">', unsafe_allow_html=True)
+                for _, row in month_data.iterrows():
+                    # 한 줄(Row) 구성
+                    col1, col2 = st.columns([1, 4])
+                    with col1:
+                        if row['img_url']:
+                            st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
+                    with col2:
+                        v_date = row['view_date'] if row['view_date'] else row['save_date']
+                        # 일자만 추출 (예: 2026-02-15 -> 15일)
+                        day_str = v_date.split("-")[-1] + "일" if "-" in v_date else v_date
                         
-                        day_items = month_df[month_df['v_dt'].dt.day == day]
-                        if not day_items.empty:
-                            first = day_items.iloc[0]
-                            if first['img_url']:
-                                st.markdown(f'<div class="cal-img-box"><img src="{first["img_url"]}"></div>', unsafe_allow_html=True)
-                            
-                            display_title = first['title'][:5] + ".." if len(first['title']) > 5 else first['title']
-                            if st.button(display_title, key=f"btn_cal_{day}_{first['id']}", use_container_width=True):
-                                show_details(first)
-                        else:
-                            st.markdown("<div style='height:40px;'></div>", unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            st.info("기록이 없습니다.")
+                        st.markdown(f'<p style="font-size:12px; color:gray; margin:0;">{day_str}</p>', unsafe_allow_html=True)
+                        # 제목 클릭 시 상세 팝업 (km, bpm은 CSS로 소문자화됨)
+                        if st.button(row['title'], key=f"yr_{row['id']}", use_container_width=True):
+                            show_details(row)
+                st.markdown('</div>', unsafe_allow_html=True)
+                st.divider() # 월별 구분선
+    else:
+        st.info("기록이 없습니다.")
 
     # --- [2] 카테고리 탭 (리스트 형식) ---
     cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
@@ -417,6 +404,7 @@ with tab2:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
