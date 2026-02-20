@@ -50,7 +50,7 @@ def init_db():
 init_db()
 
 # --- [2. API 함수 정의 구역] ---
-@st.dialog("📋 기록 상세 정보", width="large")
+
 def search_books(query):
     headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
     try:
@@ -190,6 +190,26 @@ def show_details(item):
             if item.get('summary'): st.info(f"**상세:** {item['summary']}")
             if item.get('highlights'): st.warning(f"**인상 깊은 부분:**\n\n{item['highlights']}")
             if item.get('note'): st.write(f"**나의 감상:**\n\n{item['note']}")
+
+            # 5. 상세 내용 (데이터가 비어있지 않으면 출력)
+            def show_box(label, val, type="write"):
+                if val and str(val).strip() not in ["None", "nan", ""]:
+                    st.markdown(f"**{label}**")
+                    if type == "success": st.success(val)
+                    elif type == "info": st.info(val)
+                    elif type == "warning": st.warning(val)
+                    else: st.write(val)
+
+            show_box("📝 요약", item.get('brief'), "success")
+            show_box("📖 줄거리 / 상세", item.get('summary'), "info")
+            show_box("✨ 인상 깊은 부분", item.get('highlights'), "warning")
+            show_box("💬 감상", item.get('note'), "write")
+
+            st.divider()
+            if st.button("🗑️ 삭제", key=f"del_{item['id']}", use_container_width=True):
+                with sqlite3.connect(DB_NAME) as conn:
+                    conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
+                st.rerun()
 # --- [4. 메인 화면 구성] ---
 tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 
@@ -290,7 +310,7 @@ with tab2:
                 width: 100% !important;
                 flex: 1 1 100% !important;
                 min-width: 100% !important;
-                border-bottom: 5px solid #333;
+                border-bottom: 1px solid #333;
                 padding: 10px 0 !important;
             }
             /* 달력 탭: 7열 유지 */
@@ -301,7 +321,7 @@ with tab2:
             }
         }
         
-        .cal-img-box { width: 60%; aspect-ratio: 1/1; overflow: hidden; border-radius: 6px; margin-top: 2px; }
+        .cal-img-box { width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 6px; margin-top: 2px; }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
         div.stButton > button { text-transform: lowercase !important; font-size: 10px !important; }
         </style>
@@ -362,11 +382,7 @@ with sub_tabs[0]:
                                 
                                 # 2. 날짜 (이미지 아래 작게)
                                 v_date = row['view_date'] if row['view_date'] else row['save_date']
-                                st.markdown(f'''
-                                    <p style="font-size:15px; color:#666; margin:5px 0; text-align:center; line-height:1;">
-                                        {v_date}
-                                    </p>
-                                ''', unsafe_allow_html=True)
+                                st.markdown(f'<p style="font-size:10px; color:gray; margin:2px 0; text-align:center;">{v_date}</p>', unsafe_allow_html=True)
                                 
                                 # 3. 제목 버튼 (5자 제한 적용하여 작게 유지)
                                 display_title = row['title'][:5] + ".." if len(row['title']) > 5 else row['title']
@@ -399,7 +415,7 @@ with sub_tabs[0]:
                                     st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 
                                 v_date = row['view_date'] if row['view_date'] else row['save_date']
-                                st.markdown(f'<p style="font-size:15px; color:#666; margin:5px 0; text-align:center;">{v_date}</p>', unsafe_allow_html=True)
+                                st.markdown(f'<p style="font-size:10px; color:gray; margin:0;">{v_date}</p>', unsafe_allow_html=True)
                                 
                                 display_title = row['title'][:5] + ".." if len(row['title']) > 5 else row['title']
                                 if st.button(display_title, key=f"btn_list_{idx}_{row['id']}", use_container_width=True):
@@ -407,25 +423,3 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
