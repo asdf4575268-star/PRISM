@@ -224,64 +224,39 @@ with tab1:
         note = st.text_area("💬 감상", height=100)
         
         if st.button("✅ 저장"):
-            # 1. 디자인 가이드: KM, BPM 소문자 처리
-            processed_note = note.replace("KM", "km").replace("BPM", "bpm")
-            
-            # 2. 날짜 객체 분해 (사용자님이 찾은 _year, _month, _day 형식에 맞춤)
-            # rel_date 처리
-            try:
-                r_dt = pd.to_datetime(rel_date)
-                ry, rm, rd = f"{r_dt.year}", f"{r_dt.month:02d}", f"{r_dt.day:02d}"
-            except:
-                ry, rm, rd = "2026", "02", "13"
-            
-            # view_date 처리
-            vy, vm, vd = f"{view_date.year}", f"{view_date.month:02d}", f"{view_date.day:02d}"
-
-            # 3. 로컬 SQLite DB 저장
             with sqlite3.connect(DB_NAME) as conn:
                 conn.execute("""INSERT INTO archive 
                     (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) 
                     VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
                     (category, title, creator, rel_date, summary, brief, highlights, processed_note, img_url_val, str(date.today()), str(view_date)))
             
-            # 4. 구글 설문지 백업 전송 (사용자님이 불러준 순서 그대로 매칭)
+            # 3. 구글 설문지 전송 (날짜 _year 형식을 제거하고 통째로 전송)
             BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
             
+            # 사용자님이 찾으신 번호에서 _year, _month 등을 떼고 번호만 사용합니다.
             payload = {
-                "entry.574529989": category,       # 카테고리 (옵션 1)
-                "entry.898076783": title,          # 제목 (1)
-                "entry.345368346": creator,        # 창작자 (1)
-                "entry.543246487": summary,        # 줄거리 (1)
-                "entry.1816924330": brief,         # 요약 (11)
-                "entry.270693677": highlights,     # 인상 깊은 부분 (11)
-                "entry.891180756": processed_note, # 감상 (11)
-                "entry.2056153041": img_url_val,   # 이미지 URL (1)
-                
-                # 작품 날짜 (780422311 시리즈)
-                "entry.780422311_year": ry,
-                "entry.780422311_month": rm,
-                "entry.780422311_day": rd,
-                
-                # 감상 날짜 (1446643193 시리즈)
-                "entry.1446643193_year": vy,
-                "entry.1446643193_month": vm,
-                "entry.1446643193_day": vd
+                "entry.574529989": category,      # 카테고리
+                "entry.898076783": title,         # 제목
+                "entry.345368346": creator,       # 창작자
+                "entry.543246487": summary,       # 줄거리
+                "entry.1816924330": brief,        # 요약
+                "entry.270693677": highlights,    # 인상 깊은 부분
+                "entry.891180756": processed_note,# 감상
+                "entry.2056153041": img_url_val,  # 이미지 URL
+                "entry.780422311": str(rel_date), # 작품 날짜 (통째로 전송)
+                "entry.1446643193": str(view_date)# 감상 날짜 (통째로 전송)
             }
             
             try:
-                # 구글 폼은 이 헤더가 있어야 데이터로 인식합니다.
-                headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-                res = requests.post(BACKUP_URL, data=payload, headers=headers, timeout=10)
-                
+                # 데이터 형식을 확실히 지정해서 전송
+                res = requests.post(BACKUP_URL, data=payload)
                 if res.status_code == 200:
-                    st.success("✅ 이제 내용까지 완벽하게 저장되었습니다!")
+                    st.success("✅ 이제는 시트 내용이 채워졌을 거예요! 확인해 보세요.")
                 else:
-                    st.warning(f"⚠️ 전송 성공했으나 확인 필요 (코드: {res.status_code})")
+                    st.warning(f"⚠️ 전송 결과 코드: {res.status_code}")
             except Exception as e:
                 st.error(f"❌ 전송 오류: {e}")
 
-            # 세션 초기화 및 새로고침
             st.session_state.api_data = {}
             st.rerun()
 
@@ -352,6 +327,7 @@ with tab2:
                                 if row['img_url']: st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
