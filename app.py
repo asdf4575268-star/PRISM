@@ -288,13 +288,14 @@ with tab1:
                 
                 if res.status_code == 200:
                     st.success("✅ 로컬 저장 및 구글 백업 성공!")
+                    st.session_state.api_data = {}  # API 검색 데이터 삭제
+                    st.rerun()                     # 화면을 새로고침하여 입력창 비움
                 else:
                     st.error(f"⚠️ 전송 실패 (코드: {res.status_code})")
             except Exception as e:
                 st.error(f"❌ 오류 발생: {e}")
 
-                st.session_state.api_data = {}  # API 검색 데이터 삭제
-                st.rerun()                     # 화면을 새로고침하여 입력창 비움
+               
 
 # --- TAB 2: ARCHIVE ---
 with tab2:
@@ -408,6 +409,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
