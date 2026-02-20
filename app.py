@@ -320,8 +320,8 @@ with tab2:
 
     sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
 
-    # --- [1] YEARLY 탭 (달력 모드) ---
-    with sub_tabs[0]:
+# --- [1] YEARLY 탭 (월별 리스트 형식으로 변경) ---
+with sub_tabs[0]:
     if not all_df.empty:
         # 날짜 데이터 처리 및 정렬
         all_df['v_dt'] = pd.to_datetime(all_df['view_date'].fillna(all_df['save_date']))
@@ -404,6 +404,7 @@ with tab2:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
