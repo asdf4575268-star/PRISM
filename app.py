@@ -107,11 +107,6 @@ def search_kopis(query):
 
 # --- [3. 상세 팝업 창] ---
 @st.dialog("📋 기록 상세 정보", width="large")
-st.divider()
-            if st.button("🗑️ 삭제", key=f"del_{item['id']}", use_container_width=True):
-                with sqlite3.connect(DB_NAME) as conn:
-                    conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
-                st.rerun()
 def show_details(item):
     if hasattr(item, 'to_dict'): item = item.to_dict()
     edit_mode = st.toggle("✏️ 수정 모드", key=f"tog_{item['id']}")
@@ -155,6 +150,12 @@ def show_details(item):
             if item.get('summary'): st.info(item['summary'])
             if item.get('highlights'): st.warning(item['highlights'])
             if item.get('note'): st.write(item['note'])
+
+            st.divider()
+            if st.button("🗑️ 삭제", key=f"del_{item['id']}", use_container_width=True):
+                with sqlite3.connect(DB_NAME) as conn:
+                    conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
+                st.rerun()
 
 # --- [4. 메인 화면: WRITE] ---
 tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
@@ -286,4 +287,3 @@ with tab2:
                                 if st.button(btn_label, key=f"cat_{idx}_{row['id']}", use_container_width=True):
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
-
