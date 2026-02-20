@@ -296,35 +296,35 @@ with tab1:
             st.rerun()
 # --- TAB 2: ARCHIVE ---
 with tab2:
-    # 스타일 정의: 위젯 간격 조정 및 강제 중앙 정렬
     st.markdown("""
         <style>
-        /* 컬럼 내부 위젯들을 중앙으로 정렬 */
         div[data-testid="column"] {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-start;
             text-align: center !important;
         }
-        
-        /* 버튼이 컬럼 너비에 꽉 차더라도 텍스트는 중앙에 오도록 */
-        div[data-testid="column"] button {
-            margin: 0 auto !important;
-            display: block !important;
-        }
-
         .cal-img-box { 
-            width: 100%; 
-            aspect-ratio: 1/1; 
-            overflow: hidden; 
-            border-radius: 6px; 
+            position: relative; 
+            width: 100%; aspect-ratio: 1/1; 
+            overflow: hidden; border-radius: 6px; 
             margin-bottom: 5px;
         }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
         
-        .info-tag { font-size: 12px; color: #888; margin-bottom: 2px; width: 100%; text-align: center; }
-        .date-caption { font-size: 11px; color: #999; margin-top: 2px; width: 100%; text-align: center; }
+        /* 배지 공통 스타일 */
+        .badge {
+            position: absolute;
+            top: 5px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            z-index: 10;
+        }
+        .badge-left { left: 5px; background: rgba(50, 50, 50, 0.8); } /* 카테고리용 */
+        .badge-right { right: 5px; } /* 날짜용 */
         </style>
     """, unsafe_allow_html=True)
 
@@ -333,7 +333,7 @@ with tab2:
 
     sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
 
-    # Yearly 탭
+    # --- 1. Yearly 탭 ---
     with sub_tabs[0]:
         if not all_df.empty:
             all_df['v_dt'] = pd.to_datetime(all_df['view_date'].fillna(all_df['save_date']))
@@ -356,24 +356,21 @@ with tab2:
                             if i + j < len(items):
                                 row = items[i + j]
                                 with cols[j]:
-                                    # 1. 이미지
-                                    if row['img_url']:
-                                        st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
-                                    
-                                    # 2. 카테고리 (가운데 정렬)
-                                    st.markdown(f'<div class="info-text">[{row["category"]}]</div>', unsafe_allow_html=True)
-                                    
-                                    # 3. 제목 버튼
+                                    # Yearly 전용: 좌(카테고리), 우(MM-DD)
+                                    v_date_mmdd = row['view_date'][-5:] if row['view_date'] else ""
+                                    img_html = f'''
+                                        <div class="cal-img-box">
+                                            <div class="badge badge-left">{row['category']}</div>
+                                            <div class="badge badge-right">{v_date_mmdd}</div>
+                                            <img src="{row["img_url"]}">
+                                        </div>'''
+                                    st.markdown(img_html, unsafe_allow_html=True)
                                     if st.button(f"{row['title'][:5]}..", key=f"yr_{row['id']}", use_container_width=True): 
                                         show_details(row)
-                                    
-                                    # 4. 감상일 (yyyy-mm-dd 전체 표시)
-                                    v_date_full = row['view_date'] if row['view_date'] else ""
-                                    st.caption(f"👀 {v_date_full}")
                     st.divider()
         else: st.info("기록이 없습니다.")
 
-    # 카테고리 탭 (BOOKS, MUSIC 등)
+    # --- 2. 카테고리 탭 (BOOKS, MUSIC 등) ---
     cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
     for idx, c_name in enumerate(cats):
         with sub_tabs[idx+1]:
@@ -388,17 +385,17 @@ with tab2:
                         if i + j < len(items):
                             row = items[i + j]
                             with cols[j]:
-                                # 1. 이미지
-                                if row['img_url']:
-                                    st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
-                                
-                                # 2. 제목 버튼
+                                # 카테고리 모드 전용: 우측 상단 yyyy-mm-dd
+                                v_date_full = row['view_date'] if row['view_date'] else ""
+                                img_html = f'''
+                                    <div class="cal-img-box">
+                                        <div class="badge badge-right">{v_date_full}</div>
+                                        <img src="{row["img_url"]}">
+                                    </div>'''
+                                st.markdown(img_html, unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
-                                
-                                # 3. 감상일 (yyyy-mm-dd)
-                                v_date_full = row['view_date'] if row['view_date'] else ""
-                                st.caption(v_date_full)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
