@@ -295,38 +295,35 @@ with tab1:
             st.session_state.api_data = {}
             st.rerun()
 # --- TAB 2: ARCHIVE ---
+이미지 위에 배지 형태로 띄우는 게 오히려 가독성을 해치고 이상하게 보였나 보네요! 복잡한 스타일은 다 걷어내고, 원래 깔끔했던 방식으로 돌아가겠습니다.
+
+요청하신 대로 날짜는 yyyy-mm-dd 전체 형식이 다 보이게 수정하고, 모든 요소를 가운데 정렬로 다시 맞췄습니다.
+
+🛠️ Tab 2 복구 및 날짜 형식 수정 코드
+Python
+# --- TAB 2: ARCHIVE ---
 with tab2:
     st.markdown("""
         <style>
-        [data-testid="column"] { padding: 1px !important; text-align: center; } /* 중앙 정렬 추가 */
-        @media (max-width: 600px) {
-            .list-mode [data-testid="stHorizontalBlock"] { display: flex !important; flex-direction: column !important; }
-            .list-mode [data-testid="column"] { width: 100% !important; border-bottom: 1px solid #333; padding: 10px 0 !important; }
+        /* 모든 요소를 중앙으로 정렬 */
+        [data-testid="column"] { 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center; 
+            padding: 5px !important; 
         }
-        /* 이미지 박스 및 감상일 겹치기 설정 */
         .cal-img-box { 
-            position: relative; /* 날짜 위치 고정을 위해 설정 */
-            width: 100%; aspect-ratio: 1/1; 
-            overflow: hidden; border-radius: 6px; 
-            margin-bottom: 5px;
+            width: 100%; 
+            aspect-ratio: 1/1; 
+            overflow: hidden; 
+            border-radius: 6px; 
+            margin-bottom: 8px;
         }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
         
-        /* 이미지 위 감상일 스타일 (좌측 상단) */
-        .view-date-badge {
-            position: absolute;
-            top: 5px;
-            left: 5px;
-            background: rgba(0, 0, 0, 0.6);
-            color: white;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 11px;
-            z-index: 10;
-        }
-        
-        /* 카테고리 태그 스타일 */
-        .cat-label { font-size: 12px; color: #888; margin-top: 5px; }
+        /* 카테고리와 날짜 텍스트 스타일 */
+        .info-text { font-size: 13px; color: #888; margin-bottom: 2px; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -358,22 +355,20 @@ with tab2:
                             if i + j < len(items):
                                 row = items[i + j]
                                 with cols[j]:
-                                    # 이미지 및 좌상단 감상일 표시
-                                    v_date_short = row['view_date'][-5:] if row['view_date'] else ""
-                                    img_html = f'<div class="cal-img-box">'
-                                    if v_date_short:
-                                        img_html += f'<div class="view-date-badge">{v_date_short}</div>'
+                                    # 1. 이미지
                                     if row['img_url']:
-                                        img_html += f'<img src="{row["img_url"]}">'
-                                    img_html += '</div>'
-                                    st.markdown(img_html, unsafe_allow_html=True)
+                                        st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     
-                                    # 카테고리 표시 (중앙 정렬됨)
-                                    st.markdown(f'<div class="cat-label">[{row["category"]}]</div>', unsafe_allow_html=True)
+                                    # 2. 카테고리 (가운데 정렬)
+                                    st.markdown(f'<div class="info-text">[{row["category"]}]</div>', unsafe_allow_html=True)
                                     
-                                    # 제목 버튼 (중앙 정렬됨)
+                                    # 3. 제목 버튼
                                     if st.button(f"{row['title'][:5]}..", key=f"yr_{row['id']}", use_container_width=True): 
                                         show_details(row)
+                                    
+                                    # 4. 감상일 (yyyy-mm-dd 전체 표시)
+                                    v_date_full = row['view_date'] if row['view_date'] else ""
+                                    st.caption(f"👀 {v_date_full}")
                     st.divider()
         else: st.info("기록이 없습니다.")
 
@@ -392,48 +387,15 @@ with tab2:
                         if i + j < len(items):
                             row = items[i + j]
                             with cols[j]:
-                                # 이미지 및 좌상단 감상일
-                                v_date_short = row['view_date'][-5:] if row['view_date'] else ""
-                                img_html = f'<div class="cal-img-box">'
-                                if v_date_short:
-                                    img_html += f'<div class="view-date-badge">{v_date_short}</div>'
+                                # 1. 이미지
                                 if row['img_url']:
-                                    img_html += f'<img src="{row["img_url"]}">'
-                                img_html += '</div>'
-                                st.markdown(img_html, unsafe_allow_html=True)
+                                    st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 
-                                # 제목 버튼
+                                # 2. 제목 버튼
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
+                                
+                                # 3. 감상일 (yyyy-mm-dd)
+                                v_date_full = row['view_date'] if row['view_date'] else ""
+                                st.caption(v_date_full)
             else: st.info(f"{c_name} 기록이 없습니다.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
