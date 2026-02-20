@@ -224,58 +224,61 @@ with tab1:
         note = st.text_area("💬 감상", height=100)
         
         if st.button("✅ 저장"):
-            # 1. 변수 안전하게 확보 (NameError 방지)
-            # 입력창에 있는 값을 변수에 할당합니다.
-            final_img_url = img_url_val if 'img_url_val' in locals() else data.get('img', '')
+            # 1. 디자인 가이드 준수: KM, BPM 소문자화
             processed_note = note.replace("KM", "km").replace("BPM", "bpm")
             
-            # 2. 날짜 객체 안전하게 생성 (rel_date 처리)
+            # 2. 날짜 데이터 쪼개기 (사용자님이 찾은 entry 형식 대응)
             try:
-                # 숫자만 추출해서 YYYY-MM-DD 형식 시도
-                clean_rel_date = re.sub(r'[^0-9]', '-', rel_date).strip('-')
-                if len(clean_rel_date) > 10: clean_rel_date = clean_rel_date[:10]
-                r_date_obj = datetime.strptime(clean_rel_date, '%Y-%m-%d')
+                r_dt = pd.to_datetime(rel_date)
+                ry, rm, rd = str(r_dt.year), str(r_dt.month), str(r_dt.day)
             except:
-                r_date_obj = datetime.now()
+                # 변환 실패 시 오늘 날짜 혹은 기본값
+                ry, rm, rd = "2026", "2", "20"
             
-            # 3. 로컬 SQLite DB 저장
+            vy, vm, vd = str(view_date.year), str(view_date.month), str(view_date.day)
+
+            # 3. 로컬 SQLite DB 저장 (이 부분은 기존과 동일)
             with sqlite3.connect(DB_NAME) as conn:
                 conn.execute("""INSERT INTO archive 
                     (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) 
                     VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-                    (category, title, creator, rel_date, summary, brief, highlights, processed_note, final_img_url, str(date.today()), str(view_date)))
+                    (category, title, creator, rel_date, summary, brief, highlights, processed_note, img_url_val, str(date.today()), str(view_date)))
             
-            # 4. 구글 설문지 백업 전송 (사용자가 찾은 진짜 ID 반영)
-            BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
+            # 4. 사용자님이 확인한 진짜 URL과 ID 적용
+            REAL_BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
             
             payload = {
-                "entry.574529989": category,
-                "entry.898076783": title,
-                "entry.345368346": creator,
-                "entry.543246487": summary,
-                "entry.1816924330": brief,
-                "entry.270693677": highlights,
-                "entry.891180756": processed_note,
-                "entry.2056153041": final_img_url,
+                "entry.574529989": category,      # 카테고리
+                "entry.898076783": title,         # 제목
+                "entry.345368346": creator,       # 창작자
+                "entry.543246487": summary,       # 줄거리
+                "entry.1816924330": brief,        # 요약
+                "entry.270693677": highlights,    # 인상 깊은 부분
+                "entry.891180756": processed_note,# 감상
+                "entry.2056153041": img_url_val,  # 이미지 URL
                 
-                # 날짜 전송 (구글 설문지 날짜형식 전용 ID)
-                "entry.780422311_year": str(r_date_obj.year),
-                "entry.780422311_month": str(r_date_obj.month),
-                "entry.780422311_day": str(r_date_obj.day),
+                # 작품 날짜 (780422311 시리즈)
+                "entry.780422311_year": ry,
+                "entry.780422311_month": rm,
+                "entry.780422311_day": rd,
                 
-                "entry.1446643193_year": str(view_date.year),
-                "entry.1446643193_month": str(view_date.month),
-                "entry.1446643193_day": str(view_date.day)
+                # 감상 날짜 (1446643193 시리즈)
+                "entry.1446643193_year": vy,
+                "entry.1446643193_month": vm,
+                "entry.1446643193_day": vd
             }
             
             try:
-                headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-                requests.post(BACKUP_URL, data=payload, headers=headers, timeout=5)
-                st.success("✅ 로컬 저장 및 구글 백업 완료!")
-            except:
-                st.warning("⚠️ 로컬 저장은 완료되었으나, 백업 전송에 실패했습니다.")
+                # 전송!
+                response = requests.post(REAL_BACKUP_URL, data=payload, timeout=10)
+                if response.status_code == 200:
+                    st.success("✅ 로컬 DB 저장 및 구글 시트 백업이 모두 완료되었습니다!")
+                else:
+                    st.warning(f"⚠️ 전송은 시도했으나 구글 응답이 올바르지 않습니다. (코드: {response.status_code})")
+            except Exception as e:
+                st.error(f"❌ 전송 중 네트워크 오류 발생: {e}")
 
-            # 세션 초기화 및 페이지 새로고침
+            # 입력창 비우고 새로고침
             st.session_state.api_data = {}
             st.rerun()
 
@@ -346,6 +349,7 @@ with tab2:
                                 if row['img_url']: st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
