@@ -131,7 +131,7 @@ def show_details(item):
     st.divider()
     
     # 2. 메인 레이아웃 (좌 이미지 / 우 상세정보)
-    col_img, col_txt = st.columns([0.4, 0.6])
+    col_img, col_txt = st.columns([0.3, 0.7])
 
     with col_img:
         if item.get('img_url'):
@@ -408,6 +408,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
