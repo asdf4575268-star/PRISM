@@ -129,7 +129,7 @@ def show_details(item):
     st.divider()
     
     # 💡 비율을 0.25 : 0.75로 더 조절 (사진 영역을 더 좁게)
-    col_img, col_txt = st.columns([0.25, 0.75])
+    col_img, col_txt = st.columns([0.4, 0.6])
 
     with col_img:
         if item.get('img_url'):
@@ -405,6 +405,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
