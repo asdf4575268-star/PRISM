@@ -111,7 +111,7 @@ def search_kopis(query):
     except: return []
 
 # --- [3. 팝업 함수] ---
-@st.dialog("📋 기록 상세 정보", width="large")
+@st.dialog("📋 기록", width="medium")
 def show_details(item):
     if hasattr(item, 'to_dict'):
         item = item.to_dict()
@@ -143,7 +143,7 @@ def show_details(item):
             # --- [수정 모드] ---
             with st.form(key=f"edit_form_final_{item['id']}"):
                 n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
-                n_creator = st.text_input("👤 창작자", value=str(item.get('creator', '')))
+                n_creator = st.text_input("👤 Creator", value=str(item.get('creator', '')))
                 
                 c1, c2 = st.columns(2)
                 try:
@@ -177,7 +177,7 @@ def show_details(item):
             if urls:
                 st.link_button("🌐 공식 정보 확인", urls[0], use_container_width=True)
             
-            st.write(f"**창작자:** {item.get('creator')} | **작품날짜:** {item.get('rel_date')}")
+            st.write(f"**Creator:** {item.get('creator')} | **작품날짜:** {item.get('rel_date')}")
             
             # 감상일 (30px) [2026-02-12 날짜 크기 30]
             v_date = item.get('view_date') or item.get('save_date', '')
@@ -271,7 +271,7 @@ with tab1:
         else:
             st.info("검색을 통해 이미지를 불러와주세요.")
         title = st.text_input("제목", value=data.get('title', ''))
-        creator = st.text_input("창작자 정보", value=data.get('creator', ''))
+        creator = st.text_input("Creator 정보", value=data.get('creator', ''))
         col1, col2 = st.columns(2)
         rel_date = col1.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
         view_date = col2.date_input("🍿 감상일", value=date.today())
@@ -423,5 +423,6 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
