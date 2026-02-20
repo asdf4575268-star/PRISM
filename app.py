@@ -321,6 +321,7 @@ with tab2:
     sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
 
 # --- [1] YEARLY 탭 (월별 리스트 형식으로 변경) ---
+# --- [1] YEARLY 탭 (카드형 리스트 형식) ---
 with sub_tabs[0]:
     if not all_df.empty:
         # 날짜 데이터 처리 및 정렬
@@ -338,40 +339,43 @@ with sub_tabs[0]:
         
         c_yr, _ = st.columns([2, 5])
         with c_yr:
-            # 세션에 저장된 연도가 없으면 최신 연도 선택
             default_y = st.session_state.cal_year if st.session_state.cal_year in raw_years else raw_years[0]
-            sel_y_label = st.selectbox("연도 선택", year_labels, index=raw_years.index(default_y))
-            selected_year = int(sel_y_label.split(" ")[0])
-            st.session_state.cal_year = selected_year
+            sel_y_label = st.selectbox("연도 선택", year_labels, index=raw_years.index(default_y), key="yr_select_box")
+            st.session_state.cal_year = int(sel_y_label.split(" ")[0])
 
-        # 선택된 연도의 데이터만 필터링
-        year_data = yearly_df[yearly_df['year_int'] == selected_year]
+        # 선택된 연도의 데이터 필터링
+        year_data = yearly_df[yearly_df['year_int'] == st.session_state.cal_year]
         
-        # 월별로 그룹화하여 리스트 출력
+        # 월별 그룹화 출력
         for month in range(12, 0, -1):
             month_data = year_data[year_data['month_int'] == month]
             if not month_data.empty:
-                st.markdown(f"#### 🗓️ {month}월")
+                st.markdown(f"### 🗓️ {month}월")
                 
-                # 리스트 모드 스타일 적용 (세로로 나열)
-                st.markdown('<div class="list-mode">', unsafe_allow_html=True)
+                # 카드들을 배치 (모바일에서도 보기 좋게 2열 정도로 구성하거나 1열로 구성)
+                # 여기서는 한 줄에 하나씩 큼직하게 배치합니다.
                 for _, row in month_data.iterrows():
-                    # 한 줄(Row) 구성
-                    col1, col2 = st.columns([1, 4])
-                    with col1:
+                    # 카드 컨테이너 시작
+                    with st.container():
+                        # 1. 이미지 표시 (상단)
                         if row['img_url']:
-                            st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
-                    with col2:
-                        v_date = row['view_date'] if row['view_date'] else row['save_date']
-                        # 일자만 추출 (예: 2026-02-15 -> 15일)
-                        day_str = v_date.split("-")[-1] + "일" if "-" in v_date else v_date
+                            st.markdown(f'''
+                                <div class="cal-img-box" style="width: 100%; max-width: 300px; margin-bottom: 5px;">
+                                    <img src="{row['img_url']}" style="width: 100%; border-radius: 8px;">
+                                </div>
+                            ''', unsafe_allow_html=True)
                         
-                        st.markdown(f'<p style="font-size:12px; color:gray; margin:0;">{day_str}</p>', unsafe_allow_html=True)
-                        # 제목 클릭 시 상세 팝업 (km, bpm은 CSS로 소문자화됨)
-                        if st.button(row['title'], key=f"yr_{row['id']}", use_container_width=True):
+                        # 2. 날짜 표시
+                        v_date = row['view_date'] if row['view_date'] else row['save_date']
+                        st.markdown(f'<p style="font-size:12px; color:gray; margin-bottom:2px;">{v_date}</p>', unsafe_allow_html=True)
+                        
+                        # 3. 제목 버튼 (이미지 바로 아래 위치)
+                        # 제목은 5자 제한 없이 전체가 나오도록 하거나, 원하시는 만큼 조절 가능합니다.
+                        if st.button(row['title'], key=f"yr_card_{row['id']}", use_container_width=True):
                             show_details(row)
-                st.markdown('</div>', unsafe_allow_html=True)
-                st.divider() # 월별 구분선
+                        
+                        st.markdown("<div style='margin-bottom: 25px;'></div>", unsafe_allow_html=True) # 항목 간 간격
+                st.divider() 
     else:
         st.info("기록이 없습니다.")
 
@@ -404,6 +408,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
