@@ -296,27 +296,35 @@ with tab1:
             st.rerun()
 # --- TAB 2: ARCHIVE ---
 with tab2:
+    # 스타일 정의: 위젯 간격 조정 및 강제 중앙 정렬
     st.markdown("""
         <style>
-        /* 모든 요소를 중앙으로 정렬 */
-        [data-testid="column"] { 
+        /* 컬럼 내부 위젯들을 중앙으로 정렬 */
+        div[data-testid="column"] {
             display: flex;
             flex-direction: column;
             align-items: center;
-            text-align: center; 
-            padding: 5px !important; 
+            justify-content: flex-start;
+            text-align: center !important;
         }
+        
+        /* 버튼이 컬럼 너비에 꽉 차더라도 텍스트는 중앙에 오도록 */
+        div[data-testid="column"] button {
+            margin: 0 auto !important;
+            display: block !important;
+        }
+
         .cal-img-box { 
             width: 100%; 
             aspect-ratio: 1/1; 
             overflow: hidden; 
             border-radius: 6px; 
-            margin-bottom: 8px;
+            margin-bottom: 5px;
         }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
         
-        /* 카테고리와 날짜 텍스트 스타일 */
-        .info-text { font-size: 13px; color: #888; margin-bottom: 2px; }
+        .info-tag { font-size: 12px; color: #888; margin-bottom: 2px; width: 100%; text-align: center; }
+        .date-caption { font-size: 11px; color: #999; margin-top: 2px; width: 100%; text-align: center; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -392,4 +400,5 @@ with tab2:
                                 v_date_full = row['view_date'] if row['view_date'] else ""
                                 st.caption(v_date_full)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
