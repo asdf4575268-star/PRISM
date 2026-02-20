@@ -112,18 +112,27 @@ def search_kopis(query):
 
 # --- [3. 팝업 함수] ---
 @st.dialog("📋 기록 상세 정보", width="large")
+@st.dialog("📋 기록 상세 정보", width="large")
 def show_details(item):
-    # Pandas Series(행) 데이터를 딕셔너리로 확실히 변환
     if hasattr(item, 'to_dict'):
         item = item.to_dict()
     
-    # 수정/조회 모드 전환
-    edit_mode = st.toggle("✏️ 수정 모드", key=f"tog_v2_{item['id']}")
+    # --- 상단 컨트롤 바 (수정 모드 토글 & 삭제 버튼) ---
+    ctrl_col1, ctrl_col2 = st.columns([0.8, 0.2])
+    with ctrl_col1:
+        edit_mode = st.toggle("✏️ 수정 모드", key=f"tog_v2_{item['id']}")
+    with ctrl_col2:
+        # 삭제 버튼을 상단 우측으로 배치
+        if st.button("🗑️ 삭제", key=f"del_{item['id']}", use_container_width=True):
+            with sqlite3.connect(DB_NAME) as conn:
+                conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
+            st.rerun()
+
+    st.divider()
     
     col_img, col_txt = st.columns([0.4, 0.6])
 
     with col_img:
-        # 이미지가 있으면 표시, 없으면 안내
         if item.get('img_url'):
             st.image(item['img_url'], use_container_width=True)
         else:
@@ -137,7 +146,6 @@ def show_details(item):
                 n_creator = st.text_input("👤 창작자", value=str(item.get('creator', '')))
                 n_rel = st.text_input("📅 작품 날짜", value=str(item.get('rel_date', '')))
                 
-                # 감상일 날짜 객체 변환
                 try:
                     raw_v = str(item.get('view_date') or item.get('save_date'))[:10]
                     v_dt = datetime.strptime(raw_v, '%Y-%m-%d').date()
@@ -160,25 +168,20 @@ def show_details(item):
                     st.rerun()
         else:
             # --- [조회 모드] ---
-            # 1. 활동명 (90px)
             st.markdown(f'<p class="act-name">{item.get("title")}</p>', unsafe_allow_html=True)
             
-            # 2. URL 버튼 (summary 첫 줄에 URL이 있는 경우)
             content = str(item.get('summary', ''))
             urls = re.findall(r'(https?://[^\s]+)', content)
             if urls:
                 st.link_button("🌐 공식 정보 확인", urls[0], use_container_width=True)
             
-            # 3. 기본 정보
             st.write(f"**창작자:** {item.get('creator')} | **작품날짜:** {item.get('rel_date')}")
             
-            # 4. 감상일 (30px)
             v_date = item.get('view_date') or item.get('save_date', '')
             st.markdown(f'<p class="date-text">🍿 감상일: {v_date}</p>', unsafe_allow_html=True)
             
             st.divider()
 
-            # 5. 상세 내용 (데이터가 비어있지 않으면 출력)
             def show_box(label, val, type="write"):
                 if val and str(val).strip() not in ["None", "nan", ""]:
                     st.markdown(f"**{label}**")
@@ -191,12 +194,6 @@ def show_details(item):
             show_box("📖 줄거리 / 상세", item.get('summary'), "info")
             show_box("✨ 인상 깊은 부분", item.get('highlights'), "warning")
             show_box("💬 감상", item.get('note'), "write")
-
-            st.divider()
-            if st.button("🗑️ 삭제", key=f"del_{item['id']}", use_container_width=True):
-                with sqlite3.connect(DB_NAME) as conn:
-                    conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
-                st.rerun()
 # --- [4. 메인 화면 구성] ---
 tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 
@@ -414,6 +411,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
