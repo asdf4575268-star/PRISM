@@ -386,8 +386,7 @@ with tab2:
                                     </div>
                                 ''', unsafe_allow_html=True)
                             
-                            # 🔘 상세 보기 버튼 (가로 폭에 맞춰 점으로 표시)
-                            if st.button(first['title'], key=f"btn_{day}_{first['id']}", use_container_width=True):
+                            if st.button(first['title'][:5], key=f"btn_{day}_{first['id']}", use_container_width=True):
                                 show_details(first)
                         else:
                             # 데이터 없는 날 공간 확보
@@ -423,6 +422,7 @@ with tab2:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
