@@ -9,11 +9,12 @@ import io
 # --- [1. 스타일 및 설정] ---
 st.set_page_config(layout="wide", page_title="PRISM")
 
-# CSS: 활동명 90, 날짜 30, 숫자 60 및 요청 폰트 적용
+# CSS: 활동명 90, 날짜 30, 숫자 60 및 요청 폰트 적용 (로컬 폰트 미사용)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Jolly+Lodger&family=Kirang+Haerang&family=Lacquer&display=swap');
     
+    /* 텍스트 크기 가이드라인 반영 */
     .act-name { font-size: 90px !important; font-family: 'Kirang Haerang', cursive; line-height: 1.1; margin: 0; }
     .date-text { font-size: 30px !important; color: #666; font-family: sans-serif; margin: 0; }
     .num-text { font-size: 60px !important; font-family: 'Jolly Lodger', cursive; margin: 0; line-height: 1; }
@@ -22,21 +23,36 @@ st.markdown("""
     .cal-img-box img { width:100%; height:100%; object-fit:cover; }
     
     [data-testid="stDialog"] img { max-height: 450px !important; object-fit: contain !important; }
-    [data-testid="stSidebar"] { background-color: #f8f9fa; border-right: 1px solid #eee; }
+    
+    /* 사이드바 제거를 위한 스타일 가이드 (기본적으로 정의하지 않음으로써 메인 집중) */
+    .system-banner { background-color: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #eee; }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🌈PRISM")
+# 상단 타이틀 및 시스템 컨트롤 (사이드바 대체)
+t_col1, t_col2 = st.columns([0.7, 0.3])
+with t_col1:
+    st.title("🌈PRISM")
+with t_col2:
+    # DB 백업 버튼을 상단 우측에 배치 (안정성 확보)
+    DB_NAME = 'archive_prism_total_v4.db'
+    try:
+        with open(DB_NAME, "rb") as f:
+            st.download_button(
+                label="📥 DB 백업(유실 방지)",
+                data=f.read(),
+                file_name=f"prism_backup_{date.today()}.db",
+                mime="application/x-sqlite3",
+                use_container_width=True
+            )
+    except:
+        pass
 
 # 세션 상태 초기화
 if 'api_data' not in st.session_state: st.session_state.api_data = {}
-if 'cal_year' not in st.session_state: st.session_state.cal_year = datetime.now().year
 
 # --- [2. DB 안정성 및 관리] ---
-DB_NAME = 'archive_prism_total_v4.db'
-
 def init_db():
-    """DB 초기화 및 연결 안정성 확인"""
     try:
         with sqlite3.connect(DB_NAME) as conn:
             conn.execute('''CREATE TABLE IF NOT EXISTS archive 
@@ -46,29 +62,6 @@ def init_db():
         st.error(f"데이터베이스 연결 오류: {e}")
 
 init_db()
-
-# 사이드바: 커스텀 설정 및 백업 기능
-with st.sidebar:
-    st.header("⚙️ SYSTEM & BACKUP")
-    st.info("💡 **Font Size Rule**\n- Name: 90px\n- Date: 30px\n- Number: 60px")
-    
-    st.divider()
-    
-    # DB 백업 버튼
-    st.subheader("💾 Data Security")
-    try:
-        with open(DB_NAME, "rb") as f:
-            db_byte = f.read()
-            st.download_button(
-                label="📥 DB 백업 파일 다운로드",
-                data=db_byte,
-                file_name=f"prism_backup_{date.today()}.db",
-                mime="application/x-sqlite3",
-                use_container_width=True
-            )
-        st.caption("정기적으로 백업 파일을 다운로드하여 데이터를 보호하세요.")
-    except Exception as e:
-        st.error("백업 파일을 준비할 수 없습니다.")
 
 # --- [3. API 함수 (기존 유지)] ---
 TMDB_API_KEY = "6e7c55b6259b7731655033f783f3fc5b"
@@ -82,6 +75,7 @@ def search_books(query):
     except: return []
 
 def search_apple_music(query):
+    # km, bpm 소문자 준수
     url = f"https://itunes.apple.com/search?term={query}&limit=20&country=kr&entity=musicTrack,album"
     try:
         res = requests.get(url).json().get("results", [])
@@ -89,11 +83,10 @@ def search_apple_music(query):
         for m in res:
             is_album = m.get('wrapperType') == 'collection'
             title = m.get('collectionName' if is_album else 'trackName', 'Unknown')
-            info_url = m.get('collectionViewUrl' if is_album else 'trackViewUrl', '')
             formatted_res.append({
                 'display_name': f"{'📀 [ALBUM]' if is_album else '🎵 [SINGLE]'} {title} - {m.get('artistName', '')}",
                 'title': title, 'creator': m.get('artistName', ''), 'date': m.get('releaseDate', '')[:10],
-                'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'), 'url': info_url
+                'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'), 'url': m.get('collectionViewUrl', '')
             })
         return formatted_res
     except: return []
@@ -145,7 +138,6 @@ def show_details(item):
     col_img, col_txt = st.columns([0.4, 0.6])
     with col_img:
         if item.get('img_url'): st.image(item['img_url'], use_container_width=True)
-        else: st.info("등록된 이미지가 없습니다.")
     with col_txt:
         if st.session_state[edit_key]:
             with st.form(key=f"edit_form_{item['id']}"):
@@ -176,11 +168,15 @@ def show_details(item):
 tab_write, tab_archive = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 
 with tab_write:
-    category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"], horizontal=True)
-    search_query = st.text_input(f"🔍 {category} 검색")
+    # 카테고리 선택 및 검색
+    c_sel, c_sch = st.columns([0.3, 0.7])
+    with c_sel:
+        category = st.selectbox("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"])
+    with c_sch:
+        search_query = st.text_input(f"🔍 {category} 검색")
     
-    # API 검색 연동
     if search_query:
+        # API 검색 처리 (기존 로직 동일)
         if category == "BOOKS":
             res = search_books(search_query)
             if res:
@@ -197,7 +193,7 @@ with tab_write:
                 sel = st.selectbox("결과 선택", list(opts.keys()))
                 if st.button("✨ 가져오기"):
                     m = opts[sel]
-                    st.session_state.api_data = {'title': m['title'], 'creator': m['creator'], 'date': m['date'], 'img': m['img'], 'summary': f"{m['url']}\n\n"}
+                    st.session_state.api_data = {'title': m['title'], 'creator': m['creator'], 'date': m['date'], 'img': m['img'], 'summary': ''}
                     st.rerun()
         elif category == "STAGE":
             res = search_kopis(search_query)
@@ -222,37 +218,37 @@ with tab_write:
 
     st.divider()
     
-    # 💡 입력 레이아웃: 사진 상시 확인 가능하도록 구성
+    # 💡 입력 레이아웃: 사진을 상시 확인 가능하도록 좌측 배치
     data = st.session_state.get('api_data', {})
     cl, cr = st.columns([0.4, 0.6])
     
     with cl:
-        st.subheader("🖼️ Media")
+        st.subheader("🖼️ Media Preview")
         img_url_val = st.text_input("이미지 URL", value=data.get('img', ''))
         if img_url_val: st.image(img_url_val, use_container_width=True)
-        else: st.info("이미지가 여기에 표시됩니다.")
+        else: st.info("이미지 URL을 입력하거나 검색하면 여기에 표시됩니다.")
         
-        title = st.text_input("활동명/제목", value=data.get('title', ''))
+        title = st.text_input("활동명/제목 (글자크기 90)", value=data.get('title', ''))
         creator = st.text_input("Creator/정보", value=data.get('creator', ''))
-        rel_date = st.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
+        rel_date = st.text_input("📅 작품 날짜 (글자크기 30)", value=data.get('date', str(date.today())))
         view_date = st.date_input("🍿 감상일", value=date.today())
 
     with cr:
-        st.subheader("📝 Record")
+        st.subheader("📝 Record Details")
         summary = st.text_area("📖 상세 줄거리/링크", value=data.get('summary', ''), height=150)
         brief = st.text_input("📝 한 줄 요약")
         highlights = st.text_area("✨ 인상 깊은 부분", height=100)
-        note = st.text_area("💬 개인적인 감상", height=150)
+        note = st.text_area("💬 개인적인 감상", height=200)
         
-        if st.button("✅ DB에 안전하게 저장하기", use_container_width=True):
+        if st.button("✅ 데이터베이스에 안전하게 저장", use_container_width=True):
             if not title:
-                st.error("제목은 필수 입력 사항입니다.")
+                st.error("제목은 필수입니다.")
             else:
                 with sqlite3.connect(DB_NAME) as conn:
                     conn.execute("INSERT INTO archive (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                                  (category, title, creator, rel_date, summary, brief, highlights, note, img_url_val, str(date.today()), str(view_date)))
                 st.session_state.api_data = {}
-                st.success("데이터가 안전하게 저장되었습니다.")
+                st.success("DB에 성공적으로 기록되었습니다.")
                 st.rerun()
 
 with tab_archive:
@@ -260,7 +256,7 @@ with tab_archive:
         all_df = pd.read_sql_query("SELECT * FROM archive", conn)
 
     if all_df.empty:
-        st.info("저장된 기록이 없습니다.")
+        st.info("아직 저장된 기록이 없습니다.")
     else:
         sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
 
@@ -268,15 +264,13 @@ with tab_archive:
         with sub_tabs[0]:
             all_df['v_dt'] = pd.to_datetime(all_df['view_date'].fillna(all_df['save_date']))
             raw_years = sorted(list(all_df['v_dt'].dt.year.unique()), reverse=True)
-            
-            c_yr, _ = st.columns([2, 5])
-            with c_yr:
-                sel_y = st.selectbox("연도 선택", raw_years, key="yearly_sel")
+            sel_y = st.selectbox("연도 선택", raw_years)
             
             year_data = all_df[all_df['v_dt'].dt.year == sel_y].sort_values(by='v_dt', ascending=False)
             for month in range(12, 0, -1):
                 m_data = year_data[year_data['v_dt'].dt.month == month]
                 if not m_data.empty:
+                    # 숫자 크기 60 적용
                     st.markdown(f'<p class="num-text">{month} <span style="font-size:30px">MONTH</span></p>', unsafe_allow_html=True)
                     items = m_data.to_dict('records')
                     cols = st.columns(6)
@@ -287,7 +281,7 @@ with tab_archive:
                                 show_details(row)
                     st.divider()
 
-        # --- 카테고리 탭 ---
+        # --- 카테고리 탭 (공통 로직) ---
         cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
         for idx, c_name in enumerate(cats):
             with sub_tabs[idx+1]:
@@ -303,4 +297,3 @@ with tab_archive:
                                     if row['img_url']: st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:8], key=f"cat_{idx}_{row['id']}", use_container_width=True):
                                         show_details(row)
-                else: st.info(f"{c_name} 카테고리에 기록이 없습니다.")
