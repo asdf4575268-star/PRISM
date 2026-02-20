@@ -278,6 +278,29 @@ with tab1:
             st.rerun()
 
 # --- TAB 2: ARCHIVE ---
+if st.button("🔄 모든 구버전 데이터 v4로 합치기"):
+    target_db = 'archive_prism_total_v4.db'
+    old_dbs = ['archive_prism_total.db', 'archive_prism_total_v2.db', 'archive_prism_total_v3.db']
+    
+    total_recovered = 0
+    with sqlite3.connect(target_db) as t_conn:
+        for old_db in old_dbs:
+            if os.path.exists(old_db):
+                try:
+                    # 구버전 데이터를 데이터프레임으로 읽기
+                    with sqlite3.connect(old_db) as o_conn:
+                        old_df = pd.read_sql_query("SELECT * FROM archive", o_conn)
+                    
+                    if not old_df.empty:
+                        # 현재 v4 테이블 구조에 맞춰 없는 컬럼은 비워서 넣기
+                        old_df.to_sql('archive', t_conn, if_exists='append', index=False)
+                        total_recovered += len(old_df)
+                        st.success(f"✅ {old_db}에서 {len(old_df)}개의 데이터를 가져왔습니다.")
+                except Exception as e:
+                    st.info(f"ℹ️ {old_db}는 건너뜁니다 (이유: {e})")
+    
+    st.balloons()
+    st.write(f"🚀 총 {total_recovered}개의 데이터 복구 완료! 이제 v4만 쓰시면 됩니다.")
 with tab2:
     with sqlite3.connect(DB_NAME) as conn:
         all_df = pd.read_sql_query("SELECT * FROM archive", conn)
@@ -359,6 +382,7 @@ with tab2:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
