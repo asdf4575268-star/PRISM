@@ -6,6 +6,53 @@ import calendar
 import xml.etree.ElementTree as ET
 from datetime import date, datetime
 import re
+import time
+
+if st.sidebar.button("📦 과거 기록 전체 백업하기"):
+    with sqlite3.connect(DB_NAME) as conn:
+        cursor = conn.cursor()
+        # 로컬 DB의 모든 데이터를 가져옴
+        cursor.execute("SELECT category, title, creator, rel_date, summary, brief, highlights, note, img_url, view_date FROM archive")
+        rows = cursor.fetchall()
+        
+        st.write(f"총 {len(rows)}개의 데이터를 백업합니다...")
+        progress_bar = st.progress(0)
+        
+        for i, row in enumerate(rows):
+            # 날짜 형식 변환 (안전하게 처리)
+            try:
+                r_dt = pd.to_datetime(row[3])
+                v_dt = pd.to_datetime(row[9])
+                ry, rm, rd = str(r_dt.year), f"{r_dt.month:02d}", f"{r_dt.day:02d}"
+                vy, vm, vd = str(v_dt.year), f"{v_dt.month:02d}", f"{v_dt.day:02d}"
+            except:
+                ry, rm, rd = "2026", "02", "13"
+                vy, vm, vd = "2026", "02", "20"
+
+            # 전송용 데이터 구성
+            payload = {
+                "entry.574529989": row[0],
+                "entry.898076783": row[1],
+                "entry.345368346": row[2],
+                "entry.543246487": row[4],
+                "entry.1816924330": row[5],
+                "entry.270693677": row[6],
+                "entry.891180756": row[7],
+                "entry.2056153041": row[8],
+                "entry.780422311_year": ry,
+                "entry.780422311_month": rm,
+                "entry.780422311_day": rd,
+                "entry.1446643193_year": vy,
+                "entry.1446643193_month": vm,
+                "entry.1446643193_day": vd
+            }
+            
+            # 구글 전송 (너무 빨리 보내면 차단될 수 있어 0.5초 간격)
+            requests.post(BACKUP_URL, data=payload)
+            time.sleep(0.5) 
+            progress_bar.progress((i + 1) / len(rows))
+            
+        st.success(f"✨ {len(rows)}개의 과거 기록을 구글 시트로 모두 보냈습니다!")
 
 # --- [1. 스타일 및 설정] ---
 st.set_page_config(layout="wide", page_title="PRISM")
@@ -355,6 +402,7 @@ with tab2:
                                 if row['img_url']: st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
