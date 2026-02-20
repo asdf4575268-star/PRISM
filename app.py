@@ -369,7 +369,7 @@ with sub_tabs[0]:
                                 
                                 # 2. 날짜 (이미지 아래 작게)
                                 v_date = row['view_date'] if row['view_date'] else row['save_date']
-                                st.markdown(f'<p style="font-size:10px; color:gray; margin:2px 0; text-align:center;">{v_date}</p>', unsafe_allow_html=True)
+                                st.markdown(f'<p style="font-size:20px; color:gray; margin:2px 0; text-align:center;">{v_date}</p>', unsafe_allow_html=True)
                                 
                                 # 3. 제목 버튼 (5자 제한 적용하여 작게 유지)
                                 display_title = row['title'][:5] + ".." if len(row['title']) > 5 else row['title']
@@ -402,7 +402,7 @@ with sub_tabs[0]:
                                     st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 
                                 v_date = row['view_date'] if row['view_date'] else row['save_date']
-                                st.markdown(f'<p style="font-size:10px; color:gray; margin:0;">{v_date}</p>', unsafe_allow_html=True)
+                                st.markdown(f'<p style="font-size:20px; color:gray; margin:2px 0; text-align:center;">{v_date}</p>', unsafe_allow_html=True)
                                 
                                 display_title = row['title'][:5] + ".." if len(row['title']) > 5 else row['title']
                                 if st.button(display_title, key=f"btn_list_{idx}_{row['id']}", use_container_width=True):
@@ -410,3 +410,4 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
