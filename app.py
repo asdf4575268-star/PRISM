@@ -110,60 +110,21 @@ def search_kopis(query):
 
 col_empty, col_btn = st.columns([0.85, 0.15]) 
 
-with col_btn:
-    if st.button("📦 BACKUP", use_container_width=True):
-        MY_DB_FILE = 'archive_prism_total_v4.db' 
-        GOOGLE_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
-        
-        try:
-            import sqlite3
-            import requests
-            import time
-            import pandas as pd
-            
-            with sqlite3.connect(MY_DB_FILE) as conn:
-                conn.row_factory = sqlite3.Row
-                cursor = conn.cursor()
-                cursor.execute("SELECT * FROM archive") # 테이블명 확인 필요
-                rows = cursor.fetchall()
-                
-                if rows:
-                    st.toast(f"🚀 {len(rows)}개 백업 시작...") # 상단 토스트 알림
-                    for row in rows:
-                        try:
-                            r_dt = pd.to_datetime(row['rel_date'])
-                            v_dt = pd.to_datetime(row['view_date'])
-                            ry, rm, rd = str(r_dt.year), f"{r_dt.month:02d}", f"{r_dt.day:02d}"
-                            vy, vm, vd = str(v_dt.year), f"{v_dt.month:02d}", f"{v_dt.day:02d}"
-                        except:
-                            ry, rm, rd = "2026", "02", "20"
-                            vy, vm, vd = "2026", "02", "20"
-
-                        payload = {
-                            "entry.574529989": str(row['category']),
-                            "entry.898076783": str(row['title']),
-                            "entry.345368346": str(row['creator']),
-                            "entry.543246487": str(row['summary']),
-                            "entry.1816924330": str(row['brief']),
-                            "entry.270693677": str(row['highlights']),
-                            "entry.891180756": str(row['note']).replace("KM", "km").replace("BPM", "bpm"),
-                            "entry.2056153041": str(row['img_url']),
-                            "entry.780422311_year": ry, "entry.780422311_month": rm, "entry.780422311_day": rd,
-                            "entry.1446643193_year": vy, "entry.1446643193_month": vm, "entry.1446643193_day": vd
-                        }
-                        requests.post(GOOGLE_URL, data=payload)
-                        time.sleep(0.2)
-                    st.toast("✅ 백업 완료!", icon="✨")
-                else:
-                    st.toast("⚠️ 백업할 데이터가 없습니다.")
-        except Exception as e:
-            st.error(f"백업 오류: {e}")
 # --- [3. 팝업 함수] ---
 @st.dialog("📋 기록 상세 정보", width="large")
 def show_details(item):
     if hasattr(item, 'to_dict'): item = item.to_dict()
-    edit_mode = st.toggle("✏️ 수정 모드", key=f"tog_v2_{item['id']}")
-    col_img, col_txt = st.columns([0.4, 0.6])
+    col_edit, col_space, col_del = st.columns([0.3, 0.5, 0.2])
+    with col_edit:
+        edit_mode = st.toggle("✏️ 수정", key=f"tog_v2_{item['id']}")
+        with col_del:
+        if st.button("🗑️ 삭제", key=f"del_v2_{item['id']}", use_container_width=True, type="secondary"):
+            # 삭제 확인 로직 (예시)
+            with sqlite3.connect(DB_NAME) as conn:
+                conn.execute("DELETE FROM archive WHERE id = ?", (item['id'],))
+            st.success("삭제되었습니다.")
+            st.rerun()
+    st.divider()
 
     with col_img:
         if item.get('img_url'): st.image(item['img_url'], use_container_width=True)
@@ -199,10 +160,7 @@ def show_details(item):
             v_date = item.get('view_date') or item.get('save_date', '')
             st.markdown(f'<p class="date-text">🍿 감상일: {v_date}</p>', unsafe_allow_html=True)
             st.divider()
-            
-            # 감상 본문 (KM/BPM 소문자 강조 포함)
-            note_content = str(item.get('note', '')).replace("km", '<span class="num-text">km</span>').replace("bpm", '<span class="num-text">bpm</span>')
-            
+                       
             if item.get('brief'): st.success(item['brief'])
             if item.get('summary'): st.info(item['summary'])
             if item.get('highlights'): st.warning(item['highlights'])
@@ -451,5 +409,6 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
