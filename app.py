@@ -117,15 +117,21 @@ def show_details(item):
         item = item.to_dict()
     
     # 1. 상단 컨트롤 바 (토글과 삭제 버튼을 나란히)
-    c_head1, c_head2 = st.columns([0.15, 0.85])
-    with c_head1:
-        if st.button("🗑️", key=f"del_v2_{item['id']}", use_container_width=True):
+    c_del, c_mid, c_edit = st.columns([0.1, 0.8, 0.1])
+    
+    with c_del:
+        # 🗑️ 왼쪽 끝 배치
+        if st.button("🗑️", key=f"del_btn_{item['id']}", help="삭제"):
             with sqlite3.connect(DB_NAME) as conn:
                 conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
             st.rerun()
-    with c_head2:
-        # 다시 이전처럼 직관적인 토글 스위치로 복구
-        edit_mode = st.toggle("✏️", key=f"tog_v2_{item['id']}")
+
+    with c_edit:
+        # ✏️ 오른쪽 끝 배치
+        edit_label = "❌" if st.session_state[edit_key] else "✏️"
+        if st.button(edit_label, key=f"edit_btn_{item['id']}", use_container_width=True, help="수정"):
+            st.session_state[edit_key] = not st.session_state[edit_key]
+            st.rerun()
         
     st.divider()
     
@@ -417,6 +423,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
