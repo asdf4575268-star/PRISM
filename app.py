@@ -99,7 +99,7 @@ def search_kopis(query):
 col_empty, col_btn = st.columns([0.85, 0.15]) 
 
 # --- [3. 팝업 함수] ---
-@st.dialog("📋 기록 상세 정보", width="large")
+@st.dialog("📋 기록 정보", width="medium")
 def show_details(item):
     if hasattr(item, 'to_dict'): item = item.to_dict()
     
@@ -118,7 +118,7 @@ def show_details(item):
     st.divider()
 
 
-    col_img, col_txt = st.columns([0.4, 0.6])
+    col_img, col_txt = st.columns([0.3, 0.7])
 
     with col_img:
         if item.get('img_url'): st.image(item['img_url'], use_container_width=True)
@@ -406,6 +406,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
