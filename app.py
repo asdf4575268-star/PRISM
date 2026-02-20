@@ -276,64 +276,118 @@ with tab1:
 
 # --- TAB 2: ARCHIVE ---
 with tab2:
+    # 1. 반응형 레이아웃 CSS
     st.markdown("""
         <style>
-        /* 기본: 가로모드/데스크탑 (6열 그리드) */
+        /* 기본: 데스크탑/가로모드 (6열 그리드) */
         [data-testid="column"] {
             width: 16.6% !important;
             flex: 0 0 16.6% !important;
             min-width: 16.6% !important;
+            padding: 0 2px !important;
         }
 
-        /* 📱 세로모드 대응 (화면 너비 600px 미만일 때) */
+        /* 📱 세로모드 대응 (화면 너비 600px 이하) */
         @media (max-width: 600px) {
-            /* 1. 카테고리 탭: 6열에서 1열(리스트형)로 변경 */
             .cat-container [data-testid="column"] {
                 width: 100% !important;
                 flex: 0 0 100% !important;
                 min-width: 100% !important;
-                margin-bottom: 10px;
-                border-bottom: 1px solid #eee; /* 구분선 */
-                padding-bottom: 10px !important;
+                margin-bottom: 8px;
+                padding: 10px !important;
+                background: #262730; 
+                border-radius: 8px;
             }
-            
-            /* 리스트형일 때 이미지와 텍스트 배치 최적화 */
-            .cat-img-box {
-                width: 60px !important; /* 리스트에선 작게 */
-                float: left;
-                margin-right: 15px;
+            .cat-container div.stButton > button {
+                text-align: left !important;
+                padding-left: 10px !important;
+                font-size: 14px !important;
             }
-            
-            /* 2. 달력 탭: 세로모드에선 날짜 숫자를 더 크게 */
             .cal-container [data-testid="column"] {
-                width: 14.28% !important; /* 달력은 7열 유지하되 크기 조절 */
+                width: 14.28% !important;
                 flex: 0 0 14.28% !important;
                 min-width: 14.28% !important;
             }
         }
-        
-        /* 버튼 텍스트 소문자 고정 (km, bpm 대응) */
+
+        /* km, bpm 소문자 강제 */
         div.stButton > button {
             text-transform: lowercase !important;
+            white-space: normal !important;
+            word-break: keep-all !important;
+        }
+
+        .cat-img-box img {
+            width: 100%;
+            aspect-ratio: 1/1;
+            object-fit: cover;
+            border-radius: 6px;
         }
         </style>
     """, unsafe_allow_html=True)
 
-    sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
-    
-    # 데이터 로드 (all_df 사용)
-    # ... (연도/월 선택 로직은 기존과 동일)
+    # 💡 데이터 로드를 모든 탭 공통으로 최상단에서 수행 (NameError 방지)
+    with sqlite3.connect(DB_NAME) as conn:
+        all_df = pd.read_sql_query("SELECT * FROM archive", conn)
 
-    # --- 카테고리별 탭 구현 ---
-    for idx, c_name in enumerate(["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]):
+    sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
+
+    # 1️⃣ YEARLY 탭 (달력)
+    with sub_tabs[0]:
+        if not all_df.empty:
+            all_df['view_date_filled'] = all_df['view_date'].fillna(all_df['save_date'])
+            all_df['v_dt'] = pd.to_datetime(all_df['view_date_filled'])
+            all_df['year_int'] = all_df['v_dt'].dt.year
+            
+            year_counts = all_df['year_int'].value_counts().to_dict()
+            raw_years = sorted(list(set([datetime.now().year] + list(year_counts.keys()))), reverse=True)
+            year_labels = [f"{y} ({year_counts.get(y, 0)})" for y in raw_years]
+            label_to_year = {label: y for label, y in zip(year_labels, raw_years)}
+            
+            c_yr, _ = st.columns([2, 5])
+            with c_yr:
+                default_idx = raw_years.index(st.session_state.cal_year) if st.session_state.cal_year in raw_years else 0
+                selected_label = st.selectbox("연도 선택", year_labels, index=default_idx)
+                st.session_state.cal_year = label_to_year[selected_label]
+
+            _, n1, n2, n3, _ = st.columns([1, 1, 2, 1, 1])
+            with n1: 
+                if st.button("◀", key="p_btn"): shift_month(-1); st.rerun()
+            with n2: 
+                st.markdown(f"<p class='num-text' style='text-align:center; font-size:24px;'>{st.session_state.cal_year}.{st.session_state.cal_month}</p>", unsafe_allow_html=True)
+            with n3: 
+                if st.button("▶", key="n_btn"): shift_month(1); st.rerun()
+
+            st.markdown('<div class="cal-container">', unsafe_allow_html=True)
+            cal = calendar.monthcalendar(st.session_state.cal_year, st.session_state.cal_month)
+            month_df = all_df[(all_df['v_dt'].dt.year == st.session_state.cal_year) & (all_df['v_dt'].dt.month == st.session_state.cal_month)]
+
+            for week in cal:
+                cols = st.columns(7)
+                for i, day in enumerate(week):
+                    if day == 0: continue
+                    with cols[i]:
+                        day_color = "#2E5BFF" if i == 5 else "#FF4B4B" if i == 6 else "#FFFFFF"
+                        st.markdown(f"<p style='text-align:center; color:{day_color}; margin:0;'>{day}</p>", unsafe_allow_html=True)
+                        day_items = month_df[month_df['v_dt'].dt.day == day]
+                        if not day_items.empty:
+                            first = day_items.iloc[0]
+                            if st.button("•", key=f"d_{day}_{first['id']}", use_container_width=True):
+                                show_details(first)
+            st.markdown('</div>', unsafe_allow_html=True)
+        else:
+            st.info("데이터가 없습니다.")
+
+    # 2️⃣ 카테고리별 탭 (반응형 리스트형)
+    cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
+    for idx, c_name in enumerate(cats):
         with sub_tabs[idx+1]:
+            # 💡 이제 여기서 all_df를 안전하게 참조할 수 있습니다.
             cat_df = all_df[all_df['category'] == c_name].copy()
             if not cat_df.empty:
-                # 최신순 정렬
                 cat_df['sort_dt'] = pd.to_datetime(cat_df['view_date'].fillna(cat_df['save_date']))
                 cat_df = cat_df.sort_values(by='sort_dt', ascending=False)
                 
-                # 'cat-container' 클래스를 부여하여 세로모드 리스트형 적용
                 st.markdown('<div class="cat-container">', unsafe_allow_html=True)
                 for i in range(0, len(cat_df), 6):
                     cols = st.columns(6)
@@ -341,18 +395,18 @@ with tab2:
                         if i + j < len(cat_df):
                             row = cat_df.iloc[i + j]
                             with cols[j]:
-                                # 이미지와 정보 출력
-                                img_html = f'<div class="cat-img-box"><img src="{row["img_url"]}" style="width:100%; border-radius:4px;"></div>' if row['img_url'] else ''
-                                st.markdown(img_html, unsafe_allow_html=True)
+                                if row['img_url']:
+                                    st.markdown(f'<div class="cat-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 
-                                v_date = row['view_date'] if row['view_date'] else row['save_date']
-                                st.markdown(f'<p style="font-size:11px; color:gray; margin:0;">{v_date}</p>', unsafe_allow_html=True)
+                                display_date = row['view_date'] if row['view_date'] else row['save_date']
+                                st.markdown(f'<p style="font-size:10px; color:gray; margin:0; text-align:center;">{display_date}</p>', unsafe_allow_html=True)
                                 
-                                if st.button(row['title'], key=f"cat_{idx}_{row['id']}", use_container_width=True):
+                                if st.button(row['title'], key=f"t_{idx}_{row['id']}", use_container_width=True):
                                     show_details(row)
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
