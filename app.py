@@ -118,7 +118,7 @@ def show_details(item):
     with c_tog:
         edit_mode = st.toggle("✏️ 수정 모드", key=f"tog_v2_{item['id']}")
     
-    col_img, col_txt = st.columns([0.4, 0.6])
+    col_img, col_txt = st.columns([0.3, 0.7])
     with col_img:
         if item.get('img_url'): st.image(item['img_url'], use_container_width=True)
         else: st.info("이미지 없음")
@@ -212,7 +212,7 @@ with tab1:
 
     st.divider()
     data = st.session_state.get('api_data', {})
-    cl, cr = st.columns([0.4, 0.6])
+    cl, cr = st.columns([0.3, 0.7])
     with cl:
         img_url_val = st.text_input("🖼️ 이미지 URL", value=data.get('img', ''))
         if img_url_val: st.image(img_url_val, use_container_width=True)
@@ -294,4 +294,5 @@ with tab2:
                                 if st.button(btn_label, key=f"cat_{idx}_{row['id']}", use_container_width=True):
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
