@@ -320,16 +320,16 @@ with tab2:
 
     sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
 
-# --- [1] YEARLY 탭 (중앙 정렬 카드형 리스트) ---
+# --- [1] YEARLY 탭 (카테고리 스타일 6열 배치) ---
 with sub_tabs[0]:
     if not all_df.empty:
-        # 데이터 전처리 (날짜 기준 최신순)
+        # 데이터 전처리
         all_df['v_dt'] = pd.to_datetime(all_df['view_date'].fillna(all_df['save_date']))
         all_df['year_int'] = all_df['v_dt'].dt.year
         all_df['month_int'] = all_df['v_dt'].dt.month
         yearly_df = all_df.sort_values(by='v_dt', ascending=False)
         
-        # 연도 선택
+        # 연도 선택 바
         raw_years = sorted(list(yearly_df['year_int'].unique()), reverse=True)
         year_counts = yearly_df['year_int'].value_counts().to_dict()
         year_labels = [f"{y} ({year_counts.get(y, 0)})" for y in raw_years]
@@ -337,7 +337,7 @@ with sub_tabs[0]:
         c_yr, _ = st.columns([2, 5])
         with c_yr:
             default_y = st.session_state.cal_year if st.session_state.cal_year in raw_years else raw_years[0]
-            sel_y_label = st.selectbox("연도 선택", year_labels, index=raw_years.index(default_y))
+            sel_y_label = st.selectbox("연도 선택", year_labels, index=raw_years.index(default_y), key="yearly_fixed_sel")
             st.session_state.cal_year = int(sel_y_label.split(" ")[0])
 
         year_data = yearly_df[yearly_df['year_int'] == st.session_state.cal_year]
@@ -348,29 +348,35 @@ with sub_tabs[0]:
             if not month_data.empty:
                 st.markdown(f"### 🗓️ {month}월")
                 
-                for _, row in month_data.iterrows():
-                    # 중앙 정렬을 위한 컬럼 배치 (이미지 너비에 맞춰 조절 가능)
-                    _, mid_col, _ = st.columns([1, 10, 1]) 
-                    
-                    with mid_col:
-                        # 1. 이미지 (비율 유지 및 테두리 둥글게)
-                        if row['img_url']:
-                            st.markdown(f'''
-                                <div style="display: flex; justify-content: center;">
-                                    <img src="{row['img_url']}" style="width: 100%; border-radius: 12px; border: 1px solid #333;">
-                                </div>
-                            ''', unsafe_allow_html=True)
-                        
-                        # 2. 날짜 및 버튼 간격 조절
-                        v_date = row['view_date'] if row['view_date'] else row['save_date']
-                        st.markdown(f'<p style="font-size:13px; color:gray; margin-top:8px; margin-bottom:4px; text-align:left;">{v_date}</p>', unsafe_allow_html=True)
-                        
-                        # 3. 제목 버튼 (이미지 너비에 꽉 차게)
-                        # km, bpm은 시스템적으로 소문자 변환됨
-                        if st.button(row['title'], key=f"yr_list_{row['id']}", use_container_width=True):
-                            show_details(row)
-                        
-                        st.markdown("<div style='margin-bottom: 40px;'></div>", unsafe_allow_html=True)
+                # 💡 카테고리와 동일한 그리드 컨테이너
+                st.markdown('<div class="list-mode">', unsafe_allow_html=True)
+                
+                # 6개씩 끊어서 컬럼 배치
+                items = month_data.to_dict('records')
+                for i in range(0, len(items), 6):
+                    cols = st.columns(6)
+                    for j in range(6):
+                        if i + j < len(items):
+                            row = items[i + j]
+                            with cols[j]:
+                                # 1. 이미지 (정사각형 작은 박스)
+                                if row['img_url']:
+                                    st.markdown(f'''
+                                        <div class="cal-img-box">
+                                            <img src="{row['img_url']}">
+                                        </div>
+                                    ''', unsafe_allow_html=True)
+                                
+                                # 2. 날짜 (이미지 아래 작게)
+                                v_date = row['view_date'] if row['view_date'] else row['save_date']
+                                st.markdown(f'<p style="font-size:10px; color:gray; margin:2px 0; text-align:center;">{v_date}</p>', unsafe_allow_html=True)
+                                
+                                # 3. 제목 버튼 (5자 제한 적용하여 작게 유지)
+                                display_title = row['title'][:5] + ".." if len(row['title']) > 5 else row['title']
+                                if st.button(display_title, key=f"yr_grid_{row['id']}", use_container_width=True):
+                                    show_details(row)
+                
+                st.markdown('</div>', unsafe_allow_html=True)
                 st.divider()
     else:
         st.info("기록이 없습니다.")
@@ -404,6 +410,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
