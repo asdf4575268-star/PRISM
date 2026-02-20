@@ -269,7 +269,7 @@ with tab_archive:
                 m_data = year_data[year_data['v_dt'].dt.month == month]
                 if not m_data.empty:
                     # 숫자 크기 60 적용
-                    st.markdown(f'<p class="num-text">{month} <span style="font-size:30px">MONTH</span></p>', unsafe_allow_html=True)
+                    st.markdown(f'<p class="num-text">{month}<span style="font-size:30px; font-family: sans-serif; margin-left: 5px;">월</span></p>', unsafe_allow_html=True)
                     items = m_data.to_dict('records')
                     cols = st.columns(6)
                     for idx, row in enumerate(items):
@@ -295,4 +295,5 @@ with tab_archive:
                                     if row['img_url']: st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:8], key=f"cat_{idx}_{row['id']}", use_container_width=True):
                                         show_details(row)
+
 
