@@ -6,6 +6,7 @@ import calendar
 import xml.etree.ElementTree as ET
 from datetime import date, datetime
 import re
+import os
 
 # --- [1. 스타일 및 설정] ---
 st.set_page_config(layout="wide", page_title="PRISM")
@@ -382,6 +383,7 @@ with tab2:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
