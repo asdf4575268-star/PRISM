@@ -114,21 +114,30 @@ col_empty, col_btn = st.columns([0.85, 0.15])
 @st.dialog("📋 기록 상세 정보", width="large")
 def show_details(item):
     if hasattr(item, 'to_dict'): item = item.to_dict()
+
+    # --- 상단 버튼 바 (수정 토글 & 삭제 버튼) ---
     col_edit, col_space, col_del = st.columns([0.3, 0.5, 0.2])
+    
     with col_edit:
         edit_mode = st.toggle("✏️ 수정", key=f"tog_v2_{item['id']}")
-        with col_del:
-        if st.button("🗑️ 삭제", key=f"del_v2_{item['id']}", use_container_width=True, type="secondary"):
-            # 삭제 확인 로직 (예시)
+    
+    with col_del:
+        if st.button("🗑️ 삭제", key=f"del_v2_{item['id']}", use_container_width=True):
             with sqlite3.connect(DB_NAME) as conn:
                 conn.execute("DELETE FROM archive WHERE id = ?", (item['id'],))
             st.success("삭제되었습니다.")
             st.rerun()
+            
     st.divider()
 
+    # --- 메인 레이아웃 (이미지 좌 / 텍스트 우) ---
+    col_img, col_txt = st.columns([0.4, 0.6])
+
     with col_img:
-        if item.get('img_url'): st.image(item['img_url'], use_container_width=True)
-        else: st.info("등록된 이미지가 없습니다.")
+        if item.get('img_url'): 
+            st.image(item['img_url'], use_container_width=True)
+        else: 
+            st.info("등록된 이미지가 없습니다.")
 
     with col_txt:
         if edit_mode:
@@ -136,10 +145,13 @@ def show_details(item):
                 n_title = st.text_input("📌 Title", value=str(item.get('title', '')))
                 n_creator = st.text_input("👤 Creator", value=str(item.get('creator', '')))
                 n_rel = st.text_input("📅공개일", value=str(item.get('rel_date', '')))
+                
                 try:
                     raw_v = str(item.get('view_date') or item.get('save_date'))[:10]
                     v_dt = datetime.strptime(raw_v, '%Y-%m-%d').date()
-                except: v_dt = date.today()
+                except: 
+                    v_dt = date.today()
+                
                 n_view = st.date_input("🍿 감상일", v_dt)
                 n_brief = st.text_input("📝 요약", value=str(item.get('brief') or ''))
                 n_sum = st.text_area("📖 줄거리(첫줄 URL)", value=str(item.get('summary') or ''), height=150)
@@ -154,17 +166,22 @@ def show_details(item):
                                      (n_title, n_creator, n_rel, n_sum, n_brief, n_high, final_note, str(n_view), item['id']))
                     st.rerun()
         else:
-            # 조회 모드 (디자인 가이드 반영)
-            st.markdown(f'<p class="act-name">{item.get("title")}</p>', unsafe_allow_html=True)
+            # --- 조회 모드 ---
+            # 저장된 설정값 사용 (활동명 90, 날짜 30)
+            st.markdown(f'<div style="font-size:90px; font-weight:bold; line-height:1.1;">{item.get("title")}</div>', unsafe_allow_html=True)
             st.write(f"**공개일:** {item.get('rel_date')} | **Creator:** {item.get('creator')}")
+            
             v_date = item.get('view_date') or item.get('save_date', '')
-            st.markdown(f'<p class="date-text">🍿 감상일: {v_date}</p>', unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size:30px; color:gray;">🍿 감상일: {v_date}</div>', unsafe_allow_html=True)
             st.divider()
                        
             if item.get('brief'): st.success(item['brief'])
             if item.get('summary'): st.info(item['summary'])
             if item.get('highlights'): st.warning(item['highlights'])
-            if item.get('note'): st.markdown(note_content, unsafe_allow_html=True)
+            if item.get('note'): 
+                # 감상평 내 KM, BPM 소문자화 확인 및 출력
+                display_note = item['note'].replace("KM", "km").replace("BPM", "bpm")
+                st.markdown(f'<div style="white-space:pre-wrap;">{display_note}</div>', unsafe_allow_html=True)
 
 # --- [4. 메인 화면 구성] ---
 tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
@@ -403,6 +420,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
