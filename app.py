@@ -234,8 +234,11 @@ with tab1:
                     VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
                     (category, title, creator, rel_date, summary, brief, highlights, processed_note, img_url_val, str(date.today()), str(view_date)))
             
-            # 2. 구글 설문지 백업 전송 (추출된 ID 적용)
-            BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLSeW_L_t1L6-5r3-O-E-8m-m-m-m-m-m-m/formResponse"
+            # 2. 구글 설문지 백업 전송 (추출된 진짜 정보 적용)
+            # viewform을 formResponse로 바꾼 주소입니다.
+            BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
+            
+            # 실제 설문지 소스코드에서 추출한 entry 번호들입니다.
             payload = {
                 "entry.1691522079": category,
                 "entry.244349141": title,
@@ -248,11 +251,19 @@ with tab1:
                 "entry.162234033": img_url_val,
                 "entry.1568212621": str(view_date)
             }
-            try: requests.post(BACKUP_URL, data=payload)
-            except: pass
+            
+            try:
+                # 데이터 전송 시도
+                res = requests.post(BACKUP_URL, data=payload)
+                if res.status_code == 200:
+                    st.success("✅ 로컬 저장 및 구글 시트 백업이 완료되었습니다!")
+                else:
+                    st.warning(f"⚠️ 전송 응답 코드: {res.status_code}. 시트를 확인해보세요.")
+            except Exception as e:
+                st.error(f"❌ 전송 중 오류 발생: {e}")
 
+            # 세션 초기화 및 새로고침
             st.session_state.api_data = {}
-            st.success("저장 및 백업 완료!")
             st.rerun()
 
 # --- TAB 2: ARCHIVE ---
@@ -322,3 +333,4 @@ with tab2:
                                 if row['img_url']: st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
