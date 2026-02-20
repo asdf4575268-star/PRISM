@@ -13,9 +13,9 @@ st.set_page_config(layout="wide", page_title="PRISM")
 # CSS 설정 (저장된 정보 반영: 글자 크기 및 폰트)
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Kirang+Haerang&family=Jolly+Lodger&family=Lacquer&display=swap');
+    @import url('https://github.com/google/fonts/raw/main/ofl/blackhansans/BlackHanSans-Regular.ttf');
     
-    .act-name { font-size: 90px; font-family: 'Kirang Haerang'; line-height: 1.1; margin: 0; }
+    .act-name { font-size: 90px; font-family: 'BlackHanSans'; line-height: 1.1; margin: 0; }
     .date-text { font-size: 30px; color: #666; margin: 0; }
     /* km, bpm 소문자 가이드 및 숫자 크기 60 설정 */
     .num-text { font-size: 60px; font-family: 'Jolly Lodger'; text-transform: lowercase; margin: 0; line-height: 1; }
@@ -146,7 +146,7 @@ def show_details(item):
                     st.rerun()
         else:
             # 활동명 90px 적용
-            st.markdown(f'<p style="font-size: 35px; font-family: \'Kirang Haerang\'; font-weight: bold; line-height: 1.1; margin-bottom: 5px;">{item.get("title")}</p>', unsafe_allow_html=True)
+            st.markdown(f'<p style="font-size: 30px; font-family: \'BlackHanSans\'; font-weight: bold; line-height: 1.1; margin-bottom: 5px;">{item.get("title")}</p>', unsafe_allow_html=True)
             st.markdown(f"**👤 {item.get('creator')}** |  📅 {item.get('rel_date')}")
             # 감상일 30px 적용
             v_date = item.get('view_date') or item.get('save_date', '')
@@ -294,6 +294,7 @@ with tab2:
                                 if st.button(btn_label, key=f"cat_{idx}_{row['id']}", use_container_width=True):
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
