@@ -105,7 +105,7 @@ def show_details(item):
     if hasattr(item, 'to_dict'): item = item.to_dict()
 
     # --- 상단 버튼 바 (수정 토글 & 삭제 버튼) ---
-    col_edit, col_space, col_del = st.columns([0.3, 0.5, 0.2])
+    col_del, col_space, col_edit = st.columns([0.3, 0.5, 0.2])
     
     with col_edit:
         edit_mode = st.toggle("✏️ 수정", key=f"tog_v2_{item['id']}")
@@ -148,8 +148,6 @@ def show_details(item):
                 n_note = st.text_area("💬 감상", value=str(item.get('note') or ''), height=100)
 
                 if st.form_submit_button("💾 저장", use_container_width=True):
-                    # KM, BPM 소문자 처리
-                    final_note = n_note.replace("KM", "km").replace("BPM", "bpm")
                     with sqlite3.connect(DB_NAME) as conn:
                         conn.execute("""UPDATE archive SET title=?, creator=?, rel_date=?, summary=?, brief=?, highlights=?, note=?, view_date=? WHERE id=?""", 
                                      (n_title, n_creator, n_rel, n_sum, n_brief, n_high, final_note, str(n_view), item['id']))
@@ -157,11 +155,10 @@ def show_details(item):
         else:
             # --- 조회 모드 ---
             # 저장된 설정값 사용 (활동명 90, 날짜 30)
-            st.markdown(f'<div style="font-size:90px; font-weight:bold; line-height:1.1;">{item.get("title")}</div>', unsafe_allow_html=True)
-            st.write(f"**공개일:** {item.get('rel_date')} | **Creator:** {item.get('creator')}")
-            
+            st.markdown(f'<div style="font-size:30px; font-weight:bold; line-height:1.1;">{item.get("title")}</div>', unsafe_allow_html=True)
+            st.write(f"**공개일:** {item.get('rel_date')} | **Creator:** {item.get('creator')}")          
             v_date = item.get('view_date') or item.get('save_date', '')
-            st.markdown(f'<div style="font-size:30px; color:gray;">🍿 감상일: {v_date}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size:15px; color:gray;">🍿 감상일: {v_date}</div>', unsafe_allow_html=True)
             st.divider()
                        
             if item.get('brief'): st.success(item['brief'])
@@ -408,6 +405,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
