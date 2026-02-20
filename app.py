@@ -109,6 +109,24 @@ def search_kopis(query):
         root = ET.fromstring(res.content)
         return [{'title': d.findtext('prfnm'), 'id': d.findtext('mt20id'), 'img': d.findtext('poster'), 'date': d.findtext('prfpdfrom'), 'venue': d.findtext('fcltynm')} for d in root.findall('db')]
     except: return []
+def auto_fill_data():
+    """기존 DB 기록 선택 시 입력 폼의 key값들에 직접 데이터 할당"""
+    selected_title = st.session_state.get('selected_archive_title')
+    if selected_title and selected_title != "선택하세요":
+        with sqlite3.connect(DB_NAME) as conn:
+            df = pd.read_sql("SELECT * FROM archive WHERE title = ?", conn, params=(selected_title,))
+            if not df.empty:
+                row = df.iloc[0]
+                
+                # 위젯의 key값과 동일한 이름을 session_state에 업데이트
+                st.session_state["w_title"] = row['title'].lower()
+                st.session_state["w_creator"] = row['creator']
+                st.session_state["w_img"] = row['img_url']
+                st.session_state["w_rel_date"] = row['rel_date']
+                st.session_state["w_summary"] = row['summary']
+                st.session_state["w_brief"] = row['brief']
+                st.session_state["w_highlights"] = row['highlights']
+                st.session_state["w_note"] = row['note']
 
 # --- [3. 팝업 함수] ---
 @st.dialog("📋 기록 상세 정보", width="large")
@@ -200,78 +218,57 @@ def show_details(item):
 # --- [4. 메인 화면 구성] ---
 tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 
+# --- TAB 1: WRITE ---
 with tab1:
-    category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"], horizontal=True)
-    search_query = st.text_input(f"🔍 {category} 검색")
+    # [A] 기존 기록 불러오기 (on_change 연동)
+    with sqlite3.connect(DB_NAME) as conn:
+        all_titles = pd.read_sql("SELECT DISTINCT title FROM archive", conn)['title'].tolist()
     
-    if search_query:
-        if category == "BOOKS":
-            res = search_books(search_query)
-            if res:
-                opts = {f"📚 {b['title']}": b for b in res}
-                sel = st.selectbox("결과 선택", list(opts.keys()))
-                if st.button("✨ 가져오기"):
-                    b = opts[sel]
-                    st.session_state.api_data = {'title': b['title'], 'creator': f"{', '.join(b['authors'])}", 'date': b['datetime'][:10], 'img': b.get('thumbnail', '').replace("R120x174", "R400x0"), 'summary': f"{b['url']}\n\n{b.get('contents', '')}"}
-                    st.rerun()
-
-        elif category == "MUSIC":
-            res = search_apple_music(search_query)
-            if res:
-                opts = {m['display_name']: m for m in res}
-                sel = st.selectbox("결과 선택 (SINGLE/ALBUM)", list(opts.keys()))
-                if st.button("✨ 가져오기"):
-                    m = opts[sel]
-                    st.session_state.api_data = {'title': m['title'], 'creator': m['creator'], 'date': m['date'], 'img': m['img'], 'summary': f"{m['url']}\n\n"}
-                    st.rerun()
-
-        elif category == "STAGE":
-            res = search_kopis(search_query)
-            if res:
-                opts = {f"🎭 {s['title']} ({s['venue']})": s for s in res}
-                sel = st.selectbox("결과 선택", list(opts.keys()))
-                if st.button("✨ 가져오기"):
-                    s = opts[sel]
-                    st.session_state.api_data = {'title': s['title'], 'creator': f"@{s['venue']}", 'date': s['date'], 'img': s['img'], 'summary': ''}
-                    st.rerun()
-
-        else: # MOVIES, SERIES
-            res = search_tmdb(search_query, category)
-            if res:
-                t_key = 'title' if category == 'MOVIES' else 'name'
-                d_key = 'release_date' if category == 'MOVIES' else 'first_air_date'
-                opts = {f"🎬 {r.get(t_key)}": r for r in res}
-                sel = st.selectbox("결과 선택", list(opts.keys()))
-                if st.button("✨ 가져오기"):
-                    s = opts[sel]
-                    st.session_state.api_data = {'title': s.get(t_key), 'creator': get_tmdb_details(s['id'], category), 'date': s.get(d_key), 'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", 'summary': s.get('overview', '')}
-                    st.rerun()
+    st.selectbox("📁 기존 기록 불러오기", ["선택하세요"] + all_titles, 
+                 key="selected_archive_title", 
+                 on_change=auto_fill_data)
 
     st.divider()
-    # 입력 폼 생략 (사용자 코드와 동일하게 유지)
-    data = st.session_state.get('api_data', {})
+
+    # [B] 입력 폼 구성
     cl, cr = st.columns([0.4, 0.6])
+    
     with cl:
-        img_url_val = st.text_input("🖼️ 이미지", value=data.get('img', ''))
-        if img_url_val: 
-            st.image(img_url_val, use_container_width=True)
-        else:
-            st.info("검색을 통해 이미지를 불러와주세요.")
-        title = st.text_input("제목", value=data.get('title', ''))
-        creator = st.text_input("창작자 정보", value=data.get('creator', ''))
+        # key를 설정하면 value를 따로 적지 않아도 session_state와 자동 연동됨
+        img_url_val = st.text_input("🖼️ 이미지 URL", key="w_img")
+        
+        if st.session_state.get("w_img"):
+            st.image(st.session_state["w_img"], use_container_width=True)
+            
+        title = st.text_input("제목", key="w_title")
+        creator = st.text_input("창작자 정보", key="w_creator")
+        
         col1, col2 = st.columns(2)
-        rel_date = col1.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
+        rel_date = col1.text_input("📅 작품 날짜", key="w_rel_date")
+        # 날짜 입력기는 문자열 포맷팅이 필요할 수 있어 일단 유지
         view_date = col2.date_input("🍿 감상일", value=date.today())
+
     with cr:
-        summary = st.text_area("📖 줄거리", value=data.get('summary', ''), height=150)
-        brief = st.text_input("📝 요약")
-        highlights = st.text_area("✨ 인상 깊은 부분", height=100)
-        note = st.text_area("💬 감상", height=100)
-        if st.button("✅ 저장"):
+        summary = st.text_area("📖 줄거리 / 상세정보", key="w_summary", height=150)
+        brief = st.text_input("📝 요약", key="w_brief")
+        highlights = st.text_area("✨ 인상 깊은 부분", key="w_highlights", height=100)
+        note = st.text_area("💬 감상", key="w_note", height=100)
+        
+        if st.button("✅ 저장/업데이트", use_container_width=True):
+            # 저장할 때는 key에 담긴 현재 값을 가져옴
+            processed_title = st.session_state["w_title"].lower()
+            
             with sqlite3.connect(DB_NAME) as conn:
-                conn.execute("INSERT INTO archive (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                             (category, title, creator, rel_date, summary, brief, highlights, note, img_url_val, str(date.today()), str(view_date)))
-            st.session_state.api_data = {}
+                conn.execute("""
+                    INSERT INTO archive (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) 
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?)
+                """, (category, processed_title, st.session_state["w_creator"], 
+                      st.session_state["w_rel_date"], st.session_state["w_summary"], 
+                      st.session_state["w_brief"], st.session_state["w_highlights"], 
+                      st.session_state["w_note"], st.session_state["w_img"], 
+                      str(date.today()), str(view_date)))
+            
+            st.success("기록이 완료되었습니다.")
             st.rerun()
 
 # --- TAB 2: ARCHIVE ---
@@ -410,3 +407,4 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
