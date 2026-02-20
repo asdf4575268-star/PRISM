@@ -258,23 +258,34 @@ with tab1:
 
             # 4. 구글 설문지 전송 (날짜 쪼개기 방식)
             BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
-            
-            payload = {
-                "entry.574529989": category,
-                "entry.898076783": title,
-                "entry.345368346": creator,
-                "entry.543246487": summary,
-                "entry.1816924330": brief,
-                "entry.270693677": highlights,
-                "entry.891180756": processed_note,
-                "entry.2056153041": safe_img_url,
-                "entry.780422311_year": ry,
-                "entry.780422311_month": rm,
-                "entry.780422311_day": rd,
-                "entry.1446643193_year": vy,
-                "entry.1446643193_month": vm,
-                "entry.1446643193_day": vd
-            }
+            if rows:
+                    st.toast(f"🚀 {len(rows)}개 백업 시작...")
+                    for row in rows:
+                        original_note = str(row['note']) if row['note'] else ""
+                        processed_note = original_note.replace("KM", "km").replace("BPM", "bpm")
+                        
+                        try:
+                            # 날짜 처리 (기존 로직 유지)
+                            r_dt = pd.to_datetime(row['rel_date'])
+                            v_dt = pd.to_datetime(row['view_date'])
+                            ry, rm, rd = str(r_dt.year), f"{r_dt.month:02d}", f"{r_dt.day:02d}"
+                            vy, vm, vd = str(v_dt.year), f"{v_dt.month:02d}", f"{v_dt.day:02d}"
+                        except:
+                            ry, rm, rd = "2026", "02", "20"
+                            vy, vm, vd = "2026", "02", "20"
+
+                        payload = {
+                            "entry.574529989": str(row['category']),
+                            "entry.898076783": str(row['title']),
+                            "entry.345368346": str(row['creator']),
+                            "entry.543246487": str(row['summary']),
+                            "entry.1816924330": str(row['brief']),
+                            "entry.270693677": str(row['highlights']),
+                            "entry.891180756": processed_note,  # 이제 정의가 되어있어 에러가 나지 않습니다!
+                            "entry.2056153041": str(row['img_url']),
+                            "entry.780422311_year": ry, "entry.780422311_month": rm, "entry.780422311_day": rd,
+                            "entry.1446643193_year": vy, "entry.1446643193_month": vm, "entry.1446643193_day": vd
+                        }
 
             # 5. 실행 및 로컬 DB 저장
             try:
@@ -403,6 +414,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
