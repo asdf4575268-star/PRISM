@@ -12,74 +12,69 @@ import pandas as pd
 import requests
 from datetime import date
 
-# 사이드바에 버튼 배치
 if st.sidebar.button("📦 과거 기록 전체 백업하기"):
-    TARGET_DB = "archive.db" 
+    # 사용자님이 알려주신 진짜 DB 파일명
+    MY_DB_FILE = 'archive_prism_total_v4.db' 
     GOOGLE_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
     
     try:
-        with sqlite3.connect(TARGET_DB) as conn:
-            cursor = conn.cursor()
+        conn = sqlite3.connect(MY_DB_FILE)
+        cursor = conn.cursor()
+        
+        # 1. 테이블 존재 여부 재확인
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = [t[0] for t in cursor.fetchall() if t[0] != 'sqlite_sequence']
+        
+        if not tables:
+            st.sidebar.error(f"❌ '{MY_DB_FILE}' 파일은 찾았으나 내부에 테이블이 없습니다.")
+        else:
+            # 보통 테이블 이름은 'archive'로 생성하셨을 확률이 높으니 확인 후 선택
+            target_table = 'archive' if 'archive' in tables else tables[0]
+            st.sidebar.info(f"📂 '{target_table}' 테이블 백업 중...")
             
-            # 1. 실제 존재하는 테이블 이름 확인 (에러 방지 핵심)
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-            tables = [t[0] for t in cursor.fetchall()]
+            cursor.execute(f"SELECT * FROM {target_table}")
+            rows = cursor.fetchall()
             
-            # 'archive'가 없으면 첫 번째 테이블이라도 사용, 아예 없으면 중단
-            if not tables:
-                st.sidebar.error("❌ 로컬 DB에 저장된 테이블이 아예 없습니다.")
+            if not rows:
+                st.sidebar.warning("테이블에 저장된 데이터가 없습니다.")
             else:
-                table_name = 'archive' if 'archive' in tables else tables[0]
-                st.sidebar.info(f"'{table_name}' 테이블에서 데이터를 가져옵니다.")
-                
-                # 2. 데이터 가져오기
-                cursor.execute(f"SELECT * FROM {table_name}")
-                rows = cursor.fetchall()
-                
-                # 컬럼 순서가 (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date)라고 가정
-                # 만약 순서가 다르면 아래 row[index] 숫자를 조정해야 합니다.
-                
-                if not rows:
-                    st.sidebar.warning("백업할 데이터가 없습니다.")
-                else:
-                    st.sidebar.info(f"총 {len(rows)}개의 데이터를 백업합니다...")
-                    progress_bar = st.sidebar.progress(0)
-                    
-                    for i, row in enumerate(rows):
-                        try:
-                            # 날짜 처리 (row 인덱스는 DB 생성 시 순서에 따라 다를 수 있음)
-                            r_dt = pd.to_datetime(row[3]) # rel_date
-                            v_dt = pd.to_datetime(row[10]) # view_date (마지막 컬럼 가정)
-                            ry, rm, rd = str(r_dt.year), f"{r_dt.month:02d}", f"{r_dt.day:02d}"
-                            vy, vm, vd = str(v_dt.year), f"{v_dt.month:02d}", f"{v_dt.day:02d}"
-                        except:
-                            ry, rm, rd = "2026", "02", "20"
-                            vy, vm, vd = "2026", "02", "20"
+                progress_bar = st.sidebar.progress(0)
+                for i, row in enumerate(rows):
+                    # 날짜 형식 변환 (rel_date: 4번째, view_date: 11번째 컬럼 예상)
+                    try:
+                        r_dt = pd.to_datetime(row[3])
+                        v_dt = pd.to_datetime(row[10])
+                        ry, rm, rd = str(r_dt.year), f"{r_dt.month:02d}", f"{r_dt.day:02d}"
+                        vy, vm, vd = str(v_dt.year), f"{v_dt.month:02d}", f"{v_dt.day:02d}"
+                    except:
+                        ry, rm, rd = "2026", "02", "20"
+                        vy, vm, vd = "2026", "02", "20"
 
-                        payload = {
-                            "entry.574529989": row[0],
-                            "entry.898076783": row[1],
-                            "entry.345368346": row[2],
-                            "entry.543246487": row[4],
-                            "entry.1816924330": row[5],
-                            "entry.270693677": row[6],
-                            "entry.891180756": str(row[7]).replace("KM", "km").replace("BPM", "bpm"),
-                            "entry.2056153041": row[8],
-                            "entry.780422311_year": ry,
-                            "entry.780422311_month": rm,
-                            "entry.780422311_day": rd,
-                            "entry.1446643193_year": vy,
-                            "entry.1446643193_month": vm,
-                            "entry.1446643193_day": vd
-                        }
-                        
-                        requests.post(GOOGLE_URL, data=payload)
-                        time.sleep(0.4)
-                        progress_bar.progress((i + 1) / len(rows))
-                        
-                    st.sidebar.success(f"✨ 백업 완료!")
+                    payload = {
+                        "entry.574529989": row[0],
+                        "entry.898076783": row[1],
+                        "entry.345368346": row[2],
+                        "entry.543246487": row[4],
+                        "entry.1816924330": row[5],
+                        "entry.270693677": row[6],
+                        "entry.891180756": str(row[7]).replace("KM", "km").replace("BPM", "bpm"),
+                        "entry.2056153041": row[8],
+                        "entry.780422311_year": ry,
+                        "entry.780422311_month": rm,
+                        "entry.780422311_day": rd,
+                        "entry.1446643193_year": vy,
+                        "entry.1446643193_month": vm,
+                        "entry.1446643193_day": vd
+                    }
+                    requests.post(GOOGLE_URL, data=payload)
+                    time.sleep(0.3) # 서버 무리 방지
+                    progress_bar.progress((i + 1) / len(rows))
+                
+                st.sidebar.success(f"✨ 총 {len(rows)}개 기록 백업을 완료했습니다!")
+        conn.close()
+            
     except Exception as e:
-        st.sidebar.error(f"백업 중 오류 발생: {e}")
+        st.sidebar.error(f"접근 오류: {e}")
 
 # --- [1. 스타일 및 설정] ---
 st.set_page_config(layout="wide", page_title="PRISM")
@@ -429,6 +424,7 @@ with tab2:
                                 if row['img_url']: st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
