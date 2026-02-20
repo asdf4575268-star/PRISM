@@ -223,74 +223,71 @@ with tab1:
         highlights = st.text_area("✨ 인상 깊은 부분", height=100)
         note = st.text_area("💬 감상", height=100)
         
-# 버튼을 우측으로 보내기 위해 컬럼을 나눕니다 (비율 4:1)
-col_left, col_right = st.columns([4, 1])
-
-with col_right:
-    if st.button("✅ 저장"):
-        # 1. 변수 안전장치 (NameError 방지)
-        safe_img_url = img_url_val if 'img_url_val' in locals() else ""
-        
-        # 2. 디자인 가이드: KM, BPM 소문자 처리
-        processed_note = note.replace("KM", "km").replace("BPM", "bpm")
-
-        # 3. 날짜 에러(AttributeError) 해결: 문자열을 날짜 객체로 변환
-        import pandas as pd
-        try:
-            # rel_date가 문자열일 경우를 대비해 변환
-            r_dt = pd.to_datetime(rel_date)
-            ry, rm, rd = str(r_dt.year), f"{r_dt.month:02d}", f"{r_dt.day:02d}"
+# 바로 아래에 버튼을 배치 (가로로 길게 들어갑니다)
+        if st.button("✅ 저장", use_container_width=True):
+            # 1. 변수 안전장치 (NameError 방지)
+            safe_img_url = img_url_val if 'img_url_val' in locals() else ""
             
-            # view_date도 변환
-            v_dt = pd.to_datetime(view_date)
-            vy, vm, vd = str(v_dt.year), f"{v_dt.month:02d}", f"{v_dt.day:02d}"
-        except Exception as e:
-            # 변환 실패 시 오늘 날짜로 방어
-            ry, rm, rd = "2026", "02", "20"
-            vy, vm, vd = "2026", "02", "20"
-            st.warning("날짜 형식이 올바르지 않아 기본값으로 설정되었습니다.")
+            # 2. 디자인 가이드: KM, BPM 소문자 처리
+            processed_note = note.replace("KM", "km").replace("BPM", "bpm")
 
-        # 4. 구글 설문지 전송 (날짜 쪼개기 방식)
-        BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
-        
-        payload = {
-            "entry.574529989": category,
-            "entry.898076783": title,
-            "entry.345368346": creator,
-            "entry.543246487": summary,
-            "entry.1816924330": brief,
-            "entry.270693677": highlights,
-            "entry.891180756": processed_note,
-            "entry.2056153041": safe_img_url,
-            "entry.780422311_year": ry,
-            "entry.780422311_month": rm,
-            "entry.780422311_day": rd,
-            "entry.1446643193_year": vy,
-            "entry.1446643193_month": vm,
-            "entry.1446643193_day": vd
-        }
+            # 3. 날짜 에러(AttributeError) 해결: 문자열을 날짜 객체로 변환
+            import pandas as pd
+            try:
+                # rel_date가 문자열일 경우를 대비해 변환
+                r_dt = pd.to_datetime(rel_date)
+                ry, rm, rd = str(r_dt.year), f"{r_dt.month:02d}", f"{r_dt.day:02d}"
+                
+                # view_date도 변환
+                v_dt = pd.to_datetime(view_date)
+                vy, vm, vd = str(v_dt.year), f"{v_dt.month:02d}", f"{v_dt.day:02d}"
+            except Exception as e:
+                # 변환 실패 시 오늘 날짜로 방어
+                ry, rm, rd = "2026", "02", "20"
+                vy, vm, vd = "2026", "02", "20"
+                st.warning("날짜 형식이 올바르지 않아 기본값으로 설정되었습니다.")
 
-        # 5. 실행 및 로컬 DB 저장
-        try:
-            # 구글 전송
-            res = requests.post(BACKUP_URL, data=payload, timeout=10)
+            # 4. 구글 설문지 전송 (날짜 쪼개기 방식)
+            BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
             
-            # 로컬 저장
-            with sqlite3.connect(DB_NAME) as conn:
-                conn.execute("""INSERT INTO archive 
-                    (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) 
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-                    (category, title, creator, str(rel_date), summary, brief, highlights, processed_note, safe_img_url, str(date.today()), str(view_date)))
-            
-            if res.status_code == 200:
-                st.success("✅ 로컬 저장 및 구글 백업 성공!")
-            else:
-                st.error(f"⚠️ 전송 실패 (코드: {res.status_code})")
-        except Exception as e:
-            st.error(f"❌ 오류 발생: {e}")
+            payload = {
+                "entry.574529989": category,
+                "entry.898076783": title,
+                "entry.345368346": creator,
+                "entry.543246487": summary,
+                "entry.1816924330": brief,
+                "entry.270693677": highlights,
+                "entry.891180756": processed_note,
+                "entry.2056153041": safe_img_url,
+                "entry.780422311_year": ry,
+                "entry.780422311_month": rm,
+                "entry.780422311_day": rd,
+                "entry.1446643193_year": vy,
+                "entry.1446643193_month": vm,
+                "entry.1446643193_day": vd
+            }
 
-        st.session_state.api_data = {}
-        st.rerun()
+            # 5. 실행 및 로컬 DB 저장
+            try:
+                # 구글 전송
+                res = requests.post(BACKUP_URL, data=payload, timeout=10)
+                
+                # 로컬 저장
+                with sqlite3.connect(DB_NAME) as conn:
+                    conn.execute("""INSERT INTO archive 
+                        (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) 
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                        (category, title, creator, str(rel_date), summary, brief, highlights, processed_note, safe_img_url, str(date.today()), str(view_date)))
+                
+                if res.status_code == 200:
+                    st.success("✅ 로컬 저장 및 구글 백업 성공!")
+                else:
+                    st.error(f"⚠️ 전송 실패 (코드: {res.status_code})")
+            except Exception as e:
+                st.error(f"❌ 오류 발생: {e}")
+
+            st.session_state.api_data = {}
+            st.rerun()
 # --- TAB 2: ARCHIVE ---
 with tab2:
     st.markdown("""
@@ -358,6 +355,7 @@ with tab2:
                                 if row['img_url']: st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
