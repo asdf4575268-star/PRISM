@@ -29,8 +29,8 @@ def shift_month(delta):
 
 st.markdown("""
     <style>
-    @import url('https://github.com/google/fonts/raw/main/ofl/blackhansans/BlackHanSans-Regular.ttf');
-    .act-name { font-size: 90px; font-family: 'BlackHanSans'; line-height: 1.1; margin: 0; }
+    @import url('https://fonts.googleapis.com/css2?family=Kirang+Haerang&family=Jolly+Lodger&family=Lacquer&display=swap');
+    .act-name { font-size: 90px; font-family: 'Kirang Haerang'; line-height: 1.1; margin: 0; }
     .date-text { font-size: 30px; color: #666; margin: 0; }
     .num-text { font-size: 60px; font-family: 'Jolly Lodger'; text-transform: lowercase; margin: 0; line-height: 1; }
     .cal-img-box { width:100%; aspect-ratio:1/1; overflow:hidden; border-radius:10px; margin-bottom:4px; border: 1px solid #eee; background-color: #f0f0f0; }
@@ -111,34 +111,19 @@ def search_kopis(query):
     except: return []
 
 # --- [3. 팝업 함수] ---
-# 수정 상태를 관리하는 세션 키
-    edit_key = f"is_editing_{item['id']}"
-    if edit_key not in st.session_state:
-        st.session_state[edit_key] = False
-
-    # 1. 상단 컨트롤 바 (양 끝 배치) [cite: 2026-02-12]
-    c_del, c_mid, c_edit = st.columns([0.1, 0.8, 0.1])
+@st.dialog("📋 기록 상세 정보", width="large")
+def show_details(item):
+    # Pandas Series(행) 데이터를 딕셔너리로 확실히 변환
+    if hasattr(item, 'to_dict'):
+        item = item.to_dict()
     
-    with c_del:
-        # 🗑️ 왼쪽 끝 삭제 버튼
-        if st.button("🗑️", key=f"del_btn_{item['id']}", use_container_width=True):
-            with sqlite3.connect(DB_NAME) as conn:
-                conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
-            st.rerun()
-
-    with c_edit:
-        # ✏️ 오른쪽 끝 수정 버튼 (토글 방식 대신 버튼으로 상태 전환)
-        icon = "❌" if st.session_state[edit_key] else "✏️"
-        if st.button(icon, key=f"edit_btn_{item['id']}", use_container_width=True):
-            st.session_state[edit_key] = not st.session_state[edit_key]
-            st.rerun()
-        
-    st.divider()
+    # 수정/조회 모드 전환
+    edit_mode = st.toggle("✏️ 수정 모드", key=f"tog_v2_{item['id']}")
     
-    # 2. 메인 레이아웃 (좌 이미지 / 우 상세정보)
     col_img, col_txt = st.columns([0.4, 0.6])
 
     with col_img:
+        # 이미지가 있으면 표시, 없으면 안내
         if item.get('img_url'):
             st.image(item['img_url'], use_container_width=True)
         else:
@@ -147,25 +132,25 @@ def search_kopis(query):
     with col_txt:
         if edit_mode:
             # --- [수정 모드] ---
-            with st.form(key=f"edit_form_final_{item['id']}"):
+            with st.form(key=f"edit_v2_{item['id']}"):
                 n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
-                n_creator = st.text_input("👤 Creator", value=str(item.get('creator', '')))
+                n_creator = st.text_input("👤 창작자", value=str(item.get('creator', '')))
+                n_rel = st.text_input("📅 작품 날짜", value=str(item.get('rel_date', '')))
                 
-                c1, c2 = st.columns(2)
+                # 감상일 날짜 객체 변환
                 try:
                     raw_v = str(item.get('view_date') or item.get('save_date'))[:10]
                     v_dt = datetime.strptime(raw_v, '%Y-%m-%d').date()
-                except: v_dt = date.today()
-                
-                n_view = c1.date_input("🍿 감상일", v_dt)
-                n_rel = c2.text_input("📅 작품 날짜", value=str(item.get('rel_date', '')))
+                except:
+                    v_dt = date.today()
+                n_view = st.date_input("🍿 감상일", v_dt)
 
-                n_brief = st.text_input("📝 요약", value=str(item.get('brief', '') or ''))
-                n_sum = st.text_area("📖 줄거리(URL)", value=str(item.get('summary', '') or ''), height=100)
-                n_high = st.text_area("✨ 인상 깊은 부분", value=str(item.get('highlights', '') or ''), height=100)
-                n_note = st.text_area("💬 감상", value=str(item.get('note', '') or ''), height=150)
+                n_brief = st.text_input("📝 요약", value=str(item.get('brief', '') if item.get('brief') else ''))
+                n_sum = st.text_area("📖 줄거리(첫줄 URL)", value=str(item.get('summary', '') if item.get('summary') else ''), height=150)
+                n_high = st.text_area("✨ 인상 깊은 부분", value=str(item.get('highlights', '') if item.get('highlights') else ''), height=100)
+                n_note = st.text_area("💬 감상", value=str(item.get('note', '') if item.get('note') else ''), height=100)
 
-                if st.form_submit_button("💾 저장하기", use_container_width=True):
+                if st.form_submit_button("💾 저장", use_container_width=True):
                     with sqlite3.connect(DB_NAME) as conn:
                         conn.execute("""
                             UPDATE archive 
@@ -175,26 +160,23 @@ def search_kopis(query):
                     st.rerun()
         else:
             # --- [조회 모드] ---
-            st.markdown(f'<p class="act-name" style="font-size: 25px; font-weight: bold; line-height: 1.1; margin-bottom: 10px;">{item.get("title")}</p>', unsafe_allow_html=True)         
+            # 1. 활동명 (90px)
+            st.markdown(f'<p class="act-name">{item.get("title")}</p>', unsafe_allow_html=True)
+            
+            # 2. URL 버튼 (summary 첫 줄에 URL이 있는 경우)
             content = str(item.get('summary', ''))
             urls = re.findall(r'(https?://[^\s]+)', content)
             if urls:
                 st.link_button("🌐 공식 정보 확인", urls[0], use_container_width=True)
             
-            st.write(f"**Creator:** {item.get('creator')}")
-            st.write(f"**작품날짜:** {item.get('rel_date')}")
+            # 3. 기본 정보
+            st.write(f"**창작자:** {item.get('creator')} | **작품날짜:** {item.get('rel_date')}")
             
-            # 감상일 (30px) [2026-02-12 날짜 크기 30]
+            # 4. 감상일 (30px)
             v_date = item.get('view_date') or item.get('save_date', '')
-            st.markdown(f'<p class="date-text">🍿 {v_date}</p>', unsafe_allow_html=True)
+            st.markdown(f'<p class="date-text">🍿 감상일: {v_date}</p>', unsafe_allow_html=True)
             
             st.divider()
-
-            # 요약, 줄거리, 인상, 감상 박스들
-            if item.get('brief'): st.success(f"**요약:** {item['brief']}")
-            if item.get('summary'): st.info(f"**상세:** {item['summary']}")
-            if item.get('highlights'): st.warning(f"**인상 깊은 부분:**\n\n{item['highlights']}")
-            if item.get('note'): st.write(f"**나의 감상:**\n\n{item['note']}")
 
             # 5. 상세 내용 (데이터가 비어있지 않으면 출력)
             def show_box(label, val, type="write"):
@@ -209,7 +191,12 @@ def search_kopis(query):
             show_box("📖 줄거리 / 상세", item.get('summary'), "info")
             show_box("✨ 인상 깊은 부분", item.get('highlights'), "warning")
             show_box("💬 감상", item.get('note'), "write")
-            
+
+            st.divider()
+            if st.button("🗑️ 삭제", key=f"del_{item['id']}", use_container_width=True):
+                with sqlite3.connect(DB_NAME) as conn:
+                    conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
+                st.rerun()
 # --- [4. 메인 화면 구성] ---
 tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 
@@ -271,7 +258,7 @@ with tab1:
         else:
             st.info("검색을 통해 이미지를 불러와주세요.")
         title = st.text_input("제목", value=data.get('title', ''))
-        creator = st.text_input("Creator 정보", value=data.get('creator', ''))
+        creator = st.text_input("창작자 정보", value=data.get('creator', ''))
         col1, col2 = st.columns(2)
         rel_date = col1.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
         view_date = col2.date_input("🍿 감상일", value=date.today())
@@ -382,7 +369,7 @@ with sub_tabs[0]:
                                 
                                 # 2. 날짜 (이미지 아래 작게)
                                 v_date = row['view_date'] if row['view_date'] else row['save_date']
-                                st.markdown(f'<p style="font-size:15px; color:gray; margin:2px 0; text-align:center;">{v_date}</p>', unsafe_allow_html=True)
+                                st.markdown(f'<p style="font-size:10px; color:gray; margin:2px 0; text-align:center;">{v_date}</p>', unsafe_allow_html=True)
                                 
                                 # 3. 제목 버튼 (5자 제한 적용하여 작게 유지)
                                 display_title = row['title'][:5] + ".." if len(row['title']) > 5 else row['title']
@@ -415,7 +402,7 @@ with sub_tabs[0]:
                                     st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 
                                 v_date = row['view_date'] if row['view_date'] else row['save_date']
-                                st.markdown(f'<p style="font-size:15px; color:#666; margin:5px 0; text-align:center;">{v_date}</p>', unsafe_allow_html=True)
+                                st.markdown(f'<p style="font-size:10px; color:gray; margin:0;">{v_date}</p>', unsafe_allow_html=True)
                                 
                                 display_title = row['title'][:5] + ".." if len(row['title']) > 5 else row['title']
                                 if st.button(display_title, key=f"btn_list_{idx}_{row['id']}", use_container_width=True):
@@ -423,24 +410,3 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
