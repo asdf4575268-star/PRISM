@@ -224,54 +224,62 @@ with tab1:
         note = st.text_area("💬 감상", height=100)
         
         if st.button("✅ 저장"):
-            # 1. 변수 안전장치 (에러 방지용)
-            # img_url_val이 정의되지 않았을 경우를 대비해 빈 문자열로 초기화합니다.
+            # 1. 변수 안전장치 (NameError 방지)
             safe_img_url = ""
             if 'img_url_val' in locals():
                 safe_img_url = img_url_val
             elif 'api_data' in st.session_state and 'image_url' in st.session_state.api_data:
                 safe_img_url = st.session_state.api_data['image_url']
 
-            # 2. 디자인 가이드: KM, BPM 소문자 처리
+            # 2. KM, BPM 소문자 처리
             processed_note = note.replace("KM", "km").replace("BPM", "bpm")
             
-            # 3. 로컬 SQLite DB 저장
+            # 3. 로컬 DB 저장
             try:
                 with sqlite3.connect(DB_NAME) as conn:
                     conn.execute("""INSERT INTO archive 
                         (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) 
                         VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-                        (category, title, creator, str(rel_date), summary, brief, highlights, processed_note, safe_img_url, str(date.today()), str(view_date)))
+                        (str(category), str(title), str(creator), str(rel_date), str(summary), 
+                         str(brief), str(highlights), str(processed_note), str(safe_img_url), 
+                         str(date.today()), str(view_date)))
             except Exception as e:
-                st.error(f"로컬 DB 저장 실패: {e}")
+                st.error(f"로컬 저장 실패: {e}")
 
-            # 4. 구글 설문지 전송 (단답형 전용 세팅)
-            # 질문 유형을 단답형으로 바꾸셨으므로 _year, _month 없이 숫자 ID만 사용합니다.
+            # 4. 구글 설문지 전송 (단답형 전용)
+            # ⚠️ 여기서 entry 번호가 틀리면 내용이 안 들어갑니다.
             BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
             
             payload = {
-                "entry.574529989": category,      # 카테고리
-                "entry.898076783": title,         # 제목
-                "entry.345368346": creator,       # 창작자
-                "entry.543246487": summary,       # 줄거리
-                "entry.1816924330": brief,        # 요약
-                "entry.270693677": highlights,    # 인상 깊은 부분
-                "entry.891180756": processed_note,# 감상
-                "entry.2056153041": safe_img_url, # 이미지 URL
-                "entry.780422311": str(rel_date), # 작품 날짜 (단답형은 문자열로 바로 전송)
-                "entry.1446643193": str(view_date)# 감상 날짜 (단답형은 문자열로 바로 전송)
+                "entry.574529989": str(category),
+                "entry.898076783": str(title),
+                "entry.345368346": str(creator),
+                "entry.543246487": str(summary),
+                "entry.1816924330": str(brief),
+                "entry.270693677": str(highlights),
+                "entry.891180756": str(processed_note),
+                "entry.2056153041": str(safe_img_url),
+                "entry.780422311": str(rel_date),
+                "entry.1446643193": str(view_date)
             }
             
             try:
-                # 단답형은 헤더 없이 보내는 것이 가장 깔끔하게 들어갑니다.
-                res = requests.post(BACKUP_URL, data=payload, timeout=10)
+                # 헤더를 브라우저처럼 위장하여 전송 (차단 방지)
+                headers = {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "User-Agent": "Mozilla/5.0"
+                }
+                res = requests.post(BACKUP_URL, data=payload, headers=headers)
                 
                 if res.status_code == 200:
-                    st.success("✅ 로컬 DB 및 구글 시트 저장 성공!")
+                    st.success("✅ 로컬 및 구글 백업 완료!")
                 else:
-                    st.warning(f"⚠️ 응답은 가는데 시트 확인 필요 (코드: {res.status_code})")
+                    # 실패 시 구글이 보낸 에러 메시지를 직접 확인합니다.
+                    st.error(f"⚠️ 전송 실패 (코드: {res.status_code})")
+                    with st.expander("상세 에러 보기"):
+                        st.write(res.text) # 여기에 "필수 질문이 누락됨" 등이 뜰 수 있습니다.
             except Exception as e:
-                st.error(f"❌ 전송 오류: {e}")
+                st.error(f"❌ 네트워크 연결 오류: {e}")
 
             # 5. 새로고침
             st.session_state.api_data = {}
@@ -343,6 +351,7 @@ with tab2:
                                 if row['img_url']: st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
