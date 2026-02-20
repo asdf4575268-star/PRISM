@@ -142,7 +142,7 @@ def show_details(item):
         # 💡 상태에 따라 화면 분기 (st.rerun 없이 내부에서 바뀜)
         if st.session_state[edit_key]:
             # --- [수정 모드] ---
-            st.markdown("### ✏️ 정보 수정")
+            st.markdown()
             with st.form(key=f"edit_f_{item['id']}"):
                 n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
                 n_creator = st.text_input("👤 창작자", value=str(item.get('creator', '')))
@@ -412,6 +412,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
