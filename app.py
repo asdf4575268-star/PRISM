@@ -384,40 +384,45 @@ with tab2:
 
     sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
 
-    # --- 1. Yearly 탭 (기존 유지) ---
     with sub_tabs[0]:
-        if not all_df.empty:
-            all_df['v_dt'] = pd.to_datetime(all_df['view_date'].fillna(all_df['save_date']))
-            all_df['year_int'] = all_df['v_dt'].dt.year
-            all_df['month_int'] = all_df['v_dt'].dt.month
-            yearly_df = all_df.sort_values(by='v_dt', ascending=False)
-            
-            raw_years = sorted(list(yearly_df['year_int'].unique()), reverse=True)
-            sel_y = st.selectbox("연도 선택", raw_years, key="yr_sel")
-            
-            year_data = yearly_df[yearly_df['year_int'] == sel_y]
-            for month in range(12, 0, -1):
-                month_data = year_data[year_data['month_int'] == month]
-                if not month_data.empty:
-                    st.markdown(f"### 🗓️ {month}월")
-                    items = month_data.to_dict('records')
-                    for i in range(0, len(items), 6):
-                        cols = st.columns(6)
-                        for j in range(6):
-                            if i + j < len(items):
-                                row = items[i + j]
-                                with cols[j]:
-                                    v_date_mmdd = row['view_date'][-5:] if row['view_date'] else ""
-                                    img_html = f'''
-                                        <div class="cal-img-box">
-                                            <div class="badge badge-left">{row['category']}</div>
-                                            <div class="badge badge-right">{v_date_mmdd}</div>
-                                            <img src="{row["img_url"]}">
-                                        </div>'''
-                                    st.markdown(img_html, unsafe_allow_html=True)
-                                    if st.button(f"{row['title'][:5]}..", key=f"yr_{row['id']}", use_container_width=True): 
-                                        show_details(row)
-                    st.divider()
+    if not all_df.empty:
+        all_df['v_dt'] = pd.to_datetime(all_df['view_date'].fillna(all_df['save_date']))
+        all_df['year_int'] = all_df['v_dt'].dt.year
+        all_df['month_int'] = all_df['v_dt'].dt.month
+        yearly_df = all_df.sort_values(by='v_dt', ascending=False)
+        
+        raw_years = sorted(list(yearly_df['year_int'].unique()), reverse=True)
+        sel_y = st.selectbox("연도 선택", raw_years, key="yr_sel")
+        
+        year_data = yearly_df[yearly_df['year_int'] == sel_y]
+        for month in range(12, 0, -1):
+            month_data = year_data[year_data['month_int'] == month]
+            if not month_data.empty:
+                st.markdown(f"### 🗓️ {month}월")
+                items = month_data.to_dict('records')
+                for i in range(0, len(items), 6):
+                    cols = st.columns(6)
+                    for j in range(6):
+                        if i + j < len(items):
+                            row = items[i + j]
+                            with cols[j]:
+                                # [수정] 날짜에서 '일'만 추출하여 'nn일' 형식으로 변환
+                                try:
+                                    day_val = pd.to_datetime(row['view_date']).day
+                                    v_date_display = f"{day_val}일"
+                                except:
+                                    v_date_display = ""
+
+                                img_html = f'''
+                                    <div class="cal-img-box">
+                                        <div class="badge badge-left">{row['category']}</div>
+                                        <div class="badge badge-right">{v_date_display}</div>
+                                        <img src="{row["img_url"]}">
+                                    </div>'''
+                                st.markdown(img_html, unsafe_allow_html=True)
+                                if st.button(f"{row['title'][:5]}..", key=f"yr_{row['id']}", use_container_width=True): 
+                                    show_details(row)
+                st.divider()
 
     # --- 2. 카테고리 탭 (수정된 부분) ---
     cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
@@ -445,3 +450,4 @@ with tab2:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
