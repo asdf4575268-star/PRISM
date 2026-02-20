@@ -295,13 +295,6 @@ with tab1:
             st.session_state.api_data = {}
             st.rerun()
 # --- TAB 2: ARCHIVE ---
-이미지 위에 배지 형태로 띄우는 게 오히려 가독성을 해치고 이상하게 보였나 보네요! 복잡한 스타일은 다 걷어내고, 원래 깔끔했던 방식으로 돌아가겠습니다.
-
-요청하신 대로 날짜는 yyyy-mm-dd 전체 형식이 다 보이게 수정하고, 모든 요소를 가운데 정렬로 다시 맞췄습니다.
-
-🛠️ Tab 2 복구 및 날짜 형식 수정 코드
-Python
-# --- TAB 2: ARCHIVE ---
 with tab2:
     st.markdown("""
         <style>
@@ -399,3 +392,4 @@ with tab2:
                                 v_date_full = row['view_date'] if row['view_date'] else ""
                                 st.caption(v_date_full)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
