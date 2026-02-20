@@ -12,75 +12,6 @@ import pandas as pd
 import requests
 from datetime import date
 
-#if st.sidebar.button("📦 과거 기록 전체 백업하기"):
-    MY_DB_FILE = 'archive_prism_total_v4.db' 
-    # 반드시 /formResponse로 끝나는지 확인하세요!
-    GOOGLE_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
-    
-    try:
-        conn = sqlite3.connect(MY_DB_FILE)
-        conn.row_factory = sqlite3.Row 
-        cursor = conn.cursor()
-        
-        # 테이블명을 확인하여 데이터를 가져옵니다.
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        tables = [t[0] for t in cursor.fetchall() if t[0] != 'sqlite_sequence']
-        
-        if tables:
-            target_table = tables[0]
-            cursor.execute(f"SELECT * FROM {target_table}")
-            rows = cursor.fetchall()
-            
-            st.sidebar.info(f"🚀 {len(rows)}개 전송 중... (날짜 형식 보정 적용)")
-            progress_bar = st.sidebar.progress(0)
-            
-            for i, row in enumerate(rows):
-                # 날짜 처리: 데이터가 어떻게 들어있든 강제로 YYYY-MM-DD 문자로 만듭니다.
-                try:
-                    rel_d = pd.to_datetime(row['rel_date']).strftime('%Y-%m-%d')
-                    view_d = pd.to_datetime(row['view_date']).strftime('%Y-%m-%d')
-                except:
-                    rel_d, view_d = "2026-02-20", "2026-02-20"
-
-                # 400 에러 방지: 모든 값을 문자열로 변환하고 양끝 공백 제거
-                payload = {
-                    "entry.574529989": str(row['category']).strip(),
-                    "entry.898076783": str(row['title']).strip(),
-                    "entry.345368346": str(row['creator']).strip(),
-                    "entry.543246487": str(row['summary']).strip(),
-                    "entry.1816924330": str(row['brief']).strip(),
-                    "entry.270693677": str(row['highlights']).strip(),
-                    "entry.891180756": str(row['note']).replace("KM", "km").replace("BPM", "bpm").strip(),
-                    "entry.2056153041": str(row['img_url']).strip(),
-                    
-                    # 날짜 유형 질문은 아래 형식이 정석입니다. (YYYY-MM-DD)
-                    "entry.780422311": rel_d,
-                    "entry.1446643193": view_d
-                }
-                
-                # 전송 시도
-                res = requests.post(GOOGLE_URL, data=payload)
-                
-                # 만약 날짜 유형 때문에 400이 또 난다면, 쪼개기 방식으로 자동 전환
-                if res.status_code == 400:
-                    ry, rm, rd = rel_d.split('-')
-                    vy, vm, vd = view_d.split('-')
-                    payload.update({
-                        "entry.780422311_year": ry, "entry.780422311_month": rm, "entry.780422311_day": rd,
-                        "entry.1446643193_year": vy, "entry.1446643193_month": vm, "entry.1446643193_day": vd
-                    })
-                    res = requests.post(GOOGLE_URL, data=payload)
-
-                if res.status_code != 200:
-                    st.sidebar.error(f"❌ {i+1}번 전송 실패: {res.status_code}")
-                
-                time.sleep(0.5) 
-                progress_bar.progress((i + 1) / len(rows))
-                
-            st.sidebar.success("✨ 백업 완료!")
-        conn.close()
-    except Exception as e:
-        st.sidebar.error(f"⚠️ 오류: {e}")
 
 # --- [1. 스타일 및 설정] ---
 st.set_page_config(layout="wide", page_title="PRISM")
@@ -430,6 +361,7 @@ with tab2:
                                 if row['img_url']: st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
