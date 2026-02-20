@@ -111,28 +111,25 @@ def search_kopis(query):
     except: return []
 
 # --- [3. 팝업 함수] ---
-@st.dialog("📋 기록", width="medium")
-def show_details(item):
-    if hasattr(item, 'to_dict'):
-        item = item.to_dict()
+# 수정 상태를 관리하는 세션 키
     edit_key = f"is_editing_{item['id']}"
     if edit_key not in st.session_state:
         st.session_state[edit_key] = False
-    
-    # 1. 상단 컨트롤 바 (토글과 삭제 버튼을 나란히)
+
+    # 1. 상단 컨트롤 바 (양 끝 배치) [cite: 2026-02-12]
     c_del, c_mid, c_edit = st.columns([0.1, 0.8, 0.1])
     
     with c_del:
-        # 🗑️ 왼쪽 끝 배치
-        if st.button("🗑️", key=f"del_btn_{item['id']}", help="삭제"):
+        # 🗑️ 왼쪽 끝 삭제 버튼
+        if st.button("🗑️", key=f"del_btn_{item['id']}", use_container_width=True):
             with sqlite3.connect(DB_NAME) as conn:
                 conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
             st.rerun()
 
     with c_edit:
-        # ✏️ 오른쪽 끝 배치
-        edit_label = "❌" if st.session_state[edit_key] else "✏️"
-        if st.button(edit_label, key=f"edit_btn_{item['id']}", use_container_width=True, help="수정"):
+        # ✏️ 오른쪽 끝 수정 버튼 (토글 방식 대신 버튼으로 상태 전환)
+        icon = "❌" if st.session_state[edit_key] else "✏️"
+        if st.button(icon, key=f"edit_btn_{item['id']}", use_container_width=True):
             st.session_state[edit_key] = not st.session_state[edit_key]
             st.rerun()
         
@@ -426,6 +423,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
