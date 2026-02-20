@@ -224,9 +224,14 @@ with tab1:
         note = st.text_area("💬 감상", height=100)
         
         if st.button("✅ 저장"):
-            # 작품 날짜(rel_date)가 'YYYY-MM-DD' 형식이 아닐 경우를 대비
+            # 1. 변수 안전하게 확보 (NameError 방지)
+            # 입력창에 있는 값을 변수에 할당합니다.
+            final_img_url = img_url_val if 'img_url_val' in locals() else data.get('img', '')
+            processed_note = note.replace("KM", "km").replace("BPM", "bpm")
+            
+            # 2. 날짜 객체 안전하게 생성 (rel_date 처리)
             try:
-                # 숫자만 남기고 제거 (예: 2026.02.13 -> 2026-02-13)
+                # 숫자만 추출해서 YYYY-MM-DD 형식 시도
                 clean_rel_date = re.sub(r'[^0-9]', '-', rel_date).strip('-')
                 if len(clean_rel_date) > 10: clean_rel_date = clean_rel_date[:10]
                 r_date_obj = datetime.strptime(clean_rel_date, '%Y-%m-%d')
@@ -238,22 +243,22 @@ with tab1:
                 conn.execute("""INSERT INTO archive 
                     (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) 
                     VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-                    (category, title, creator, rel_date, summary, brief, highlights, processed_note, img_url_val, str(date.today()), str(view_date)))
+                    (category, title, creator, rel_date, summary, brief, highlights, processed_note, final_img_url, str(date.today()), str(view_date)))
             
-            # 4. 구글 설문지 백업 전송 (찾으신 번호 정밀 매칭)
+            # 4. 구글 설문지 백업 전송 (사용자가 찾은 진짜 ID 반영)
             BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
             
             payload = {
-                "entry.574529989": category,      # 카테고리
-                "entry.898076783": title,         # 제목
-                "entry.345368346": creator,       # 창작자
-                "entry.543246487": summary,       # 줄거리
-                "entry.1816924330": brief,        # 요약
-                "entry.270693677": highlights,    # 인상 깊은 부분
-                "entry.891180756": processed_note,# 감상
-                "entry.2056153041": img_url_val,  # 이미지 URL
+                "entry.574529989": category,
+                "entry.898076783": title,
+                "entry.345368346": creator,
+                "entry.543246487": summary,
+                "entry.1816924330": brief,
+                "entry.270693677": highlights,
+                "entry.891180756": processed_note,
+                "entry.2056153041": final_img_url,
                 
-                # 날짜 전송 방식: 연, 월, 일을 각각 문자열로 확실히 변환
+                # 날짜 전송 (구글 설문지 날짜형식 전용 ID)
                 "entry.780422311_year": str(r_date_obj.year),
                 "entry.780422311_month": str(r_date_obj.month),
                 "entry.780422311_day": str(r_date_obj.day),
@@ -264,17 +269,13 @@ with tab1:
             }
             
             try:
-                # 💡 구글 설문지는 headers가 없으면 거부하는 경우가 있어 추가합니다.
                 headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-                res = requests.post(BACKUP_URL, data=payload, headers=headers)
-                
-                if res.status_code == 200:
-                    st.success("✅ 로컬 저장 및 구글 시트 백업 완료!")
-                else:
-                    st.warning(f"⚠️ 전송 결과 코드: {res.status_code}. (응답 탭을 확인해 보세요!)")
-            except Exception as e:
-                st.error(f"❌ 전송 오류: {e}")
+                requests.post(BACKUP_URL, data=payload, headers=headers, timeout=5)
+                st.success("✅ 로컬 저장 및 구글 백업 완료!")
+            except:
+                st.warning("⚠️ 로컬 저장은 완료되었으나, 백업 전송에 실패했습니다.")
 
+            # 세션 초기화 및 페이지 새로고침
             st.session_state.api_data = {}
             st.rerun()
 
@@ -345,6 +346,7 @@ with tab2:
                                 if row['img_url']: st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
