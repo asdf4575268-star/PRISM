@@ -120,7 +120,7 @@ def show_details(item):
     # 수정/조회 모드 전환
     edit_mode = st.toggle("✏️ 수정 모드", key=f"tog_v2_{item['id']}")
     
-    col_img, col_txt = st.columns([0.4, 0.6])
+    col_img, col_txt = st.columns([0.3, 0.7])
 
     with col_img:
         # 이미지가 있으면 표시, 없으면 안내
@@ -247,7 +247,7 @@ with tab1:
     st.divider()
     # 입력 폼 생략 (사용자 코드와 동일하게 유지)
     data = st.session_state.get('api_data', {})
-    cl, cr = st.columns([0.4, 0.6])
+    cl, cr = st.columns([0.3, 0.7])
     with cl:
         img_url_val = st.text_input("🖼️ 이미지", value=data.get('img', ''))
         if img_url_val: 
@@ -407,6 +407,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
