@@ -99,21 +99,23 @@ def search_kopis(query):
 col_empty, col_btn = st.columns([0.85, 0.15]) 
 
 # --- [3. 팝업 함수] ---
-@st.dialog("📋 기록 정보", width="medium")
+@st.dialog("📋 기록 상세 정보", width="large")
 def show_details(item):
     if hasattr(item, 'to_dict'): item = item.to_dict()
     
-    # 1. 상단 버튼 바 (삭제 - 여백 - 수정)
+    # --- [상단 툴바] ---
     t_col1, t_col2, t_col3 = st.columns([0.2, 0.6, 0.2])
+    
     with t_col1:
-        if st.button("🗑️ 삭제", key=f"del_{item['id']}", use_container_width=True):
+        # [수정] key 값 뒤에 '_dialog'를 붙여서 중복을 피합니다.
+        if st.button("🗑️ 삭제", key=f"del_{item['id']}_dialog", use_container_width=True):
             with sqlite3.connect(DB_NAME) as conn:
                 conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
             st.rerun()
-    with t_col2:
-        pass # 여백
+
     with t_col3:
-        edit_mode = st.toggle("✏️ 수정", key=f"tog_v2_{item['id']}")
+        # [수정] 토글의 key 값도 '_dialog'를 붙여주는 것이 안전합니다.
+        edit_mode = st.toggle("✏️ 수정", key=f"tog_{item['id']}_dialog")
 
     st.divider()
 
@@ -406,6 +408,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
