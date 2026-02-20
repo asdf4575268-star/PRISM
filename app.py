@@ -302,7 +302,7 @@ with tab2:
             }
         }
         
-        .cal-img-box { width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 6px; margin-top: 2px; }
+        .cal-img-box { width: 60%; aspect-ratio: 1/1; overflow: hidden; border-radius: 6px; margin-top: 2px; }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
         div.stButton > button { text-transform: lowercase !important; font-size: 10px !important; }
         </style>
@@ -408,6 +408,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
