@@ -223,7 +223,6 @@ with tab_write:
     cl, cr = st.columns([0.4, 0.6])
     
     with cl:
-        st.subheader("🖼️ Media Preview")
         img_url_val = st.text_input("이미지 URL", value=data.get('img', ''))
         if img_url_val: st.image(img_url_val, use_container_width=True)
         else: st.info("이미지 URL을 입력하거나 검색하면 여기에 표시됩니다.")
@@ -234,13 +233,12 @@ with tab_write:
         view_date = st.date_input("🍿 감상일", value=date.today())
 
     with cr:
-        st.subheader("📝 Record Details")
-        summary = st.text_area("📖 상세 줄거리/링크", value=data.get('summary', ''), height=150)
-        brief = st.text_input("📝 한 줄 요약")
+        summary = st.text_area("📖 줄거리", value=data.get('summary', ''), height=150)
+        brief = st.text_input("📝 요약")
         highlights = st.text_area("✨ 인상 깊은 부분", height=100)
-        note = st.text_area("💬 개인적인 감상", height=200)
+        note = st.text_area("💬 감상", height=200)
         
-        if st.button("✅ 데이터베이스에 안전하게 저장", use_container_width=True):
+        if st.button("✅ 저장", use_container_width=True):
             if not title:
                 st.error("제목은 필수입니다.")
             else:
@@ -297,3 +295,4 @@ with tab_archive:
                                     if row['img_url']: st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:8], key=f"cat_{idx}_{row['id']}", use_container_width=True):
                                         show_details(row)
+
