@@ -1,3 +1,21 @@
+import os
+
+# 현재 폴더와 하위 폴더에서 모든 db 파일을 찾아 출력합니다.
+st.write("### 🔎 내 컴퓨터 DB 파일 찾기 결과")
+found_files = []
+for root, dirs, files in os.walk("."):
+    for file in files:
+        if file.endswith(".db"):
+            full_path = os.path.join(root, file)
+            size = os.path.getsize(full_path) / 1024  # KB 단위
+            found_files.append(f"파일명: {file} | 경로: {full_path} | 용량: {size:.2f} KB")
+
+if found_files:
+    for f in found_files:
+        st.write(f)
+else:
+    st.error("현재 폴더 주변에서 .db 파일을 하나도 찾지 못했습니다.")
+
 import streamlit as st
 import sqlite3
 import requests
@@ -359,3 +377,4 @@ with tab2:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
