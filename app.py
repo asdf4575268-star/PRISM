@@ -109,24 +109,6 @@ def search_kopis(query):
         root = ET.fromstring(res.content)
         return [{'title': d.findtext('prfnm'), 'id': d.findtext('mt20id'), 'img': d.findtext('poster'), 'date': d.findtext('prfpdfrom'), 'venue': d.findtext('fcltynm')} for d in root.findall('db')]
     except: return []
-def auto_fill_data():
-    """기존 DB 기록 선택 시 입력 폼의 key값들에 직접 데이터 할당"""
-    selected_title = st.session_state.get('selected_archive_title')
-    if selected_title and selected_title != "선택하세요":
-        with sqlite3.connect(DB_NAME) as conn:
-            df = pd.read_sql("SELECT * FROM archive WHERE title = ?", conn, params=(selected_title,))
-            if not df.empty:
-                row = df.iloc[0]
-                
-                # 위젯의 key값과 동일한 이름을 session_state에 업데이트
-                st.session_state["w_title"] = row['title'].lower()
-                st.session_state["w_creator"] = row['creator']
-                st.session_state["w_img"] = row['img_url']
-                st.session_state["w_rel_date"] = row['rel_date']
-                st.session_state["w_summary"] = row['summary']
-                st.session_state["w_brief"] = row['brief']
-                st.session_state["w_highlights"] = row['highlights']
-                st.session_state["w_note"] = row['note']
 
 # --- [3. 팝업 함수] ---
 @st.dialog("📋 기록 상세 정보", width="large")
@@ -218,87 +200,79 @@ def show_details(item):
 # --- [4. 메인 화면 구성] ---
 tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 
-# --- TAB 1: WRITE ---
-# --- TAB 1: WRITE (API 검색 결과 자동 연동) ---
 with tab1:
     category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"], horizontal=True)
     search_query = st.text_input(f"🔍 {category} 검색")
     
     if search_query:
-        # 1. API 검색 수행
         if category == "BOOKS":
             res = search_books(search_query)
-            opts = {f"📚 {b['title']}": b for b in res} if res else {}
+            if res:
+                opts = {f"📚 {b['title']}": b for b in res}
+                sel = st.selectbox("결과 선택", list(opts.keys()))
+                if st.button("✨ 가져오기"):
+                    b = opts[sel]
+                    st.session_state.api_data = {'title': b['title'], 'creator': f"{', '.join(b['authors'])}", 'date': b['datetime'][:10], 'img': b.get('thumbnail', '').replace("R120x174", "R400x0"), 'summary': f"{b['url']}\n\n{b.get('contents', '')}"}
+                    st.rerun()
+
         elif category == "MUSIC":
             res = search_apple_music(search_query)
-            opts = {m['display_name']: m for m in res} if res else {}
+            if res:
+                opts = {m['display_name']: m for m in res}
+                sel = st.selectbox("결과 선택 (SINGLE/ALBUM)", list(opts.keys()))
+                if st.button("✨ 가져오기"):
+                    m = opts[sel]
+                    st.session_state.api_data = {'title': m['title'], 'creator': m['creator'], 'date': m['date'], 'img': m['img'], 'summary': f"{m['url']}\n\n"}
+                    st.rerun()
+
         elif category == "STAGE":
             res = search_kopis(search_query)
-            opts = {f"🎭 {s['title']} ({s['venue']})": s for s in res_list} if res else {}
+            if res:
+                opts = {f"🎭 {s['title']} ({s['venue']})": s for s in res}
+                sel = st.selectbox("결과 선택", list(opts.keys()))
+                if st.button("✨ 가져오기"):
+                    s = opts[sel]
+                    st.session_state.api_data = {'title': s['title'], 'creator': f"@{s['venue']}", 'date': s['date'], 'img': s['img'], 'summary': ''}
+                    st.rerun()
+
         else: # MOVIES, SERIES
             res = search_tmdb(search_query, category)
-            t_key = 'title' if category == 'MOVIES' else 'name'
-            opts = {f"🎬 {r.get(t_key)}": r for r in res} if res else {}
-
-        # 2. 결과 선택 셀렉트박스 (선택하는 즉시 실행)
-        if opts:
-            # "선택하세요"를 맨 앞에 두어 처음엔 아무것도 안 불러오게 설정
-            sel = st.selectbox("결과 선택", ["선택하세요"] + list(opts.keys()), key="api_result_selector")
-            
-            if sel != "선택하세요":
-                # 💡 버튼 없이 여기서 바로 session_state를 채워버립니다.
-                item = opts[sel]
-                
-                if category == "BOOKS":
-                    st.session_state.api_data = {
-                        'title': item['title'].lower(),
-                        'creator': ", ".join(item['authors']),
-                        'date': item['datetime'][:10],
-                        'img': item.get('thumbnail', '').replace("R120x174", "R400x0"),
-                        'summary': f"{item['url']}\n\n{item.get('contents', '')}"
-                    }
-                elif category == "MUSIC":
-                    st.session_state.api_data = {
-                        'title': item['title'].lower(),
-                        'creator': item['creator'],
-                        'date': item['date'],
-                        'img': item['img'],
-                        'summary': f"{item['url']}\n\n"
-                    }
-                elif category == "STAGE":
-                    st.session_state.api_data = {
-                        'title': item['title'].lower(),
-                        'creator': f"@{item['venue']}",
-                        'date': item['date'],
-                        'img': item['img'],
-                        'summary': ''
-                    }
-                else: # MOVIES, SERIES
-                    t_key = 'title' if category == 'MOVIES' else 'name'
-                    d_key = 'release_date' if category == 'MOVIES' else 'first_air_date'
-                    st.session_state.api_data = {
-                        'title': item.get(t_key).lower(),
-                        'creator': get_tmdb_details(item['id'], category),
-                        'date': item.get(d_key),
-                        'img': f"https://image.tmdb.org/t/p/w500{item.get('poster_path')}",
-                        'summary': item.get('overview', '')
-                    }
-                # 💡 값을 채운 뒤 화면을 새로고침하여 아래 입력폼에 바로 나타나게 함
-                st.rerun()
+            if res:
+                t_key = 'title' if category == 'MOVIES' else 'name'
+                d_key = 'release_date' if category == 'MOVIES' else 'first_air_date'
+                opts = {f"🎬 {r.get(t_key)}": r for r in res}
+                sel = st.selectbox("결과 선택", list(opts.keys()))
+                if st.button("✨ 가져오기"):
+                    s = opts[sel]
+                    st.session_state.api_data = {'title': s.get(t_key), 'creator': get_tmdb_details(s['id'], category), 'date': s.get(d_key), 'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", 'summary': s.get('overview', '')}
+                    st.rerun()
 
     st.divider()
-
-    # --- 아래 입력 폼 영역 (기존과 동일하지만 value=data.get(...) 방식 유지) ---
+    # 입력 폼 생략 (사용자 코드와 동일하게 유지)
     data = st.session_state.get('api_data', {})
     cl, cr = st.columns([0.4, 0.6])
-    
     with cl:
         img_url_val = st.text_input("🖼️ 이미지", value=data.get('img', ''))
-        if img_url_val: st.image(img_url_val, use_container_width=True)
-        
-        # [2026-02-13] km, bpm 소문자 자동화를 위해 title에 lower() 적용
+        if img_url_val: 
+            st.image(img_url_val, use_container_width=True)
+        else:
+            st.info("검색을 통해 이미지를 불러와주세요.")
         title = st.text_input("제목", value=data.get('title', ''))
         creator = st.text_input("창작자 정보", value=data.get('creator', ''))
+        col1, col2 = st.columns(2)
+        rel_date = col1.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
+        view_date = col2.date_input("🍿 감상일", value=date.today())
+    with cr:
+        summary = st.text_area("📖 줄거리", value=data.get('summary', ''), height=150)
+        brief = st.text_input("📝 요약")
+        highlights = st.text_area("✨ 인상 깊은 부분", height=100)
+        note = st.text_area("💬 감상", height=100)
+        if st.button("✅ 저장"):
+            with sqlite3.connect(DB_NAME) as conn:
+                conn.execute("INSERT INTO archive (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                             (category, title, creator, rel_date, summary, brief, highlights, note, img_url_val, str(date.today()), str(view_date)))
+            st.session_state.api_data = {}
+            st.rerun()
 
 # --- TAB 2: ARCHIVE ---
 with tab2:
@@ -436,5 +410,3 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
-
-
