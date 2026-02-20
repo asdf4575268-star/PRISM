@@ -121,7 +121,7 @@ def show_details(item):
     st.divider()
 
     # 2. 이미지와 텍스트 레이아웃 분리 (여기서 컬럼 정의!)
-    col_img, col_txt = st.columns([0.3, 0.7])
+col_img, col_txt = st.columns([0.3, 0.7])
 
     with col_img:
         if item.get('img_url'): st.image(item['img_url'], use_container_width=True)
@@ -409,6 +409,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
