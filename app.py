@@ -111,7 +111,7 @@ def search_kopis(query):
 col_empty, col_btn = st.columns([0.85, 0.15]) 
 
 with col_btn:
-    if st.button("📦 전체 백업", use_container_width=True):
+    if st.button("📦 BACKUP", use_container_width=True):
         MY_DB_FILE = 'archive_prism_total_v4.db' 
         GOOGLE_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
         
@@ -446,6 +446,7 @@ with tab2:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
