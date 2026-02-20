@@ -61,6 +61,12 @@ def init_db():
                          rel_date TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, img_url TEXT, save_date TEXT, view_date TEXT)''')
 init_db()
 
+def get_db_count():
+    try:
+        with sqlite3.connect(DB_NAME) as conn:
+            return conn.execute("SELECT COUNT(*) FROM archive").fetchone()[0]
+    except: return 0
+
 # --- [2. API 함수 정의 구역] ---
 def search_books(query):
     headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
@@ -359,3 +365,4 @@ with tab2:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
