@@ -115,6 +115,9 @@ def search_kopis(query):
 def show_details(item):
     if hasattr(item, 'to_dict'):
         item = item.to_dict()
+    edit_key = f"is_editing_{item['id']}"
+    if edit_key not in st.session_state:
+        st.session_state[edit_key] = False
     
     # 1. 상단 컨트롤 바 (토글과 삭제 버튼을 나란히)
     c_del, c_mid, c_edit = st.columns([0.1, 0.8, 0.1])
@@ -423,6 +426,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
