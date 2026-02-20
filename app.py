@@ -125,7 +125,7 @@ def show_details(item):
     with c_head2:
         # 다시 이전처럼 직관적인 토글 스위치로 복구
         edit_mode = st.toggle("✏️", key=f"tog_v2_{item['id']}")
-            st.rerun()
+        st.rerun()
 
     st.divider()
     
@@ -417,6 +417,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
