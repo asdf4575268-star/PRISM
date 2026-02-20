@@ -224,8 +224,15 @@ with tab1:
         note = st.text_area("💬 감상", height=100)
         
         if st.button("✅ 저장"):
-            # KM, BPM 소문자 처리
+            # KM, BPM 소문자 처리 디자인 가이드 반영
             processed_note = note.replace("KM", "km").replace("BPM", "bpm")
+            
+            # 날짜 데이터 분리 (구글 설문지 날짜 형식 대응)
+            # rel_date가 '2026-02-13' 형태라고 가정
+            try:
+                r_date_obj = datetime.strptime(rel_date, '%Y-%m-%d')
+            except:
+                r_date_obj = datetime.now()
             
             # 1. 로컬 SQLite DB 저장
             with sqlite3.connect(DB_NAME) as conn:
@@ -234,35 +241,39 @@ with tab1:
                     VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
                     (category, title, creator, rel_date, summary, brief, highlights, processed_note, img_url_val, str(date.today()), str(view_date)))
             
-            # 2. 구글 설문지 백업 전송 (추출된 진짜 정보 적용)
-            # viewform을 formResponse로 바꾼 주소입니다.
+            # 2. 구글 설문지 백업 전송 (찾으신 진짜 번호 적용)
             BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
             
-            # 실제 설문지 소스코드에서 추출한 entry 번호들입니다.
             payload = {
-                "entry.2062451053": category,    # category 칸의 번호
-                "entry.1018617887": title,       # title 칸의 번호
-                "entry.1384065615": creator,     # creator 칸의 번호
-                "entry.1187428751": rel_date,    # rel_date 칸의 번호
-                "entry.156550275": summary,      # summary 칸의 번호
-                "entry.1352327581": brief,       # brief 칸의 번호
-                "entry.1983582121": highlights,  # highlights 칸의 번호
-                "entry.2079250041": processed_note, # note 칸의 번호
-                "entry.59593108": img_url_val,   # img_url 칸의 번호
-                "entry.448507851": str(view_date) # view_date 칸의 번호
+                "entry.574529989": category,      # 카테고리
+                "entry.898076783": title,         # 제목
+                "entry.345368346": creator,       # 창작자
+                "entry.543246487": summary,       # 줄거리
+                "entry.1816924330": brief,        # 요약
+                "entry.270693677": highlights,    # 인상 깊은 부분
+                "entry.891180756": processed_note,# 감상
+                "entry.2056153041": img_url_val,  # 이미지 URL
+                
+                # 작품 날짜 (rel_date) 분할 입력
+                "entry.780422311_year": str(r_date_obj.year),
+                "entry.780422311_month": str(r_date_obj.month),
+                "entry.780422311_day": str(r_date_obj.day),
+                
+                # 감상일 (view_date) 분할 입력
+                "entry.1446643193_year": str(view_date.year),
+                "entry.1446643193_month": str(view_date.month),
+                "entry.1446643193_day": str(view_date.day)
             }
             
             try:
-                # 데이터 전송 시도
                 res = requests.post(BACKUP_URL, data=payload)
                 if res.status_code == 200:
                     st.success("✅ 로컬 저장 및 구글 시트 백업이 완료되었습니다!")
                 else:
-                    st.warning(f"⚠️ 전송 응답 코드: {res.status_code}. 시트를 확인해보세요.")
+                    st.warning(f"⚠️ 전송 성공했으나 응답 확인 필요 (코드: {res.status_code})")
             except Exception as e:
                 st.error(f"❌ 전송 중 오류 발생: {e}")
 
-            # 세션 초기화 및 새로고침
             st.session_state.api_data = {}
             st.rerun()
 
@@ -333,5 +344,6 @@ with tab2:
                                 if row['img_url']: st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
