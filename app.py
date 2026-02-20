@@ -28,27 +28,12 @@ st.markdown("""
     /* 팝업 내 이미지 크기 */
     [data-testid="stDialog"] img { max-height: 450px !important; object-fit: contain !important; }
     
-    /* 사이드바 스타일링 */
-    [data-testid="stSidebar"] { background-color: #f8f9fa; }
-    </style>
-    """, unsafe_allow_html=True)
 
 st.title("🌈PRISM")
 
 if 'cal_year' not in st.session_state: st.session_state.cal_year = datetime.now().year
 if 'cal_month' not in st.session_state: st.session_state.cal_month = datetime.now().month
 if 'api_data' not in st.session_state: st.session_state.api_data = {}
-
-# --- [사이드바 구성: 커스텀 설정 & OCR] ---
-with st.sidebar:
-    st.header("⚙️ SETTINGS")
-    st.info("💡 **Font Guide**\n- 활동명: 90 (Kirang Haerang)\n- 날짜: 30\n- 숫자: 60 (Jolly Lodger)")
-    
-    st.divider()
-    st.header("📸 OCR MENU")
-    uploaded_file = st.file_uploader("이미지에서 텍스트 추출", type=['png', 'jpg', 'jpeg'])
-    if uploaded_file:
-        st.warning("OCR 기능이 활성화되었습니다. (API 연결 필요)")
 
 # --- [DB 및 API 함수 (기존 유지)] ---
 DB_NAME = 'archive_prism_total_v4.db'
@@ -301,3 +286,4 @@ with tab2:
                                 if st.button(row['title'][:10], key=f"cat_{idx}_{row['id']}", use_container_width=True):
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
