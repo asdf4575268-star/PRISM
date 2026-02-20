@@ -102,8 +102,24 @@ col_empty, col_btn = st.columns([0.85, 0.15])
 @st.dialog("📋 기록 상세 정보", width="large")
 def show_details(item):
     if hasattr(item, 'to_dict'): item = item.to_dict()
-    edit_mode = st.toggle("✏️ 수정 모드", key=f"tog_v2_{item['id']}")
-    col_img, col_txt = st.columns([0.4, 0.6])
+    
+    # --- [상단 툴바: 삭제(좌) / 여백 / 수정 토글(우)] ---
+    t_col1, t_col2, t_col3 = st.columns([0.2, 0.6, 0.2])
+    
+    with t_col1:
+        # 삭제 버튼 (왼쪽 정렬)
+        if st.button("🗑️ 삭제", key=f"del_{item['id']}", use_container_width=True):
+            with sqlite3.connect(DB_NAME) as conn:
+                conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
+            st.rerun()
+    with t_col2:
+        # 이 공간은 스페이스(여백)로 비워둡니다.
+        pass
+    with t_col3:
+        # 수정 토글 (오른쪽 정렬)
+        edit_mode = st.toggle("✏️ 수정", key=f"tog_v2_{item['id']}")
+
+    st.divider()
 
     with col_img:
         if item.get('img_url'): st.image(item['img_url'], use_container_width=True)
@@ -391,6 +407,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
