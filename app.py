@@ -223,26 +223,22 @@ with tab1:
         highlights = st.text_area("✨ 인상 깊은 부분", height=100)
         note = st.text_area("💬 감상", height=100)
         
-        if st.button("✅ 저장"):
-            # 1. 디자인 가이드: KM, BPM 소문자 처리
+if st.button("✅ 저장"):
+            # 1. 디자인 가이드: KM, BPM 소문자
             processed_note = note.replace("KM", "km").replace("BPM", "bpm")
             
-            # 2. NameError 방지 (가장 안전한 선언)
+            # 2. NameError 방지
             safe_img_url = img_url_val if 'img_url_val' in locals() else ""
 
-            # 3. 로컬 SQLite DB 저장
-            with sqlite3.connect(DB_NAME) as conn:
-                conn.execute("""INSERT INTO archive 
-                    (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) 
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-                    (category, title, creator, str(rel_date), summary, brief, highlights, processed_note, safe_img_url, str(date.today()), str(view_date)))
-            
-            # 4. 아까 '응답 성공' 떴던 바로 그 전송 구조
+            # 3. 구글 설문지 전송 준비
             BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
             
-            # 날짜를 쪼개지 않고 사용자님이 찾으신 순수 ID에 그대로 매칭
+            # 날짜 쪼개기 (날짜 형식 대응)
+            ry, rm, rd = str(rel_date.year), f"{rel_date.month:02d}", f"{rel_date.day:02d}"
+            vy, vm, vd = str(view_date.year), f"{view_date.month:02d}", f"{view_date.day:02d}"
+
             payload = {
-                "entry.574529989": category,
+                "entry.574529989": category,      # 설문지 옵션 이름과 정확히 일치해야 함!
                 "entry.898076783": title,
                 "entry.345368346": creator,
                 "entry.543246487": summary,
@@ -250,19 +246,31 @@ with tab1:
                 "entry.270693677": highlights,
                 "entry.891180756": processed_note,
                 "entry.2056153041": safe_img_url,
-                "entry.780422311": str(rel_date),
-                "entry.1446643193": str(view_date)
+                "entry.780422311_year": ry,
+                "entry.780422311_month": rm,
+                "entry.780422311_day": rd,
+                "entry.1446643193_year": vy,
+                "entry.1446643193_month": vm,
+                "entry.1446643193_day": vd
             }
             
             try:
-                # 헤더나 복잡한 설정 없이 가장 원시적으로 전송 (이게 아까 성공 비결입니다)
+                # 400 에러 방지를 위해 데이터 타입을 명확히 함
                 res = requests.post(BACKUP_URL, data=payload)
                 if res.status_code == 200:
-                    st.success("✅ 구글 응답 전송 확인!")
+                    st.success("✅ 백업 성공! 시트를 확인해보세요.")
                 else:
-                    st.warning(f"⚠️ 전송 상태 코드: {res.status_code}")
+                    st.error(f"⚠️ 전송 실패 (코드: {res.status_code})")
+                    st.info("카테고리 옵션 이름이 설문지와 똑같은지 확인해주세요.")
             except Exception as e:
-                st.error(f"❌ 전송 오류: {e}")
+                st.error(f"❌ 오류: {e}")
+
+            # 로컬 DB 저장은 생략하지 말고 함께 두세요!
+            with sqlite3.connect(DB_NAME) as conn:
+                conn.execute("""INSERT INTO archive 
+                    (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) 
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                    (category, title, creator, str(rel_date), summary, brief, highlights, processed_note, safe_img_url, str(date.today()), str(view_date)))
 
             st.session_state.api_data = {}
             st.rerun()
@@ -333,6 +341,7 @@ with tab2:
                                 if row['img_url']: st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
