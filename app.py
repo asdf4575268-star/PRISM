@@ -33,17 +33,6 @@ def shift_month(delta):
     else:
         st.session_state.cal_month = new_month
 
-# 디자인 가이드 반영 CSS
-st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Kirang+Haerang&family=Jolly+Lodger&family=Lacquer&display=swap');
-    .act-name { font-size: 30px; font-family: 'Kirang Haerang'; line-height: 1.1; margin: 0; }
-    .date-text { font-size: 30px; color: #666; margin: 0; }
-    .num-text { font-size: 60px; font-family: 'Jolly Lodger'; text-transform: lowercase; margin: 0; line-height: 1; }
-    .cal-img-box { width:100%; aspect-ratio:1/1; overflow:hidden; border-radius:10px; margin-bottom:4px; border: 1px solid #eee; background-color: #f0f0f0; }
-    .cal-img-box img { width:100%; height:100%; object-fit:cover; }
-    </style>
-    """, unsafe_allow_html=True)
 
 DB_NAME = 'archive_prism_total_v4.db'
 TMDB_API_KEY = "6e7c55b6259b7731655033f783f3fc5b"
@@ -314,7 +303,6 @@ with tab1:
             st.session_state.api_data = {}
             st.rerun()
 # --- TAB 2: ARCHIVE ---
-# --- TAB 2: ARCHIVE ---
 with tab2:
     st.markdown("""
         <style>
@@ -420,6 +408,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
