@@ -143,7 +143,7 @@ def show_details(item):
                 
                 n_view = st.date_input("🍿 감상일", v_dt)
                 n_brief = st.text_input("📝 요약", value=str(item.get('brief') or ''))
-                n_sum = st.text_area("📖 줄거리", value=str(item.get('summary') or ''), height=150)
+                n_sum = st.text_area("📖 작품소개", value=str(item.get('summary') or ''), height=150)
                 n_high = st.text_area("✨ 인상 깊은 부분", value=str(item.get('highlights') or ''), height=100)
                 n_note = st.text_area("💬 감상", value=str(item.get('note') or ''), height=100)
 
@@ -230,7 +230,7 @@ with tab1:
         rel_date = col1.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
         view_date = col2.date_input("🍿 감상일", value=date.today())
     with cr:
-        summary = st.text_area("📖 줄거리", value=data.get('summary', ''), height=150)
+        summary = st.text_area("📖 작품소개", value=data.get('summary', ''), height=150)
         brief = st.text_input("📝 요약")
         highlights = st.text_area("✨ 인상 깊은 부분", height=100)
         note = st.text_area("💬 감상", height=100)
@@ -406,6 +406,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
