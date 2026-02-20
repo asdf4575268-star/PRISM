@@ -289,7 +289,7 @@ with tab1:
                 if res.status_code == 200:
                     st.success("✅ 로컬 저장 및 구글 백업 성공!")
                     for key in st.session_state.keys():
-                    del st.session_state[key]
+                        del st.session_state[key]
                     st.rerun()
                 else:
                     st.error(f"⚠️ 전송 실패 (코드: {res.status_code})")
@@ -410,6 +410,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
