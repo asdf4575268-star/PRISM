@@ -146,8 +146,8 @@ def show_details(item):
                     st.rerun()
         else:
             # 조회 모드 (디자인 가이드 반영)
-            st.markdown(f'<p class="act-name">{item.get("title")}</p>', unsafe_allow_html=True)
-            st.write(f"**공개일:** {item.get('rel_date')} | **Creator:** {item.get('creator')}")
+            st.markdown(f'<div style="font-size:30px; font-weight:bold; line-height:1.1;">{item.get("title")}</div>', unsafe_allow_html=True)
+            st.write(f**Creator:** {item.get('creator')}| "**공개일:** {item.get('rel_date')} ")
             v_date = item.get('view_date') or item.get('save_date', '')
             st.markdown(f'<p class="date-text">🍿 감상일: {v_date}</p>', unsafe_allow_html=True)
             st.divider()
@@ -403,5 +403,6 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
