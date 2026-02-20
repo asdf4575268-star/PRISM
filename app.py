@@ -224,61 +224,45 @@ with tab1:
         note = st.text_area("💬 감상", height=100)
         
         if st.button("✅ 저장"):
-            # 1. 디자인 가이드 준수: KM, BPM 소문자화
+            # KM, BPM 소문자 처리
             processed_note = note.replace("KM", "km").replace("BPM", "bpm")
             
-            # 2. 날짜 데이터 쪼개기 (사용자님이 찾은 entry 형식 대응)
-            try:
-                r_dt = pd.to_datetime(rel_date)
-                ry, rm, rd = str(r_dt.year), str(r_dt.month), str(r_dt.day)
-            except:
-                # 변환 실패 시 오늘 날짜 혹은 기본값
-                ry, rm, rd = "2026", "2", "20"
-            
-            vy, vm, vd = str(view_date.year), str(view_date.month), str(view_date.day)
-
-            # 3. 로컬 SQLite DB 저장 (이 부분은 기존과 동일)
+            # 1. 로컬 SQLite DB 저장
             with sqlite3.connect(DB_NAME) as conn:
                 conn.execute("""INSERT INTO archive 
                     (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) 
                     VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
                     (category, title, creator, rel_date, summary, brief, highlights, processed_note, img_url_val, str(date.today()), str(view_date)))
             
-            # 4. 사용자님이 확인한 진짜 URL과 ID 적용
-            REAL_BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
+            # 2. 구글 설문지 백업 전송 (최초 분석 ID들)
+            # 주소 끝에 /formResponse가 붙어있는지 꼭 확인하세요!
+            BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
             
+            # 제가 처음 분석했던 그 '진짜' entry ID들입니다.
             payload = {
-                "entry.574529989": category,      # 카테고리
-                "entry.898076783": title,         # 제목
-                "entry.345368346": creator,       # 창작자
-                "entry.543246487": summary,       # 줄거리
-                "entry.1816924330": brief,        # 요약
-                "entry.270693677": highlights,    # 인상 깊은 부분
-                "entry.891180756": processed_note,# 감상
-                "entry.2056153041": img_url_val,  # 이미지 URL
-                
-                # 작품 날짜 (780422311 시리즈)
-                "entry.780422311_year": ry,
-                "entry.780422311_month": rm,
-                "entry.780422311_day": rd,
-                
-                # 감상 날짜 (1446643193 시리즈)
-                "entry.1446643193_year": vy,
-                "entry.1446643193_month": vm,
-                "entry.1446643193_day": vd
+                "entry.1691522079": category,
+                "entry.244349141": title,
+                "entry.311354399": creator,
+                "entry.1345517865": rel_date,
+                "entry.1594917533": summary,
+                "entry.1042571285": brief,
+                "entry.1534346761": highlights,
+                "entry.109869818": processed_note,
+                "entry.162234033": img_url_val,
+                "entry.1568212621": str(view_date)
             }
             
             try:
-                # 전송!
-                response = requests.post(REAL_BACKUP_URL, data=payload, timeout=10)
-                if response.status_code == 200:
-                    st.success("✅ 로컬 DB 저장 및 구글 시트 백업이 모두 완료되었습니다!")
+                # 구글 폼은 데이터 전송 시 헤더 설정이 중요할 수 있습니다.
+                res = requests.post(BACKUP_URL, data=payload, timeout=5)
+                if res.status_code == 200:
+                    st.success("✅ 구글 시트 백업 성공!")
                 else:
-                    st.warning(f"⚠️ 전송은 시도했으나 구글 응답이 올바르지 않습니다. (코드: {response.status_code})")
+                    # 404가 뜨면 주소 문제, 400이 뜨면 ID 문제입니다.
+                    st.warning(f"⚠️ 전송 결과 확인 필요 (코드: {res.status_code})")
             except Exception as e:
-                st.error(f"❌ 전송 중 네트워크 오류 발생: {e}")
+                st.error(f"❌ 전송 오류: {e}")
 
-            # 입력창 비우고 새로고침
             st.session_state.api_data = {}
             st.rerun()
 
@@ -349,6 +333,7 @@ with tab2:
                                 if row['img_url']: st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
