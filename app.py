@@ -147,7 +147,8 @@ def show_details(item):
         else:
             # 활동명 90px 적용
             st.markdown(f'<p class="act-name">{item.get("title")}</p>', unsafe_allow_html=True)
-            st.write(f"**Creator:** {item.get('creator')} | **공개일:** {item.get('rel_date')}")
+            st.write(f"**Creator:** {item.get('creator')})
+            st.write(f"**공개일:** {item.get('rel_date')}")
             # 감상일 30px 적용
             v_date = item.get('view_date') or item.get('save_date', '')
             st.markdown(f'<p class="date-text">🍿 감상일: {v_date}</p>', unsafe_allow_html=True)
@@ -294,5 +295,6 @@ with tab2:
                                 if st.button(btn_label, key=f"cat_{idx}_{row['id']}", use_container_width=True):
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
