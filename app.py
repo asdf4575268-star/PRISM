@@ -131,7 +131,7 @@ def show_details(item):
     st.divider()
 
     # --- 메인 레이아웃 (이미지 좌 / 텍스트 우) ---
-    col_img, col_txt = st.columns([0.4, 0.6])
+    col_img, col_txt = st.columns([0.3, 0.7])
 
     with col_img:
         if item.get('img_url'): 
@@ -420,6 +420,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
