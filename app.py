@@ -175,7 +175,7 @@ def show_details(item):
             if urls:
                 st.link_button("🌐 공식 정보 확인", urls[0], use_container_width=True)
             
-            st.write(f"**Creator:** {item.get('creator')}}")
+            st.write(f"**Creator:** {item.get('creator')}")
             st.write(f"**작품날짜:** {item.get('rel_date')}")
             
             # 감상일 (30px) [2026-02-12 날짜 크기 30]
@@ -422,6 +422,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
