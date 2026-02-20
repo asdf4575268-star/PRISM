@@ -156,6 +156,7 @@ def show_details(item):
             # --- 조회 모드 ---
             # 저장된 설정값 사용 (활동명 90, 날짜 30)
             st.markdown(f'<div style="font-size:30px; font-weight:bold; line-height:1.1;">{item.get("title")}</div>', unsafe_allow_html=True)
+            
             st.write(f"{item.get('creator')} | **공개일:** {item.get('rel_date')}")          
             v_date = item.get('view_date') or item.get('save_date', '')
             st.markdown(f'<div style="font-size:15px; color:gray;">🍿 감상일: {v_date}</div>', unsafe_allow_html=True)
@@ -405,6 +406,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
