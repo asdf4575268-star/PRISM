@@ -12,7 +12,7 @@ import pandas as pd
 import requests
 from datetime import date
 
-if st.sidebar.button("📦 과거 기록 전체 백업하기"):
+#if st.sidebar.button("📦 과거 기록 전체 백업하기"):
     MY_DB_FILE = 'archive_prism_total_v4.db' 
     # 반드시 /formResponse로 끝나는지 확인하세요!
     GOOGLE_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
@@ -430,6 +430,7 @@ with tab2:
                                 if row['img_url']: st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
