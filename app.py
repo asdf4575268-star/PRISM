@@ -115,13 +115,17 @@ def search_kopis(query):
         return [{'title': d.findtext('prfnm'), 'id': d.findtext('mt20id'), 'img': d.findtext('poster'), 'date': d.findtext('prfpdfrom'), 'venue': d.findtext('fcltynm')} for d in root.findall('db')]
     except: return []
 
-# --- [4. 팝업 상세 보기] ---
+# --- [4. 팝업 상세 보기 - 토글 모드 적용] ---
 @st.dialog("📋 기록 상세 정보", width="large")
 def show_details(item):
     if hasattr(item, 'to_dict'): item = item.to_dict()
+    
+    # 세션 상태를 이용해 개별 아이템의 수정 모드 토글 관리
     edit_key = f"is_editing_{item['id']}"
-    if edit_key not in st.session_state: st.session_state[edit_key] = False
+    if edit_key not in st.session_state: 
+        st.session_state[edit_key] = False
 
+    # 상단 버튼 바
     c_del, c_mid, c_edit = st.columns([0.1, 0.8, 0.1])
     with c_del:
         if st.button("🗑️", key=f"del_btn_{item['id']}", use_container_width=True):
@@ -129,40 +133,66 @@ def show_details(item):
                 conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
             st.rerun()
     with c_edit:
+        # ✏️ 누르면 수정 모드 켜지고, ❌ 누르면 꺼짐
         icon = "❌" if st.session_state[edit_key] else "✏️"
         if st.button(icon, key=f"edit_btn_{item['id']}", use_container_width=True):
             st.session_state[edit_key] = not st.session_state[edit_key]
             st.rerun()
+            
     st.divider()
     
     col_img, col_txt = st.columns([0.4, 0.6])
+    
+    # 왼쪽: 이미지는 항상 표시 (요청사항 반영)
     with col_img:
-        if item.get('img_url'): st.image(item['img_url'], use_container_width=True)
+        if item.get('img_url'): 
+            st.image(item['img_url'], use_container_width=True)
+        else:
+            st.info("이미지가 없습니다.")
+            
+    # 오른쪽: 토글 상태에 따라 '보기' 또는 '수정' 모드 표시
     with col_txt:
         if st.session_state[edit_key]:
-            with st.form(key=f"edit_form_{item['id']}"):
+            # --- [수정 모드] ---
+            with st.form(key=f"edit_form_{item['id']}", clear_on_submit=False):
+                st.caption("📝 내용 수정 중...")
                 n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
                 n_creator = st.text_input("👤 Creator", value=str(item.get('creator', '')))
-                v_dt_val = datetime.strptime(item.get('view_date')[:10], '%Y-%m-%d').date() if item.get('view_date') else date.today()
+                
+                # 날짜 처리
+                try:
+                    v_dt_val = datetime.strptime(item.get('view_date')[:10], '%Y-%m-%d').date()
+                except:
+                    v_dt_val = date.today()
+                    
                 n_view = st.date_input("🍿 감상일", value=v_dt_val)
                 n_rel = st.text_input("📅 작품 날짜", value=str(item.get('rel_date', '')))
                 n_brief = st.text_input("📝 요약", value=str(item.get('brief', '') or ''))
-                n_sum = st.text_area("📖 줄거리(URL)", value=str(item.get('summary', '') or ''), height=100)
-                n_high = st.text_area("✨ 인상 깊은 부분", value=str(item.get('highlights', '') or ''), height=100)
+                n_sum = st.text_area("📖 줄거리/링크", value=str(item.get('summary', '') or ''), height=100)
                 n_note = st.text_area("💬 감상", value=str(item.get('note', '') or ''), height=150)
-                if st.form_submit_button("💾 수정 저장", use_container_width=True):
+                
+                if st.form_submit_button("💾 변경사항 저장", use_container_width=True):
                     with sqlite3.connect(DB_NAME) as conn:
-                        conn.execute("UPDATE archive SET title=?, creator=?, rel_date=?, summary=?, brief=?, highlights=?, note=?, view_date=? WHERE id=?", 
-                                     (n_title, n_creator, n_rel, n_sum, n_brief, n_high, n_note, str(n_view), item['id']))
-                    st.session_state[edit_key] = False
+                        conn.execute("""UPDATE archive SET 
+                                        title=?, creator=?, rel_date=?, summary=?, 
+                                        brief=?, note=?, view_date=? 
+                                        WHERE id=?""", 
+                                     (n_title, n_creator, n_rel, n_sum, n_brief, n_note, str(n_view), item['id']))
+                    st.session_state[edit_key] = False # 저장 후 다시 보기 모드로
+                    st.success("수정되었습니다!")
                     st.rerun()
         else:
+            # --- [보기 모드] ---
             st.markdown(f'<p class="act-name">{item.get("title")}</p>', unsafe_allow_html=True)         
             st.markdown(f'<p class="date-text">🍿 {item.get("view_date") or item.get("save_date")}</p>', unsafe_allow_html=True)
             st.divider()
-            st.markdown(f"**Creator:** {item.get('creator')} | **Date:** {item.get('rel_date')}")
-            if item.get('brief'): st.success(f"📝 {item.get('brief')}")
-            if item.get('note'): st.write(item.get('note'))
+            st.write(f"**Creator:** {item.get('creator')}")
+            st.write(f"**Released:** {item.get('rel_date')}")
+            if item.get('brief'): 
+                st.info(f"📝 {item.get('brief')}")
+            if item.get('note'): 
+                st.write("---")
+                st.write(item.get('note'))
 
 # --- [5. 메인 레이아웃] ---
 tab_write, tab_archive = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
@@ -295,5 +325,6 @@ with tab_archive:
                                     if row['img_url']: st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:8], key=f"cat_{idx}_{row['id']}", use_container_width=True):
                                         show_details(row)
+
 
 
