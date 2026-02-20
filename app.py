@@ -6,9 +6,6 @@ import calendar
 import xml.etree.ElementTree as ET
 from datetime import date, datetime
 import re
-import os
-import sqlite3
-import pandas as pd
 
 # --- [1. 스타일 및 설정] ---
 st.set_page_config(layout="wide", page_title="PRISM")
@@ -53,7 +50,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-DB_NAME = 'archive_prism_total_v3.db'
+DB_NAME = 'archive_prism_total_v4.db'
 TMDB_API_KEY = "6e7c55b6259b7731655033f783f3fc5b"
 KOPIS_KEY = "7a919bc272204f06bbca10e2af376dea"
 
@@ -281,39 +278,6 @@ with tab1:
             st.rerun()
 
 # --- TAB 2: ARCHIVE ---
-if st.button("🔥 진짜 마지막! 모든 데이터 강제 복구"):
-    target_db = 'archive_prism_total_v4.db'
-    old_dbs = ['archive_prism_total.db', 'archive_prism_total_v3.db', 'archive_prism_total_v2.db']
-    
-    total_recovered = 0
-    with sqlite3.connect(target_db) as t_conn:
-        for old_db in old_dbs:
-            if not os.path.exists(old_db): continue
-            
-            try:
-                with sqlite3.connect(old_db) as o_conn:
-                    # 1. 파일 안에 어떤 테이블들이 있는지 목록 확인
-                    cursor = o_conn.cursor()
-                    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-                    tables = [t[0] for t in cursor.fetchall() if t[0] != 'sqlite_sequence']
-                    
-                    for table in tables:
-                        # 2. 각 테이블의 데이터를 무조건 읽어옴
-                        old_df = pd.read_sql_query(f"SELECT * FROM {table}", o_conn)
-                        if not old_df.empty:
-                            # 3. v4에 맞춰 컬럼 강제 조정 후 삽입
-                            # 중복 데이터가 걱정되시면 insert 대신 append
-                            old_df.to_sql('archive', t_conn, if_exists='append', index=False)
-                            total_recovered += len(old_df)
-                            st.success(f"✅ {old_db}의 [{table}] 테이블에서 {len(old_df)}개 복구!")
-            except Exception as e:
-                st.info(f"ℹ️ {old_db} 분석 중 오류(무시가능): {e}")
-
-    if total_recovered > 0:
-        st.balloons()
-        st.success(f"🚀 드디어 {total_recovered}개의 데이터를 찾았습니다! 이제 ARCHIVE 탭을 확인하세요.")
-    else:
-        st.error("⚠️ 모든 파일을 뒤졌으나 실제 저장된 데이터 행(Row)을 찾지 못했습니다. DB가 비어있을 가능성이 높습니다.")
 with tab2:
     with sqlite3.connect(DB_NAME) as conn:
         all_df = pd.read_sql_query("SELECT * FROM archive", conn)
@@ -395,9 +359,3 @@ with tab2:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
-
-
-
-
-
-
