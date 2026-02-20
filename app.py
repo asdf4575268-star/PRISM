@@ -345,7 +345,7 @@ with sub_tabs[0]:
         yearly_df = all_df.sort_values(by='v_dt', ascending=False)
         
         raw_years = sorted(list(yearly_df['year_int'].unique()), reverse=True)
-        sel_y = st.selectbox("연도 선택", raw_years, key="yr_sel")
+        year_options = {y: f"{y} ({len(yearly_df[yearly_df['year_int'] == y])}건)" for y in raw_years}
         
         year_data = yearly_df[yearly_df['year_int'] == sel_y]
         for month in range(12, 0, -1):
@@ -403,6 +403,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
