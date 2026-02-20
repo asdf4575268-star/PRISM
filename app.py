@@ -108,6 +108,56 @@ def search_kopis(query):
         return [{'title': d.findtext('prfnm'), 'id': d.findtext('mt20id'), 'img': d.findtext('poster'), 'date': d.findtext('prfpdfrom'), 'venue': d.findtext('fcltynm')} for d in root.findall('db')]
     except: return []
 
+col_empty, col_btn = st.columns([0.85, 0.15]) 
+
+with col_btn:
+    if st.button("📦 전체 백업", use_container_width=True):
+        MY_DB_FILE = 'archive_prism_total_v4.db' 
+        GOOGLE_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
+        
+        try:
+            import sqlite3
+            import requests
+            import time
+            import pandas as pd
+            
+            with sqlite3.connect(MY_DB_FILE) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM archive") # 테이블명 확인 필요
+                rows = cursor.fetchall()
+                
+                if rows:
+                    st.toast(f"🚀 {len(rows)}개 백업 시작...") # 상단 토스트 알림
+                    for row in rows:
+                        try:
+                            r_dt = pd.to_datetime(row['rel_date'])
+                            v_dt = pd.to_datetime(row['view_date'])
+                            ry, rm, rd = str(r_dt.year), f"{r_dt.month:02d}", f"{r_dt.day:02d}"
+                            vy, vm, vd = str(v_dt.year), f"{v_dt.month:02d}", f"{v_dt.day:02d}"
+                        except:
+                            ry, rm, rd = "2026", "02", "20"
+                            vy, vm, vd = "2026", "02", "20"
+
+                        payload = {
+                            "entry.574529989": str(row['category']),
+                            "entry.898076783": str(row['title']),
+                            "entry.345368346": str(row['creator']),
+                            "entry.543246487": str(row['summary']),
+                            "entry.1816924330": str(row['brief']),
+                            "entry.270693677": str(row['highlights']),
+                            "entry.891180756": str(row['note']).replace("KM", "km").replace("BPM", "bpm"),
+                            "entry.2056153041": str(row['img_url']),
+                            "entry.780422311_year": ry, "entry.780422311_month": rm, "entry.780422311_day": rd,
+                            "entry.1446643193_year": vy, "entry.1446643193_month": vm, "entry.1446643193_day": vd
+                        }
+                        requests.post(GOOGLE_URL, data=payload)
+                        time.sleep(0.2)
+                    st.toast("✅ 백업 완료!", icon="✨")
+                else:
+                    st.toast("⚠️ 백업할 데이터가 없습니다.")
+        except Exception as e:
+            st.error(f"백업 오류: {e}")
 # --- [3. 팝업 함수] ---
 @st.dialog("📋 기록 상세 정보", width="large")
 def show_details(item):
@@ -396,6 +446,7 @@ with tab2:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
