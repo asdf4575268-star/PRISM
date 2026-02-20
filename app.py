@@ -109,7 +109,7 @@ def search_kopis(query):
 @st.dialog("📋 기록 상세 정보", width="large")
 def show_details(item):
     if hasattr(item, 'to_dict'): item = item.to_dict()
-    c_del, c_empty, c_tog = st.columns([0.2, 0.6, 0.2])
+    c_del, c_empty, c_tog = st.columns([0.1, 0.8, 0.1])
     with c_del:
         if st.button("🗑️ 삭제", key=f"del_top_{item['id']}", use_container_width=True):
             with sqlite3.connect(DB_NAME) as conn:
@@ -298,6 +298,7 @@ with tab2:
                                 if st.button(btn_label, key=f"cat_{idx}_{row['id']}", use_container_width=True):
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
