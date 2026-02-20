@@ -204,40 +204,6 @@ def show_details(item):
             if st.button("✏️ 수정하기", key=f"edit_btn_{item['id']}", use_container_width=True):
                 st.session_state[edit_key] = True
                 st.rerun()
-    
-    else:
-        # --- [B. 일반 조회 화면] ---
-        col_img, col_txt = st.columns([0.4, 0.6])
-        with col_img:
-            if item.get('img_url'):
-                st.image(item['img_url'], use_container_width=True)
-        
-        with col_txt:
-            # 활동명 90px
-            st.markdown(f'<p class="act-name">{item.get("title")}</p>', unsafe_allow_html=True)
-            
-            content = str(item.get('summary', ''))
-            urls = re.findall(r'(https?://[^\s]+)', content)
-            if urls:
-                st.link_button("🌐 상세 정보 바로가기", urls[0], use_container_width=True)
-            
-            st.write(f"**창작자:** {item.get('creator')} | **작품날짜:** {item.get('rel_date')}")
-            
-            # 감상일 30px
-            v_date = item.get('view_date') or item.get('save_date', '')
-            st.markdown(f'<p class="date-text">🍿 {v_date}</p>', unsafe_allow_html=True)
-
-        st.divider()
-        if item.get('brief'): st.success(f"**요약:** {item['brief']}")
-        if item.get('summary'): st.info(f"**줄거리:** {item['summary']}")
-        if item.get('highlights'): st.warning(f"**인상 깊은 부분:**\n\n{item['highlights']}")
-        if item.get('note'): st.write(f"**감상:**\n\n{item['note']}")
-        
-        st.divider()
-        # 💡 감상 아래에 [수정하기] 버튼 배치
-        if st.button("✏️ 수정하기", key=f"edit_btn_{item['id']}", use_container_width=True):
-            st.session_state[edit_key] = True
-            st.rerun()
 # --- [4. 메인 화면 구성] ---
 tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 
@@ -455,6 +421,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
