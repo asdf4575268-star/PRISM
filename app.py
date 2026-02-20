@@ -169,15 +169,14 @@ def show_details(item):
                     st.rerun()
         else:
             # --- [조회 모드] ---
-            # 모든 텍스트 정보가 이미지 오른쪽에 위치합니다.
-            st.markdown(f'<p class="act-name">{item.get("title")}</p>', unsafe_allow_html=True)
-            
+            st.markdown(f'<p class="act-name" style="font-size: 90px; font-weight: bold; line-height: 1.1; margin-bottom: 10px;">{item.get("title")}</p>', unsafe_allow_html=True)         
             content = str(item.get('summary', ''))
             urls = re.findall(r'(https?://[^\s]+)', content)
             if urls:
                 st.link_button("🌐 공식 정보 확인", urls[0], use_container_width=True)
             
-            st.write(f"**Creator:** {item.get('creator')} | **작품날짜:** {item.get('rel_date')}")
+            st.write(f"**Creator:** {item.get('creator')}}")
+            st.write(f"**작품날짜:** {item.get('rel_date')}")
             
             # 감상일 (30px) [2026-02-12 날짜 크기 30]
             v_date = item.get('view_date') or item.get('save_date', '')
@@ -423,6 +422,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
