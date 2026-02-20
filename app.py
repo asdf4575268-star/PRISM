@@ -111,35 +111,39 @@ def search_kopis(query):
     except: return []
 
 # --- [3. 팝업 함수] ---
-# --- [3. 팝업 함수] ---
 @st.dialog("📋 기록 상세 정보", width="large")
 def show_details(item):
     if hasattr(item, 'to_dict'):
         item = item.to_dict()
 
+    # 아이템별 고유 에딧 상태 키
     edit_key = f"is_editing_{item['id']}"
+    
+    # 💡 핵심: 세션에 수정 모드 상태가 없으면 초기화
     if edit_key not in st.session_state:
         st.session_state[edit_key] = False
 
-    # 삭제 버튼은 최상단 우측에 작게 유지 (실수 방지)
-    _, c_del = st.columns([0.85, 0.15])
+    # 삭제 버튼 (최상단 우측)
+    _, c_del = st.columns([0.9, 0.1])
     with c_del:
-        if st.button("🗑️", key=f"del_{item['id']}", use_container_width=True, help="삭제"):
+        if st.button("🗑️", key=f"del_top_{item['id']}"):
             with sqlite3.connect(DB_NAME) as conn:
                 conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
             st.rerun()
 
-    # --- 메인 레이아웃 (좌: 이미지, 우: 정보 전체) ---
+    # 메인 레이아웃 분리
     col_img, col_txt = st.columns([0.4, 0.6])
 
-    if st.session_state[edit_key]:
-        # --- [수정 모드] ---
-        with col_img:
-            if item.get('img_url'): st.image(item['img_url'], use_container_width=True)
-            n_img = st.text_input("🖼️ 이미지 URL", value=item.get('img_url', ''), key=f"edit_img_{item['id']}")
-        
-        with col_txt:
-            with st.form(key=f"edit_form_{item['id']}"):
+    with col_img:
+        if item.get('img_url'):
+            st.image(item['img_url'], use_container_width=True)
+
+    with col_txt:
+        # 💡 상태에 따라 화면 분기 (st.rerun 없이 내부에서 바뀜)
+        if st.session_state[edit_key]:
+            # --- [수정 모드] ---
+            st.markdown("### ✏️ 정보 수정")
+            with st.form(key=f"edit_f_{item['id']}"):
                 n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
                 n_creator = st.text_input("👤 창작자", value=str(item.get('creator', '')))
                 
@@ -148,62 +152,49 @@ def show_details(item):
                     raw_v = str(item.get('view_date') or item.get('save_date'))[:10]
                     v_dt = datetime.strptime(raw_v, '%Y-%m-%d').date()
                 except: v_dt = date.today()
+                
                 n_view = c_d1.date_input("🍿 감상일", v_dt)
                 n_rel = c_d2.text_input("📅 작품 날짜", value=str(item.get('rel_date', '')))
                 
                 n_brief = st.text_input("📝 요약", value=str(item.get('brief', '') or ''))
-                n_sum = st.text_area("📖 줄거리/URL", value=str(item.get('summary', '') or ''), height=80)
-                n_high = st.text_area("✨ 인상 깊은 부분", value=str(item.get('highlights', '') or ''), height=80)
+                n_sum = st.text_area("📖 줄거리/URL", value=str(item.get('summary', '') or ''), height=100)
+                n_high = st.text_area("✨ 인상 깊은 부분", value=str(item.get('highlights', '') or ''), height=100)
                 n_note = st.text_area("💬 감상", value=str(item.get('note', '') or ''), height=100)
 
                 b_c1, b_c2 = st.columns(2)
-                if b_c1.form_submit_button("💾 완료", use_container_width=True):
+                if b_c1.form_submit_button("💾 저장", use_container_width=True):
                     with sqlite3.connect(DB_NAME) as conn:
                         conn.execute("""
-                            UPDATE archive 
-                            SET title=?, creator=?, rel_date=?, summary=?, brief=?, highlights=?, note=?, view_date=?, img_url=?
+                            UPDATE archive SET title=?, creator=?, rel_date=?, summary=?, brief=?, highlights=?, note=?, view_date=?
                             WHERE id=?
-                        """, (n_title, n_creator, n_rel, n_sum, n_brief, n_high, n_note, str(n_view), n_img, item['id']))
+                        """, (n_title, n_creator, n_rel, n_sum, n_brief, n_high, n_note, str(n_view), item['id']))
                     st.session_state[edit_key] = False
-                    st.rerun()
+                    st.rerun() # 저장 후엔 전체 갱신을 위해 rerun
+                
                 if b_c2.form_submit_button("🔙 취소", use_container_width=True):
                     st.session_state[edit_key] = False
-                    st.rerun()
-    
-    else:
-        # --- [조회 모드] ---
-        with col_img:
-            if item.get('img_url'):
-                st.image(item['img_url'], use_container_width=True)
+                    st.rerun() # 취소 시에도 다시 조회모드로
         
-        with col_txt:
-            # 1. 활동명 & 기본정보
+        else:
+            # --- [조회 모드] ---
             st.markdown(f'<p class="act-name">{item.get("title")}</p>', unsafe_allow_html=True)
+            st.write(f"**창작자:** {item.get('creator')} | **날짜:** {item.get('rel_date')}")
             
-            content = str(item.get('summary', ''))
-            urls = re.findall(r'(https?://[^\s]+)', content)
-            if urls:
-                st.link_button("🌐 상세 정보 바로가기", urls[0], use_container_width=True)
-            
-            st.write(f"**창작자:** {item.get('creator')} | **작품날짜:** {item.get('rel_date')}")
-            
-            # 2. 감상일 (30px)
             v_date = item.get('view_date') or item.get('save_date', '')
             st.markdown(f'<p class="date-text">🍿 {v_date}</p>', unsafe_allow_html=True)
 
             st.divider()
-
-            # 3. 상세 내용들 (오른쪽 컬럼에 몰아넣기)
             if item.get('brief'): st.success(f"**요약:** {item['brief']}")
-            if item.get('summary'): st.info(f"**줄거리:** {item['summary']}")
-            if item.get('highlights'): st.warning(f"**인상 깊은 부분:**\n\n{item['highlights']}")
+            if item.get('summary'): st.info(f"**상세:** {item['summary']}")
             if item.get('note'): st.write(f"**감상:**\n\n{item['note']}")
             
             st.divider()
-            # 4. 수정 버튼 (오른쪽 컬럼 하단에 배치)
+            
+            # 💡 버튼 클릭 시 세션 상태만 바꾸고 rerun 호출 안 함 (일부 버전 환경 대비)
+            # 만약 버튼 눌러도 반응 없으면 st.rerun() 대신 스크립트 흐름을 타게 구성
             if st.button("✏️ 수정하기", key=f"edit_btn_{item['id']}", use_container_width=True):
                 st.session_state[edit_key] = True
-                st.rerun()
+                st.rerun() # dialog 내부 상태 변경을 반영하기 위해 호출해도 이제 'is_editing' 덕분에 폼이 뜹니다.
 # --- [4. 메인 화면 구성] ---
 tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 
@@ -421,6 +412,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
