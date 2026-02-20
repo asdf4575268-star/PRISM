@@ -344,8 +344,14 @@ with sub_tabs[0]:
         all_df['month_int'] = all_df['v_dt'].dt.month
         yearly_df = all_df.sort_values(by='v_dt', ascending=False)
         
+        # [수정] 연도별 개수 계산 및 포맷팅
         raw_years = sorted(list(yearly_df['year_int'].unique()), reverse=True)
         year_options = {y: f"{y} ({len(yearly_df[yearly_df['year_int'] == y])}건)" for y in raw_years}
+        
+        # 셀렉트박스 표시 (format_func 사용)
+        sel_y = st.selectbox("연도 선택", raw_years, format_func=lambda x: year_options[x], key="yr_sel")
+        
+        year_data = yearly_df[yearly_df['year_int'] == sel_y]
         
         year_data = yearly_df[yearly_df['year_int'] == sel_y]
         for month in range(12, 0, -1):
@@ -403,6 +409,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
