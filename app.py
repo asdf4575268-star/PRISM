@@ -14,60 +14,72 @@ from datetime import date
 
 # 사이드바에 버튼 배치
 if st.sidebar.button("📦 과거 기록 전체 백업하기"):
-    # 1. 설정값 직접 정의 (에러 방지용)
-    TARGET_DB = "archive.db"  # 현재 사용 중인 DB 파일명 확인 필요
+    TARGET_DB = "archive.db" 
     GOOGLE_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
     
     try:
         with sqlite3.connect(TARGET_DB) as conn:
             cursor = conn.cursor()
-            # DB 테이블의 모든 데이터를 가져옵니다.
-            cursor.execute("SELECT category, title, creator, rel_date, summary, brief, highlights, note, img_url, view_date FROM archive")
-            rows = cursor.fetchall()
             
-            if not rows:
-                st.sidebar.warning("백업할 데이터가 로컬 DB에 없습니다.")
+            # 1. 실제 존재하는 테이블 이름 확인 (에러 방지 핵심)
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+            tables = [t[0] for t in cursor.fetchall()]
+            
+            # 'archive'가 없으면 첫 번째 테이블이라도 사용, 아예 없으면 중단
+            if not tables:
+                st.sidebar.error("❌ 로컬 DB에 저장된 테이블이 아예 없습니다.")
             else:
-                st.sidebar.info(f"총 {len(rows)}개의 데이터를 백업합니다...")
-                progress_bar = st.sidebar.progress(0)
+                table_name = 'archive' if 'archive' in tables else tables[0]
+                st.sidebar.info(f"'{table_name}' 테이블에서 데이터를 가져옵니다.")
                 
-                for i, row in enumerate(rows):
-                    # 날짜 형식 변환 및 쪼개기
-                    try:
-                        r_dt = pd.to_datetime(row[3])
-                        v_dt = pd.to_datetime(row[9])
-                        ry, rm, rd = str(r_dt.year), f"{r_dt.month:02d}", f"{r_dt.day:02d}"
-                        vy, vm, vd = str(v_dt.year), f"{v_dt.month:02d}", f"{v_dt.day:02d}"
-                    except:
-                        ry, rm, rd = "2026", "02", "20"
-                        vy, vm, vd = "2026", "02", "20"
+                # 2. 데이터 가져오기
+                cursor.execute(f"SELECT * FROM {table_name}")
+                rows = cursor.fetchall()
+                
+                # 컬럼 순서가 (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date)라고 가정
+                # 만약 순서가 다르면 아래 row[index] 숫자를 조정해야 합니다.
+                
+                if not rows:
+                    st.sidebar.warning("백업할 데이터가 없습니다.")
+                else:
+                    st.sidebar.info(f"총 {len(rows)}개의 데이터를 백업합니다...")
+                    progress_bar = st.sidebar.progress(0)
+                    
+                    for i, row in enumerate(rows):
+                        try:
+                            # 날짜 처리 (row 인덱스는 DB 생성 시 순서에 따라 다를 수 있음)
+                            r_dt = pd.to_datetime(row[3]) # rel_date
+                            v_dt = pd.to_datetime(row[10]) # view_date (마지막 컬럼 가정)
+                            ry, rm, rd = str(r_dt.year), f"{r_dt.month:02d}", f"{r_dt.day:02d}"
+                            vy, vm, vd = str(v_dt.year), f"{v_dt.month:02d}", f"{v_dt.day:02d}"
+                        except:
+                            ry, rm, rd = "2026", "02", "20"
+                            vy, vm, vd = "2026", "02", "20"
 
-                    # 구글 폼으로 쏠 데이터 (entry 번호는 사용자님 설문지 기준)
-                    payload = {
-                        "entry.574529989": row[0],
-                        "entry.898076783": row[1],
-                        "entry.345368346": row[2],
-                        "entry.543246487": row[4],
-                        "entry.1816924330": row[5],
-                        "entry.270693677": row[6],
-                        "entry.891180756": row[7].replace("KM", "km").replace("BPM", "bpm"), # 소문자 가이드 적용
-                        "entry.2056153041": row[8],
-                        "entry.780422311_year": ry,
-                        "entry.780422311_month": rm,
-                        "entry.780422311_day": rd,
-                        "entry.1446643193_year": vy,
-                        "entry.1446643193_month": vm,
-                        "entry.1446643193_day": vd
-                    }
-                    
-                    # 전송
-                    requests.post(GOOGLE_URL, data=payload)
-                    time.sleep(0.4) # 구글 서버 과부하 방지용 짧은 휴식
-                    progress_bar.progress((i + 1) / len(rows))
-                    
-                st.sidebar.success(f"✨ {len(rows)}개 기록 백업 완료!")
+                        payload = {
+                            "entry.574529989": row[0],
+                            "entry.898076783": row[1],
+                            "entry.345368346": row[2],
+                            "entry.543246487": row[4],
+                            "entry.1816924330": row[5],
+                            "entry.270693677": row[6],
+                            "entry.891180756": str(row[7]).replace("KM", "km").replace("BPM", "bpm"),
+                            "entry.2056153041": row[8],
+                            "entry.780422311_year": ry,
+                            "entry.780422311_month": rm,
+                            "entry.780422311_day": rd,
+                            "entry.1446643193_year": vy,
+                            "entry.1446643193_month": vm,
+                            "entry.1446643193_day": vd
+                        }
+                        
+                        requests.post(GOOGLE_URL, data=payload)
+                        time.sleep(0.4)
+                        progress_bar.progress((i + 1) / len(rows))
+                        
+                    st.sidebar.success(f"✨ 백업 완료!")
     except Exception as e:
-        st.sidebar.error(f"백업 중 오류가 발생했습니다: {e}")
+        st.sidebar.error(f"백업 중 오류 발생: {e}")
 
 # --- [1. 스타일 및 설정] ---
 st.set_page_config(layout="wide", page_title="PRISM")
@@ -417,6 +429,7 @@ with tab2:
                                 if row['img_url']: st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
