@@ -169,7 +169,7 @@ def show_details(item):
                     st.rerun()
         else:
             # --- [조회 모드] ---
-            st.markdown(f'<p class="act-name" style="font-size: 30px; font-weight: bold; line-height: 1.1; margin-bottom: 10px;">{item.get("title")}</p>', unsafe_allow_html=True)         
+            st.markdown(f'<p class="act-name" style="font-size: 25px; font-weight: bold; line-height: 1.1; margin-bottom: 10px;">{item.get("title")}</p>', unsafe_allow_html=True)         
             content = str(item.get('summary', ''))
             urls = re.findall(r'(https?://[^\s]+)', content)
             if urls:
@@ -422,6 +422,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
