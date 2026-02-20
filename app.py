@@ -135,7 +135,7 @@ def show_details(item):
             with st.form(key=f"edit_v2_{item['id']}"):
                 n_title = st.text_input("📌 Title", value=str(item.get('title', '')))
                 n_creator = st.text_input("👤 Creator", value=str(item.get('creator', '')))
-                n_rel = st.text_input("📅 작품 날짜", value=str(item.get('rel_date', '')))
+                n_rel = st.text_input("📅공개일", value=str(item.get('rel_date', '')))
                 
                 # 감상일 날짜 객체 변환
                 try:
@@ -162,12 +162,10 @@ def show_details(item):
             # --- [조회 모드] ---
             # 1. 활동명 (90px)
             st.markdown(f'<p style="font-size: 30px; font-weight: bold; line-height: 1.1; margin-bottom: 5px;">{item.get("title")}</p>', unsafe_allow_html=True)
-            
-           
+                       
             # 2. 기본 정보
+            st.write(f"**공개일:** {item.get('rel_date')}")
             st.write(f"**Creator:** {item.get('creator')}")
-            st.write(f"**작품날짜:** {item.get('rel_date')}")
-
             
             # 3. 감상일 (30px)
             v_date = item.get('view_date') or item.get('save_date', '')
@@ -407,6 +405,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
