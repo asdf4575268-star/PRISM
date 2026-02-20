@@ -384,7 +384,8 @@ with tab2:
 
     sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
 
-    with sub_tabs[0]:
+    # --- 1. Yearly 탭 (배지 형식 수정) ---
+with sub_tabs[0]:
     if not all_df.empty:
         all_df['v_dt'] = pd.to_datetime(all_df['view_date'].fillna(all_df['save_date']))
         all_df['year_int'] = all_df['v_dt'].dt.year
@@ -450,4 +451,5 @@ with tab2:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
