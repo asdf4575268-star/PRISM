@@ -13,37 +13,30 @@ import requests
 from datetime import date
 
 if st.sidebar.button("📦 과거 기록 전체 백업하기"):
-    # 사용자님이 알려주신 진짜 DB 파일명
     MY_DB_FILE = 'archive_prism_total_v4.db' 
     GOOGLE_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
     
     try:
         conn = sqlite3.connect(MY_DB_FILE)
         cursor = conn.cursor()
-        
-        # 1. 테이블 존재 여부 재확인
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         tables = [t[0] for t in cursor.fetchall() if t[0] != 'sqlite_sequence']
         
-        if not tables:
-            st.sidebar.error(f"❌ '{MY_DB_FILE}' 파일은 찾았으나 내부에 테이블이 없습니다.")
-        else:
-            # 보통 테이블 이름은 'archive'로 생성하셨을 확률이 높으니 확인 후 선택
-            target_table = 'archive' if 'archive' in tables else tables[0]
-            st.sidebar.info(f"📂 '{target_table}' 테이블 백업 중...")
-            
+        if tables:
+            target_table = tables[0]
             cursor.execute(f"SELECT * FROM {target_table}")
             rows = cursor.fetchall()
             
-            if not rows:
-                st.sidebar.warning("테이블에 저장된 데이터가 없습니다.")
-            else:
+            if rows:
+                st.sidebar.info(f"🚀 {len(rows)}개 전송 시도 중...")
                 progress_bar = st.sidebar.progress(0)
+                
                 for i, row in enumerate(rows):
-                    # 날짜 형식 변환 (rel_date: 4번째, view_date: 11번째 컬럼 예상)
+                    # [핵심] 날짜 데이터를 구글이 원하는 연-월-일로 강제 분해
                     try:
-                        r_dt = pd.to_datetime(row[3])
-                        v_dt = pd.to_datetime(row[10])
+                        # DB 컬럼 순서가 다를 수 있으니 안전하게 변환
+                        r_dt = pd.to_datetime(row[3]) # 작품 날짜
+                        v_dt = pd.to_datetime(row[10]) # 감상 날짜
                         ry, rm, rd = str(r_dt.year), f"{r_dt.month:02d}", f"{r_dt.day:02d}"
                         vy, vm, vd = str(v_dt.year), f"{v_dt.month:02d}", f"{v_dt.day:02d}"
                     except:
@@ -51,30 +44,40 @@ if st.sidebar.button("📦 과거 기록 전체 백업하기"):
                         vy, vm, vd = "2026", "02", "20"
 
                     payload = {
-                        "entry.574529989": row[0],
-                        "entry.898076783": row[1],
-                        "entry.345368346": row[2],
-                        "entry.543246487": row[4],
-                        "entry.1816924330": row[5],
-                        "entry.270693677": row[6],
-                        "entry.891180756": str(row[7]).replace("KM", "km").replace("BPM", "bpm"),
-                        "entry.2056153041": row[8],
+                        "entry.574529989": row[0], # 카테고리
+                        "entry.898076783": row[1], # 제목
+                        "entry.345368346": row[2], # 창작자
+                        "entry.543246487": row[4], # 요약
+                        "entry.1816924330": row[5], # 줄거리
+                        "entry.270693677": row[6], # 인상 깊은 부분
+                        "entry.891180756": str(row[7]).replace("KM", "km").replace("BPM", "bpm"), # 감상
+                        "entry.2056153041": row[8], # 이미지 URL
+                        
+                        # 작품 날짜 쪼개기 전송
                         "entry.780422311_year": ry,
                         "entry.780422311_month": rm,
                         "entry.780422311_day": rd,
+                        
+                        # 감상 날짜 쪼개기 전송
                         "entry.1446643193_year": vy,
                         "entry.1446643193_month": vm,
                         "entry.1446643193_day": vd
                     }
-                    requests.post(GOOGLE_URL, data=payload)
-                    time.sleep(0.3) # 서버 무리 방지
+                    
+                    # 실제 전송
+                    res = requests.post(GOOGLE_URL, data=payload)
+                    
+                    # 만약 실패하면 사이드바에 경고 표시
+                    if res.status_code != 200:
+                        st.sidebar.error(f"{i+1}번 데이터 전송 실패 (코드: {res.status_code})")
+                    
+                    time.sleep(0.5) 
                     progress_bar.progress((i + 1) / len(rows))
                 
-                st.sidebar.success(f"✨ 총 {len(rows)}개 기록 백업을 완료했습니다!")
+                st.sidebar.success(f"✨ {len(rows)}개 백업 프로세스 완료!")
         conn.close()
-            
     except Exception as e:
-        st.sidebar.error(f"접근 오류: {e}")
+        st.sidebar.error(f"오류: {e}")
 
 # --- [1. 스타일 및 설정] ---
 st.set_page_config(layout="wide", page_title="PRISM")
@@ -424,6 +427,7 @@ with tab2:
                                 if row['img_url']: st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
