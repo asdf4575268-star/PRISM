@@ -270,6 +270,24 @@ with tab1:
             st.rerun()
 
 # --- TAB 2: ARCHIVE ---
+# --- [데이터 유실 확인용 임시 코드] ---
+    with sqlite3.connect(DB_NAME) as conn:
+        try:
+            test_df = pd.read_sql_query("SELECT id, title, note FROM archive", conn)
+            st.warning(f"🔍 시스템 체크: 현재 '{DB_NAME}' 파일에 저장된 총 데이터 수는 {len(test_df)}개입니다.")
+            if not test_df.empty:
+                with st.expander("최근 저장된 감상 노트 샘플 확인"):
+                    st.write(f"**제목:** {test_df.iloc[-1]['title']}")
+                    st.write(f"**내용:** {test_df.iloc[-1]['note']}")
+        except Exception as e:
+            st.error(f"데이터베이스 연결 오류: {e}")
+    # -----------------------------------
+
+    # 1. 세션 상태 초기화
+    if 'cal_year' not in st.session_state:
+        st.session_state.cal_year = datetime.now().year
+    if 'cal_month' not in st.session_state:
+        st.session_state.cal_month = datetime.now().month
 with tab2:
     # 1. 세션 상태 초기화 (최상단 배치)
     if 'cal_year' not in st.session_state:
@@ -405,6 +423,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
