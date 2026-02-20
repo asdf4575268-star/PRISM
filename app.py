@@ -116,9 +116,10 @@ def show_details(item):
     if hasattr(item, 'to_dict'):
         item = item.to_dict()
     
-    # 1. 상단 버튼부
+    # 1. 상단 컨트롤 바 (토글과 삭제 버튼을 나란히)
     c_head1, c_head2 = st.columns([0.85, 0.15])
     with c_head1:
+        # 다시 이전처럼 직관적인 토글 스위치로 복구
         edit_mode = st.toggle("✏️ 수정 모드", key=f"tog_v2_{item['id']}")
     with c_head2:
         if st.button("🗑️ 삭제", key=f"del_v2_{item['id']}", use_container_width=True):
@@ -128,16 +129,14 @@ def show_details(item):
 
     st.divider()
     
-    # 💡 비율을 0.25 : 0.75로 더 조절 (사진 영역을 더 좁게)
+    # 2. 메인 레이아웃 (좌 이미지 / 우 상세정보)
     col_img, col_txt = st.columns([0.4, 0.6])
 
     with col_img:
         if item.get('img_url'):
-            # 💡 하단 목록창에 영향을 주지 않도록 스타일을 직접 입히지 않고 
-            # Streamlit 기본 이미지 위젯의 너비 조절 기능만 사용합니다.
             st.image(item['img_url'], use_container_width=True)
         else:
-            st.info("이미지 없음")
+            st.info("등록된 이미지가 없습니다.")
 
     with col_txt:
         if edit_mode:
@@ -170,6 +169,7 @@ def show_details(item):
                     st.rerun()
         else:
             # --- [조회 모드] ---
+            # 모든 텍스트 정보가 이미지 오른쪽에 위치합니다.
             st.markdown(f'<p class="act-name">{item.get("title")}</p>', unsafe_allow_html=True)
             
             content = str(item.get('summary', ''))
@@ -179,11 +179,13 @@ def show_details(item):
             
             st.write(f"**창작자:** {item.get('creator')} | **작품날짜:** {item.get('rel_date')}")
             
+            # 감상일 (30px) [2026-02-12 날짜 크기 30]
             v_date = item.get('view_date') or item.get('save_date', '')
             st.markdown(f'<p class="date-text">🍿 {v_date}</p>', unsafe_allow_html=True)
             
             st.divider()
 
+            # 요약, 줄거리, 인상, 감상 박스들
             if item.get('brief'): st.success(f"**요약:** {item['brief']}")
             if item.get('summary'): st.info(f"**상세:** {item['summary']}")
             if item.get('highlights'): st.warning(f"**인상 깊은 부분:**\n\n{item['highlights']}")
@@ -405,6 +407,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
