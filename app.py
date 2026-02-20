@@ -224,64 +224,69 @@ with tab1:
         note = st.text_area("💬 감상", height=100)
         
         if st.button("✅ 저장"):
-            # 1. 변수 안전장치 (NameError 방지)
+            # 1. NameError 방지: 이미지 변수가 없으면 빈 값 처리
             safe_img_url = ""
             if 'img_url_val' in locals():
                 safe_img_url = img_url_val
             elif 'api_data' in st.session_state and 'image_url' in st.session_state.api_data:
                 safe_img_url = st.session_state.api_data['image_url']
 
-            # 2. KM, BPM 소문자 처리
+            # 2. 디자인 가이드: KM, BPM 소문자 처리
             processed_note = note.replace("KM", "km").replace("BPM", "bpm")
             
-            # 3. 로컬 DB 저장
+            # 3. 로컬 SQLite DB 저장
             try:
                 with sqlite3.connect(DB_NAME) as conn:
                     conn.execute("""INSERT INTO archive 
                         (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) 
                         VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-                        (str(category), str(title), str(creator), str(rel_date), str(summary), 
-                         str(brief), str(highlights), str(processed_note), str(safe_img_url), 
-                         str(date.today()), str(view_date)))
+                        (category, title, creator, str(rel_date), summary, brief, highlights, processed_note, safe_img_url, str(date.today()), str(view_date)))
             except Exception as e:
                 st.error(f"로컬 저장 실패: {e}")
 
-            # 4. 구글 설문지 전송 (단답형 전용)
-            # ⚠️ 여기서 entry 번호가 틀리면 내용이 안 들어갑니다.
+            # 4. 구글 설문지 백업 전송 (아까 성공했던 구조)
             BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
             
+            # 날짜를 구글이 원하는 쪼개진 형식으로 준비
+            try:
+                r_dt = pd.to_datetime(rel_date)
+                ry, rm, rd = f"{r_dt.year}", f"{r_dt.month:02d}", f"{r_dt.day:02d}"
+                v_dt = pd.to_datetime(view_date)
+                vy, vm, vd = f"{v_dt.year}", f"{v_dt.month:02d}", f"{v_dt.day:02d}"
+            except:
+                ry, rm, rd = "2026", "02", "13"
+                vy, vm, vd = "2026", "02", "20"
+
             payload = {
-                "entry.574529989": str(category),
-                "entry.898076783": str(title),
-                "entry.345368346": str(creator),
-                "entry.543246487": str(summary),
-                "entry.1816924330": str(brief),
-                "entry.270693677": str(highlights),
-                "entry.891180756": str(processed_note),
-                "entry.2056153041": str(safe_img_url),
-                "entry.780422311": str(rel_date),
-                "entry.1446643193": str(view_date)
+                "entry.574529989": category,
+                "entry.898076783": title,
+                "entry.345368346": creator,
+                "entry.543246487": summary,
+                "entry.1816924330": brief,
+                "entry.270693677": highlights,
+                "entry.891180756": processed_note,
+                "entry.2056153041": safe_img_url,
+                
+                # 날짜 쪼개서 전송
+                "entry.780422311_year": ry,
+                "entry.780422311_month": rm,
+                "entry.780422311_day": rd,
+                
+                "entry.1446643193_year": vy,
+                "entry.1446643193_month": vm,
+                "entry.1446643193_day": vd
             }
             
             try:
-                # 헤더를 브라우저처럼 위장하여 전송 (차단 방지)
-                headers = {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    "User-Agent": "Mozilla/5.0"
-                }
-                res = requests.post(BACKUP_URL, data=payload, headers=headers)
-                
+                # 아까 성공했을 때처럼 순수하게 post 전송
+                res = requests.post(BACKUP_URL, data=payload, timeout=10)
                 if res.status_code == 200:
-                    st.success("✅ 로컬 및 구글 백업 완료!")
+                    st.success("✅ 구글 응답 전송 성공!")
                 else:
-                    # 실패 시 구글이 보낸 에러 메시지를 직접 확인합니다.
-                    st.error(f"⚠️ 전송 실패 (코드: {res.status_code})")
-                    with st.expander("상세 에러 보기"):
-                        st.write(res.text) # 여기에 "필수 질문이 누락됨" 등이 뜰 수 있습니다.
+                    st.warning(f"⚠️ 전송 결과 확인 필요 (상태 코드: {res.status_code})")
             except Exception as e:
-                st.error(f"❌ 네트워크 연결 오류: {e}")
+                st.error(f"❌ 전송 중 오류 발생: {e}")
 
-            # 5. 새로고침
             st.session_state.api_data = {}
             st.rerun()
 # --- TAB 2: ARCHIVE ---
@@ -351,6 +356,7 @@ with tab2:
                                 if row['img_url']: st.markdown(f'<div class="cal-img-box"><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
