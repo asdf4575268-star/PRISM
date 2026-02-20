@@ -294,9 +294,8 @@ with tab1:
                 st.error(f"❌ 오류 발생: {e}")
 
                 st.session_state.api_data = {}  # API 검색 데이터 삭제
-                time.sleep(1)                  # 성공 메시지를 잠시 보여줌
                 st.rerun()                     # 화면을 새로고침하여 입력창 비움
-# --- TAB 2: ARCHIVE ---
+
 # --- TAB 2: ARCHIVE ---
 with tab2:
     st.markdown("""
@@ -409,6 +408,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
