@@ -117,7 +117,7 @@ def show_details(item):
         item = item.to_dict()
     
     # 1. 상단 컨트롤 바 (토글과 삭제 버튼을 나란히)
-    c_head1, c_head2 = st.columns([0.85, 0.15])
+    c_head1, c_head2 = st.columns([0.15, 0.85])
     with c_head1:
         if st.button("🗑️", key=f"del_v2_{item['id']}", use_container_width=True):
             with sqlite3.connect(DB_NAME) as conn:
@@ -417,6 +417,7 @@ with sub_tabs[0]:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
