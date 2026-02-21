@@ -10,8 +10,6 @@ import time
 import os
 import shutil
 
-
-
 # --- [1. 스타일 및 설정] ---
 st.set_page_config(layout="wide", page_title="PRISM")
 st.title("🌈PRISM")
@@ -451,7 +449,12 @@ with tab2:
     # --- 1. Yearly 탭 (배지 형식 수정) ---
 with sub_tabs[0]:
     if not all_df.empty:
-        all_df['v_dt'] = pd.to_datetime(all_df['view_date'].fillna(all_df['save_date']))
+        # errors='coerce'를 추가하여 잘못된 날짜는 NaT(빈값)로 변환합니다.
+        all_df['v_dt'] = pd.to_datetime(all_df['view_date'].fillna(all_df['save_date']), errors='coerce')
+        
+        # NaT(변환실패)인 행은 오늘 날짜로 채워 에러를 방지합니다.
+        all_df['v_dt'] = all_df['v_dt'].fillna(pd.Timestamp.now())
+        
         all_df['year_int'] = all_df['v_dt'].dt.year
         all_df['month_int'] = all_df['v_dt'].dt.month
         yearly_df = all_df.sort_values(by='v_dt', ascending=False)
@@ -521,6 +524,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
