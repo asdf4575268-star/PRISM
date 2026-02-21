@@ -7,33 +7,39 @@ import xml.etree.ElementTree as ET
 from datetime import date, datetime
 import re
 import time
-import sqlite3
-import pandas as pd
-import requests
-from datetime import date
+import os
 
+# --- [0. 로컬 DB 안전 경로 설정] ---
+os.makedirs('data', exist_ok=True) # data 폴더가 없으면 생성하여 DB 증발 방지
+DB_NAME = 'data/archive_prism_total_v4.db'
 
 # --- [1. 스타일 및 설정] ---
 st.set_page_config(layout="wide", page_title="PRISM")
+
+# [디자인 가이드 반영] 로컬 폰트 배제 & 구글 폰트 적용 / 글자 크기 맞춤 설정
+st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Jolly+Lodger&family=Kirang+Haerang&family=Lacquer&display=swap');
+    
+    .title-text { font-family: 'Jolly Lodger', cursive; font-size: 90px; line-height: 1.1; }
+    .date-text { font-family: 'Kirang Haerang', cursive; font-size: 30px; }
+    .num-text { font-family: 'Lacquer', sans-serif; font-size: 60px; color: #E74C3C; }
+    
+    div[data-testid="column"] { display: flex; flex-direction: column; align-items: center; text-align: center !important; }
+    .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 6px; margin-bottom: 5px; }
+    .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
+    .badge { position: absolute; top: 5px; background: rgba(0, 0, 0, 0.6); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; z-index: 10; }
+    .badge-left { left: 5px; background: rgba(50, 50, 50, 0.8); } 
+    .badge-right { right: 5px; } 
+    </style>
+""", unsafe_allow_html=True)
+
 st.title("🌈PRISM")
 
 if 'cal_year' not in st.session_state: st.session_state.cal_year = datetime.now().year
 if 'cal_month' not in st.session_state: st.session_state.cal_month = datetime.now().month
 if 'api_data' not in st.session_state: st.session_state.api_data = {}
 
-# 월 이동 함수
-def shift_month(delta):
-    new_month = st.session_state.cal_month + delta
-    if new_month == 0:
-        st.session_state.cal_year -= 1
-        st.session_state.cal_month = 12
-    elif new_month == 13:
-        st.session_state.cal_year += 1
-        st.session_state.cal_month = 1
-    else:
-        st.session_state.cal_month = new_month
-
-DB_NAME = 'archive_prism_total_v4.db'
 TMDB_API_KEY = "6e7c55b6259b7731655033f783f3fc5b"
 KOPIS_KEY = "7a919bc272204f06bbca10e2af376dea"
 
@@ -43,6 +49,35 @@ def init_db():
                         (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
                          rel_date TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, img_url TEXT, save_date TEXT, view_date TEXT)''')
 init_db()
+
+# --- [비상 복구 시스템 (사이드바)] ---
+with st.sidebar:
+    st.header("🛠️ 시스템 복구")
+    st.info("구글 시트의 [웹에 게시 -> CSV] 링크를 아래에 붙여넣으세요.")
+    recovery_url = st.text_input("CSV 링크 입력", key="csv_url")
+    
+    if st.button("🔄 구글 시트에서 데이터 복구", use_container_width=True):
+        if not recovery_url or not recovery_url.endswith("csv"):
+            st.warning("유효한 CSV 링크를 입력해 주세요! (끝이 =csv 로 끝나야 합니다)")
+        else:
+            try:
+                # 1. 구글 시트 CSV 읽어오기
+                df_backup = pd.read_csv(recovery_url)
+                
+                # 2. 열 이름 매핑 (구글 시트 순서 -> 로컬 DB 컬럼명)
+                # 구글: 타임스탬프, category, title, creator, 공개일, summary, brief, highlights, note, img_url, 감상일
+                df_backup.columns = ['save_date', 'category', 'title', 'creator', 'rel_date', 'summary', 'brief', 'highlights', 'note', 'img_url', 'view_date']
+                
+                # 3. 로컬 DB 초기화 및 데이터 덮어쓰기
+                with sqlite3.connect(DB_NAME) as conn:
+                    conn.execute("DELETE FROM archive") # 기존 데이터 삭제 (스키마 유지)
+                    df_backup.to_sql('archive', conn, if_exists='append', index=False)
+                
+                st.success("✅ 로컬 DB가 완벽하게 복구되었습니다!")
+                time.sleep(1)
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ 복구 중 오류 발생: {e}")
 
 # --- [2. API 함수 정의 구역] ---
 def search_books(query):
@@ -96,29 +131,23 @@ def search_kopis(query):
         return [{'title': d.findtext('prfnm'), 'id': d.findtext('mt20id'), 'img': d.findtext('poster'), 'date': d.findtext('prfpdfrom'), 'venue': d.findtext('fcltynm')} for d in root.findall('db')]
     except: return []
 
-col_empty, col_btn = st.columns([0.85, 0.15]) 
-
 # --- [3. 팝업 함수] ---
 @st.dialog("📋 기록 상세 정보", width="large")
 def show_details(item):
     if hasattr(item, 'to_dict'): item = item.to_dict()
     
-    # --- [상단 툴바] ---
     t_col1, t_col2, t_col3 = st.columns([0.2, 0.6, 0.2])
     
     with t_col1:
-        # [수정] key 값 뒤에 '_dialog'를 붙여서 중복을 피합니다.
         if st.button("🗑️ 삭제", key=f"del_{item['id']}_dialog", use_container_width=True):
             with sqlite3.connect(DB_NAME) as conn:
                 conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
             st.rerun()
 
     with t_col3:
-        # [수정] 토글의 key 값도 '_dialog'를 붙여주는 것이 안전합니다.
         edit_mode = st.toggle("✏️ 수정", key=f"tog_{item['id']}_dialog")
 
     st.divider()
-
 
     col_img, col_txt = st.columns([0.3, 0.7])
 
@@ -143,10 +172,8 @@ def show_details(item):
                 n_note = st.text_area("💬 감상", value=str(item.get('note') or ''), height=100)
 
                 if st.form_submit_button("💾 저장", use_container_width=True):
-                    # 1. 소문자 변환
                     final_note = n_note.replace("KM", "km").replace("BPM", "bpm")
 
-                    # 2. 구글 백업 데이터 (들여쓰기 주의!)
                     BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
                     edit_payload = {
                         "entry.574529989": item.get('category', '기타'),
@@ -157,33 +184,33 @@ def show_details(item):
                         "entry.270693677": n_high,
                         "entry.891180756": final_note,
                         "entry.2056153041": item.get('img_url', '')
-                        # 날짜 필드는 필요시 추가 (tab1과 동일하게)
                     }
 
                     try:
-                        # 구글로 먼저 쏘기
                         requests.post(BACKUP_URL, data=edit_payload, timeout=10)
                         
-                        # 로컬 DB 수정
                         with sqlite3.connect(DB_NAME) as conn:
                             conn.execute("""UPDATE archive SET title=?, creator=?, rel_date=?, summary=?, brief=?, highlights=?, note=?, view_date=? WHERE id=?""", 
                                          (n_title, n_creator, n_rel, n_sum, n_brief, n_high, final_note, str(n_view), item['id']))
                         
                         st.success("✅ 수정 및 백업 완료!")
                         time.sleep(0.5)
-                        st.rerun() # 모든 작업 끝난 후 새로고침
+                        st.rerun()
                     except Exception as e:
                         st.error(f"❌ 오류 발생: {e}")
         else:
-            # 조회 모드 (디자인 가이드 반영)
-            st.markdown(f'<div style="font-size:30px; font-weight:bold; line-height:1.1;">{item.get("title")}</div>', unsafe_allow_html=True)
+            # 조회 모드 (디자인 가이드 - 제목 크기 90px, 폰트 적용)
+            st.markdown(f'<div class="title-text">{item.get("title")}</div>', unsafe_allow_html=True)
             st.write(f"**Creator:** {item.get('creator')} | **공개일:** {item.get('rel_date')}")
             v_date = item.get('view_date') or item.get('save_date', '')
+            # 날짜 크기 30px, 폰트 적용
             st.markdown(f'<p class="date-text">🍿 감상일: {v_date}</p>', unsafe_allow_html=True)
             st.divider()
             
-            # 감상 본문 (KM/BPM 소문자 강조 포함)
-            note_content = str(item.get('note', '')).replace("km", '<span class="num-text">km</span>').replace("bpm", '<span class="num-text">bpm</span>')
+            # 감상 본문 (KM/BPM 소문자 강조 및 숫자 크기 60px 적용)
+            note_content = str(item.get('note', ''))
+            # 정규식을 이용해 숫자 뒤에 km, bpm이 올 경우 숫자를 60px 크기의 num-text 클래스로 감쌈
+            note_content = re.sub(r'(\d+)\s*(km|bpm)', r'<span class="num-text">\1</span> \2', note_content)
             
             if item.get('brief'): st.success(item['brief'])
             if item.get('summary'): st.info(item['summary'])
@@ -255,31 +282,20 @@ with tab1:
         highlights = st.text_area("✨ 인상 깊은 부분", height=100)
         note = st.text_area("💬 감상", height=100)
         
-# 바로 아래에 버튼을 배치 (가로로 길게 들어갑니다)
         if st.button("✅ 저장", use_container_width=True):
-            # 1. 변수 안전장치 (NameError 방지)
             safe_img_url = img_url_val if 'img_url_val' in locals() else ""
-            
-            # 2. 디자인 가이드: KM, BPM 소문자 처리
             processed_note = note.replace("KM", "km").replace("BPM", "bpm")
 
-            # 3. 날짜 에러(AttributeError) 해결: 문자열을 날짜 객체로 변환
-            import pandas as pd
             try:
-                # rel_date가 문자열일 경우를 대비해 변환
                 r_dt = pd.to_datetime(rel_date)
                 ry, rm, rd = str(r_dt.year), f"{r_dt.month:02d}", f"{r_dt.day:02d}"
-                
-                # view_date도 변환
                 v_dt = pd.to_datetime(view_date)
                 vy, vm, vd = str(v_dt.year), f"{v_dt.month:02d}", f"{v_dt.day:02d}"
             except Exception as e:
-                # 변환 실패 시 오늘 날짜로 방어
                 ry, rm, rd = "2026", "02", "20"
                 vy, vm, vd = "2026", "02", "20"
                 st.warning("날짜 형식이 올바르지 않아 기본값으로 설정되었습니다.")
 
-            # 4. 구글 설문지 전송 (날짜 쪼개기 방식)
             BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
             
             payload = {
@@ -291,20 +307,13 @@ with tab1:
                 "entry.270693677": highlights,
                 "entry.891180756": processed_note,
                 "entry.2056153041": safe_img_url,
-                "entry.780422311_year": ry,
-                "entry.780422311_month": rm,
-                "entry.780422311_day": rd,
-                "entry.1446643193_year": vy,
-                "entry.1446643193_month": vm,
-                "entry.1446643193_day": vd
+                "entry.780422311_year": ry, "entry.780422311_month": rm, "entry.780422311_day": rd,
+                "entry.1446643193_year": vy, "entry.1446643193_month": vm, "entry.1446643193_day": vd
             }
 
-            # 5. 실행 및 로컬 DB 저장
             try:
-                # 구글 전송
                 res = requests.post(BACKUP_URL, data=payload, timeout=10)
                 
-                # 로컬 저장
                 with sqlite3.connect(DB_NAME) as conn:
                     conn.execute("""INSERT INTO archive 
                         (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) 
@@ -321,48 +330,13 @@ with tab1:
             except Exception as e:
                 st.error(f"❌ 오류 발생: {e}")
 
-               
-
 # --- TAB 2: ARCHIVE ---
 with tab2:
-    st.markdown("""
-        <style>
-        div[data-testid="column"] {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center !important;
-        }
-        .cal-img-box { 
-            position: relative; 
-            width: 100%; aspect-ratio: 1/1; 
-            overflow: hidden; border-radius: 6px; 
-            margin-bottom: 5px;
-        }
-        .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
-        
-        /* 배지 스타일 */
-        .badge {
-            position: absolute;
-            top: 5px;
-            background: rgba(0, 0, 0, 0.6);
-            color: white;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 10px;
-            z-index: 10;
-        }
-        .badge-left { left: 5px; background: rgba(50, 50, 50, 0.8); } 
-        .badge-right { right: 5px; } 
-        </style>
-    """, unsafe_allow_html=True)
-
     with sqlite3.connect(DB_NAME) as conn:
         all_df = pd.read_sql_query("SELECT * FROM archive", conn)
 
     sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
 
-    # --- 1. Yearly 탭 (배지 형식 수정) ---
 with sub_tabs[0]:
     if not all_df.empty:
         all_df['v_dt'] = pd.to_datetime(all_df['view_date'].fillna(all_df['save_date']))
@@ -370,14 +344,10 @@ with sub_tabs[0]:
         all_df['month_int'] = all_df['v_dt'].dt.month
         yearly_df = all_df.sort_values(by='v_dt', ascending=False)
         
-        # [수정] 연도별 개수 계산 및 포맷팅
         raw_years = sorted(list(yearly_df['year_int'].unique()), reverse=True)
         year_options = {y: f"{y} ({len(yearly_df[yearly_df['year_int'] == y])})" for y in raw_years}
         
-        # 셀렉트박스 표시 (format_func 사용)
         sel_y = st.selectbox("연도 선택", raw_years, format_func=lambda x: year_options[x], key="yr_sel")
-        
-        year_data = yearly_df[yearly_df['year_int'] == sel_y]
         
         year_data = yearly_df[yearly_df['year_int'] == sel_y]
         for month in range(12, 0, -1):
@@ -391,7 +361,6 @@ with sub_tabs[0]:
                         if i + j < len(items):
                             row = items[i + j]
                             with cols[j]:
-                                # [수정] 날짜에서 '일'만 추출하여 'nn일' 형식으로 변환
                                 try:
                                     day_val = pd.to_datetime(row['view_date']).day
                                     v_date_display = f"{day_val}일"
@@ -409,56 +378,27 @@ with sub_tabs[0]:
                                     show_details(row)
                 st.divider()
 
-    # --- 2. 카테고리 탭 (수정된 부분) ---
-    cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
-    for idx, c_name in enumerate(cats):
-        with sub_tabs[idx+1]:
-            cat_df = all_df[all_df['category'] == c_name].copy()
-            if not cat_df.empty:
-                cat_df['sort_dt'] = pd.to_datetime(cat_df['view_date'].fillna(cat_df['save_date']))
-                cat_df = cat_df.sort_values(by='sort_dt', ascending=False)
-                items = cat_df.to_dict('records')
-                for i in range(0, len(items), 6):
-                    cols = st.columns(6)
-                    for j in range(6):
-                        if i + j < len(items):
-                            row = items[i + j]
-                            with cols[j]:
-                                # 수정: 배지를 badge-left(왼쪽 상단)로 변경
-                                v_date_full = row['view_date'] if row['view_date'] else ""
-                                img_html = f'''
-                                    <div class="cal-img-box">
-                                        <div class="badge badge-left">{v_date_full}</div>
-                                        <img src="{row["img_url"]}">
-                                    </div>'''
-                                st.markdown(img_html, unsafe_allow_html=True)
-                                if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
-                                    show_details(row)
-            else: st.info(f"{c_name} 기록이 없습니다.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
+for idx, c_name in enumerate(cats):
+    with sub_tabs[idx+1]:
+        cat_df = all_df[all_df['category'] == c_name].copy()
+        if not cat_df.empty:
+            cat_df['sort_dt'] = pd.to_datetime(cat_df['view_date'].fillna(cat_df['save_date']))
+            cat_df = cat_df.sort_values(by='sort_dt', ascending=False)
+            items = cat_df.to_dict('records')
+            for i in range(0, len(items), 6):
+                cols = st.columns(6)
+                for j in range(6):
+                    if i + j < len(items):
+                        row = items[i + j]
+                        with cols[j]:
+                            v_date_full = row['view_date'] if row['view_date'] else ""
+                            img_html = f'''
+                                <div class="cal-img-box">
+                                    <div class="badge badge-left">{v_date_full}</div>
+                                    <img src="{row["img_url"]}">
+                                </div>'''
+                            st.markdown(img_html, unsafe_allow_html=True)
+                            if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
+                                show_details(row)
+        else: st.info(f"{c_name} 기록이 없습니다.")
