@@ -285,165 +285,22 @@ with tab2:
                                         show_details(row)
 
     # 카테고리별 탭 루프
-    # --- 카테고리별 탭 루프 (에러 발생 구간 교정) ---
     cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
     for idx, c_name in enumerate(cats):
         with sub_tabs[idx+1]:
-            # 해당 카테고리 데이터 필터링
             c_df = all_df[all_df['category'] == c_name].copy()
-            
             if not c_df.empty:
-                # 날짜 순 정렬 (감상일 기준)
-                c_df['v_dt'] = pd.to_datetime(c_df['view_date'], errors='coerce')
+                c_df['v_dt'] = pd.to_datetime(c_df['view_date'])
                 items = c_df.sort_values(by='v_dt', ascending=False).to_dict('records')
-                
-                # 6열 그리드 출력
                 for i in range(0, len(items), 6):
                     cols = st.columns(6)
                     for j in range(6):
-                        if i + j < len(items):
-                            row = items[i + j]
+                        if i+j < len(items):
+                            row = items[i+j]
                             with cols[j]:
-                                v_date_str = str(row['view_date']) if row['view_date'] else ""
-                                # 이미지 박스 및 배지 출력
-                                st.markdown(f'''
-                                    <div class="cal-img-box">
-                                        <div class="badge badge-left">{v_date_str}</div>
-                                        <img src="{row['img_url']}">
-                                    </div>''', unsafe_allow_html=True)
-                                
-                                # 상세 보기 버튼 (중복 방지를 위해 unique key 설정)
-                                btn_key = f"cat_list_{idx}_{row['id']}"
-                                if st.button(f"{row['title'][:7]}..", key=btn_key, use_container_width=True):
+                                st.markdown(f'''<div class="cal-img-box">
+                                    <div class="badge badge-left">{row['view_date']}</div>
+                                    <img src="{row['img_url']}">
+                                </div>''', unsafe_allow_html=True)
+                                if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}"):
                                     show_details(row)
-            else:
-                st.info(f"{c_name} 카테고리에 등록된 기록이 없습니다.")
-
-               
-
-# --- TAB 2: ARCHIVE ---
-with tab2:
-    if st.button("🔄 Google 백업 복원"):
-        restore_from_google()	
-    st.markdown("""
-        <style>
-        div[data-testid="column"] {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center !important;
-        }
-        .cal-img-box { 
-            position: relative; 
-            width: 100%; aspect-ratio: 1/1; 
-            overflow: hidden; border-radius: 6px; 
-            margin-bottom: 5px;
-        }
-        .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
-        
-        /* 배지 스타일 */
-        .badge {
-            position: absolute;
-            top: 5px;
-            background: rgba(0, 0, 0, 0.6);
-            color: white;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 10px;
-            z-index: 10;
-        }
-        .badge-left { left: 5px; background: rgba(50, 50, 50, 0.8); } 
-        .badge-right { right: 5px; } 
-        </style>
-    """, unsafe_allow_html=True)
-
-    with sqlite3.connect(DB_NAME) as conn:
-        all_df = pd.read_sql_query("SELECT * FROM archive", conn)
-
-    sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
-
-    # --- 1. Yearly 탭 (배지 형식 수정) ---
-with sub_tabs[0]:
-    if not all_df.empty:
-        all_df['v_dt'] = pd.to_datetime(all_df['view_date'].fillna(all_df['save_date']))
-        all_df['year_int'] = all_df['v_dt'].dt.year
-        all_df['month_int'] = all_df['v_dt'].dt.month
-        yearly_df = all_df.sort_values(by='v_dt', ascending=False)
-        
-        # [수정] 연도별 개수 계산 및 포맷팅
-        raw_years = sorted(list(yearly_df['year_int'].unique()), reverse=True)
-        year_options = {y: f"{y} ({len(yearly_df[yearly_df['year_int'] == y])})" for y in raw_years}
-        
-        # 셀렉트박스 표시 (format_func 사용)
-        sel_y = st.selectbox("연도 선택", raw_years, format_func=lambda x: year_options[x], key="yr_sel")
-        
-        year_data = yearly_df[yearly_df['year_int'] == sel_y]
-        
-        year_data = yearly_df[yearly_df['year_int'] == sel_y]
-        for month in range(12, 0, -1):
-            month_data = year_data[year_data['month_int'] == month]
-            if not month_data.empty:
-                st.markdown(f"### 🗓️ {month}월")
-                items = month_data.to_dict('records')
-                for i in range(0, len(items), 6):
-                    cols = st.columns(6)
-                    for j in range(6):
-                        if i + j < len(items):
-                            row = items[i + j]
-                            with cols[j]:
-                                # [수정] 날짜에서 '일'만 추출하여 'nn일' 형식으로 변환
-                                try:
-                                    day_val = pd.to_datetime(row['view_date']).day
-                                    v_date_display = f"{day_val}일"
-                                except:
-                                    v_date_display = ""
-
-                                img_html = f'''
-                                    <div class="cal-img-box">
-                                        <div class="badge badge-left">{row['category']}</div>
-                                        <div class="badge badge-right">{v_date_display}</div>
-                                        <img src="{row["img_url"]}">
-                                    </div>'''
-                                st.markdown(img_html, unsafe_allow_html=True)
-                                if st.button(f"{row['title'][:7]}..", key=f"yr_{row['id']}", use_container_width=True): 
-                                    show_details(row)
-                st.divider()
-
-    # --- 2. 카테고리 탭 (수정된 부분) ---
-    cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
-    for idx, c_name in enumerate(cats):
-        with sub_tabs[idx+1]:
-            cat_df = all_df[all_df['category'] == c_name].copy()
-            if not cat_df.empty:
-                cat_df['sort_dt'] = pd.to_datetime(cat_df['view_date'].fillna(cat_df['save_date']))
-                cat_df = cat_df.sort_values(by='sort_dt', ascending=False)
-                items = cat_df.to_dict('records')
-                for i in range(0, len(items), 6):
-                    cols = st.columns(6)
-                    for j in range(6):
-                        if i + j < len(items):
-                            row = items[i + j]
-                            with cols[j]:
-                                # 수정: 배지를 badge-left(왼쪽 상단)로 변경
-                                v_date_full = row['view_date'] if row['view_date'] else ""
-                                img_html = f'''
-                                    <div class="cal-img-box">
-                                        <div class="badge badge-left">{v_date_full}</div>
-                                        <img src="{row["img_url"]}">
-                                    </div>'''
-                                st.markdown(img_html, unsafe_allow_html=True)
-                                if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
-                                    show_details(row)
-            else: st.info(f"{c_name} 기록이 없습니다.")
-
-
-
-
-
-
-
-
-
-
-
-
