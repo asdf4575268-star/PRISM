@@ -438,7 +438,7 @@ with tab1:
 
 # --- TAB 2: ARCHIVE ---
 with tab2:
-    if st.button("🔄 Google 백업 복원"):
+    if st.button("🔄"):
         restore_from_google()
     st.markdown("""
         <style>
@@ -557,3 +557,4 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
