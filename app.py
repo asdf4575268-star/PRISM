@@ -143,12 +143,37 @@ def show_details(item):
                 n_note = st.text_area("💬 감상", value=str(item.get('note') or ''), height=100)
 
                 if st.form_submit_button("💾 저장", use_container_width=True):
-                    # KM, BPM 소문자 처리
+                    # 1. 소문자 변환
                     final_note = n_note.replace("KM", "km").replace("BPM", "bpm")
-                    with sqlite3.connect(DB_NAME) as conn:
-                        conn.execute("""UPDATE archive SET title=?, creator=?, rel_date=?, summary=?, brief=?, highlights=?, note=?, view_date=? WHERE id=?""", 
-                                     (n_title, n_creator, n_rel, n_sum, n_brief, n_high, final_note, str(n_view), item['id']))
-                    st.rerun()
+
+                    # 2. 구글 백업 데이터 (들여쓰기 주의!)
+                    BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
+                    edit_payload = {
+                        "entry.574529989": item.get('category', '기타'),
+                        "entry.898076783": n_title,
+                        "entry.345368346": n_creator,
+                        "entry.543246487": n_sum,
+                        "entry.1816924330": n_brief,
+                        "entry.270693677": n_high,
+                        "entry.891180756": final_note,
+                        "entry.2056153041": item.get('img_url', '')
+                        # 날짜 필드는 필요시 추가 (tab1과 동일하게)
+                    }
+
+                    try:
+                        # 구글로 먼저 쏘기
+                        requests.post(BACKUP_URL, data=edit_payload, timeout=10)
+                        
+                        # 로컬 DB 수정
+                        with sqlite3.connect(DB_NAME) as conn:
+                            conn.execute("""UPDATE archive SET title=?, creator=?, rel_date=?, summary=?, brief=?, highlights=?, note=?, view_date=? WHERE id=?""", 
+                                         (n_title, n_creator, n_rel, n_sum, n_brief, n_high, final_note, str(n_view), item['id']))
+                        
+                        st.success("✅ 수정 및 백업 완료!")
+                        time.sleep(0.5)
+                        st.rerun() # 모든 작업 끝난 후 새로고침
+                    except Exception as e:
+                        st.error(f"❌ 오류 발생: {e}")
         else:
             # 조회 모드 (디자인 가이드 반영)
             st.markdown(f'<div style="font-size:30px; font-weight:bold; line-height:1.1;">{item.get("title")}</div>', unsafe_allow_html=True)
@@ -410,6 +435,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
