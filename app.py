@@ -529,36 +529,42 @@ with sub_tabs[0]:
                                     show_details(row)
                 st.divider()
 
-  # --- 2. 카테고리 탭 (최신 감상일 순 정렬 적용) ---
+# --- 2. 카테고리 탭 (정렬 로직 강화) ---
     cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
     for idx, c_name in enumerate(cats):
         with sub_tabs[idx+1]:
+            # 해당 카테고리만 추출 후 복사
             cat_df = all_df[all_df['category'] == c_name].copy()
+            
             if not cat_df.empty:
-                # [정렬 로직 추가]
-                # 1. view_date가 없으면 save_date를 쓰고, 둘 다 없으면 에러 방지(coerce)
-                cat_df['sort_dt'] = pd.to_datetime(cat_df['view_date'].fillna(cat_df['save_date']), errors='coerce')
-                
-                # 2. 날짜가 비어있는 데이터는 가장 뒤로 보내기 위해 아주 오래된 날짜 채움
-                cat_df['sort_dt'] = cat_df['sort_dt'].fillna(pd.Timestamp('1900-01-01'))
-                
-                # 3. 최신순(ascending=False)으로 정렬
-                cat_df = cat_df.sort_values(by='sort_dt', ascending=False)
-                
+                # 1. 날짜 데이터 정제: 'nan' 문자열이나 빈 값을 NaT(실제 빈값)로 변환
+                # view_date가 없으면 save_date를 참조
+                cat_df['temp_date'] = pd.to_datetime(
+                    cat_df['view_date'].replace('', None).fillna(cat_df['save_date']), 
+                    errors='coerce'
+                )
+
+                # 2. 정렬: temp_date 기준 내림차순 (최신순)
+                # NaT(날짜 없는 데이터)는 맨 뒤로(last) 보냄
+                cat_df = cat_df.sort_values(by='temp_date', ascending=False, na_position='last')
+
+                # 3. 정렬된 데이터프레임으로 리스트 생성 (이게 중요!)
                 items = cat_df.to_dict('records')
+
+                # 4. 그리드 출력
                 for i in range(0, len(items), 6):
                     cols = st.columns(6)
                     for j in range(6):
                         if i + j < len(items):
                             row = items[i + j]
                             with cols[j]:
-                                # 배지 표시용 날짜 (nan 방어)
-                                v_date_full = row.get('view_date') or row.get('save_date') or ""
-                                if str(v_date_full).lower() == "nan": v_date_full = ""
-
+                                # 날짜 배지 표시 (nan 제거)
+                                raw_d = str(row.get('view_date') or row.get('save_date') or "")
+                                disp_d = "" if raw_d.lower() in ["nan", "none", ""] else raw_d
+                                
                                 img_html = f'''
                                     <div class="cal-img-box">
-                                        <div class="badge badge-left">{v_date_full}</div>
+                                        <div class="badge badge-left">{disp_d}</div>
                                         <img src="{row["img_url"]}">
                                     </div>'''
                                 st.markdown(img_html, unsafe_allow_html=True)
@@ -566,6 +572,3 @@ with sub_tabs[0]:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 없습니다.")
-
-
-
