@@ -266,22 +266,40 @@ def show_details(item):
             st.markdown(f'<p style="color:gray;">🍿 감상일: {view_v}</p>', unsafe_allow_html=True)
             st.divider()
             
-            # 3. 본문 출력 (데이터가 있을 때만 표시)
-            if get_val('brief'): 
-                st.success(get_val('brief'))
+           # 3. 본문 출력
+            # [요약] - 심플 스타일
+            b_val = get_val('brief')
+            if b_val:
+                st.markdown(f"""
+                <div style="padding: 10px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px;">
+                    <small style="color: #666;">📝 요약</small><br><strong>{b_val}</strong>
+                </div>
+                """, unsafe_allow_html=True)
             
-            if get_val('summary'): 
-                st.info(get_val('summary'))
+            # [줄거리/정보] - 심플 스타일
+            s_val = get_val('summary')
+            if s_val:
+                st.markdown(f"""
+                <div style="padding: 10px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px;">
+                    <small style="color: #666;">📖 정보/줄거리</small><br>{s_val.replace('\n', '<br>')}
+                </div>
+                """, unsafe_allow_html=True)
+
+            # [인상 깊은 부분] - 심플 스타일
+            h_val = get_val('highlights')
+            if h_val:
+                st.markdown(f"""
+                <div style="padding: 10px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px;">
+                    <small style="color: #666;">✨ 인상 깊은 부분</small><br>{h_val.replace('\n', '<br>')}
+                </div>
+                """, unsafe_allow_html=True)
             
-            if get_val('highlights'): 
-                st.warning(get_val('highlights'))
-            
-            # 4. 감상(Note) 부분만 노란색 박스로 강조
+            # 4. 감상(Note) - 노란색 강조 박스 유지
             note_v = get_val('note')
             if note_v:
                 st.markdown(f"""
-                <div style="background-color: #fff4cc; padding: 15px; border-radius: 10px; color: #000; border-left: 5px solid #ffcc00;">
-                    <strong>💬 감상</strong><br><br>{note_v}
+                <div style="background-color: #fff4cc; padding: 15px; border-radius: 10px; color: #000; border-left: 5px solid #ffcc00; margin-top: 10px;">
+                    <strong>💬 감상</strong><br><br>{note_v.replace('\n', '<br>')}
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -539,6 +557,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
