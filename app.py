@@ -69,7 +69,14 @@ def restore_from_google():
         with sqlite3.connect(DB_NAME) as conn:
             conn.execute("DELETE FROM archive")
             for _, row in df.iterrows():
-                # 공개일 데이터를 정확히 변수에 담기
+                # [수정] 감상일에서 시간은 버리고 날짜만 추출
+                view_val = str(row.get(col_map.get("view_date"), "")).strip()
+                if view_val.lower() != "nan" and " " in view_val:
+                    view_val = view_val.split(" ")[0] # 공백 뒤의 시간 제거
+                elif view_val.lower() == "nan":
+                    view_val = ""
+
+                # 공개일 처리 (기존 로직 유지)
                 rel_val = str(row.get(col_map.get("rel_date"), "")).strip()
                 if rel_val.lower() == "nan": rel_val = ""
 
@@ -81,16 +88,16 @@ def restore_from_google():
                     str(row.get(col_map.get("category"), "")),
                     str(row.get(col_map.get("title"), "")),
                     str(row.get(col_map.get("creator"), "")),
-                    rel_val, # 드디어 들어가는 공개일!
+                    rel_val,
                     str(row.get(col_map.get("summary"), "")),
                     str(row.get(col_map.get("brief"), "")),
                     str(row.get(col_map.get("highlights"), "")),
                     str(row.get(col_map.get("note"), "")),
                     str(row.get(col_map.get("img_url"), "")),
                     str(row.get(col_map.get("save_date"), "")),
-                    str(row.get(col_map.get("view_date"), ""))
+                    view_val # 시간 잘라낸 날짜만 쏙!
                 ))
-        st.success("공개일까지 완벽하게 복원되었습니다!")
+        st.success("복원 완")
     except Exception as e:
         st.error(f"복원 중 오류 발생: {e}")
 
@@ -564,4 +571,5 @@ with sub_tabs[0]:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
