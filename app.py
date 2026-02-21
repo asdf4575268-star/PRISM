@@ -181,9 +181,10 @@ with tab1:
         with c2:
             f_rel = st.text_input("출시일", value=data.get('date', ''))
             f_view = st.date_input("감상일", value=date.today())
-            f_note = st.text_area("감상 (KM/BPM 자동 변환)")
             f_brief = st.text_input("한줄 요약")
-        
+            n_high = st.text_area("✨ 인상 깊은 부분", value=str(item.get('highlights') or ''), height=100)
+            f_note = st.text_area("감상")
+            
         if st.form_submit_button("✅ 저장 및 백업"):
             processed_note = f_note.replace("KM", "km").replace("BPM", "bpm")
             # 로컬 저장
@@ -258,3 +259,4 @@ with tab2:
                                         show_details(row)
                 else: st.info("기록이 없습니다.")
     else: st.info("아직 기록이 없습니다.")
+
