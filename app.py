@@ -227,7 +227,8 @@ def show_details(item):
                         "entry.270693677": n_high,
                         "entry.891180756": final_note,
                         "entry.2056153041": item.get('img_url', '')
-                        # 날짜 필드는 필요시 추가 (tab1과 동일하게)
+                        "entry.작품날짜ID": str(n_rel),
+                        "entry.감상일ID": str(n_view),
                     }
 
                     try:
@@ -507,4 +508,5 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
