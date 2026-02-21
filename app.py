@@ -44,62 +44,66 @@ init_db()
 
 def restore_from_google():
     try:
-        df = pd.read_csv(GOOGLE_SHEET_CSV)
+        df = pd.read_csv(GOOGLE_SHEET_CSV, engine="python")
         df.columns = df.columns.str.strip()
-        df = df.fillna("")
-
-        # [1단계] 컬럼 이름 찾기 (들여쓰기 주의!)
+        
+        # 1. 모든 NaN 값을 빈 문자열로 치환 (사용자님이 작성하신 부분)
+        df = df.fillna("") 
+        
         col_map = {}
         for col in df.columns:
-            lower = col.lower().replace(" ", "")
-            if "category" in lower or "카테고리" in lower: col_map["category"] = col
-            elif "title" in lower or "제목" in lower: col_map["title"] = col
-            elif "creator" in lower or "작가" in lower or "감독" in lower: col_map["creator"] = col
-            # 공개일/출판일 누락 방지 필터
-            elif any(x in lower for x in ["rel", "공개", "출판", "개봉", "발매"]): col_map["rel_date"] = col
-            elif "summary" in lower or "줄거리" in lower: col_map["summary"] = col
-            elif "brief" in lower or "요약" in lower: col_map["brief"] = col
-            elif "highlight" in lower or "인상" in lower: col_map["highlights"] = col
-            elif "note" in lower or "감상" in lower: col_map["note"] = col
-            elif "img" in lower or "이미지" in lower: col_map["img_url"] = col
+            lower = col.lower()
+            if "category" in lower: col_map["category"] = col
+            elif "title" in lower: col_map["title"] = col
+            elif "creator" in lower: col_map["creator"] = col
+            elif "rel" in lower: col_map["rel_date"] = col
+            elif "summary" in lower: col_map["summary"] = col
+            elif "brief" in lower: col_map["brief"] = col
+            elif "highlight" in lower: col_map["highlights"] = col
+            elif "note" in lower: col_map["note"] = col
+            elif "img" in lower: col_map["img_url"] = col
+            # 날짜 관련 매핑 (스프레드시트 헤더에 맞춰 조정)
             elif "타임스탬프" in lower or "save" in lower: col_map["save_date"] = col
             elif "감상일" in lower or "view" in lower: col_map["view_date"] = col
 
-        # [2단계] DB에 넣기 (with문은 try 안에, for문은 with 안에!)
         with sqlite3.connect(DB_NAME) as conn:
             conn.execute("DELETE FROM archive")
-            for _, row in df.iterrows():
-                # [수정] 감상일에서 시간은 버리고 날짜만 추출
-                view_val = str(row.get(col_map.get("view_date"), "")).strip()
-                if view_val.lower() != "nan" and " " in view_val:
-                    view_val = view_val.split(" ")[0] # 공백 뒤의 시간 제거
-                elif view_val.lower() == "nan":
-                    view_val = ""
 
-                # 공개일 처리 (기존 로직 유지)
-                rel_val = str(row.get(col_map.get("rel_date"), "")).strip()
-                if rel_val.lower() == "nan": rel_val = ""
+            for _, row in df.iterrows():
+                # 2. 날짜 값 추출 (비어있을 경우 오늘 날짜나 빈 값 처리)
+                s_date = str(row.get(col_map.get("save_date"), date.today()))
+                v_date = str(row.get(col_map.get("view_date"), ""))
+                
+                # 감상일이 비어있으면 저장일(타임스탬프)이라도 넣어 정렬 유지
+                if not v_date:
+                    v_date = s_date
 
                 conn.execute("""
-                    INSERT INTO archive 
-                    (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date)
+                    INSERT INTO archive
+                    (category, title, creator, rel_date,
+                     summary, brief, highlights, note,
+                     img_url, save_date, view_date)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     str(row.get(col_map.get("category"), "")),
                     str(row.get(col_map.get("title"), "")),
                     str(row.get(col_map.get("creator"), "")),
-                    rel_val,
+                    str(row.get(col_map.get("rel_date"), "")),
                     str(row.get(col_map.get("summary"), "")),
                     str(row.get(col_map.get("brief"), "")),
                     str(row.get(col_map.get("highlights"), "")),
                     str(row.get(col_map.get("note"), "")),
                     str(row.get(col_map.get("img_url"), "")),
-                    str(row.get(col_map.get("save_date"), "")),
-                    view_val # 시간 잘라낸 날짜만 쏙!
+                    s_date,
+                    v_date
                 ))
-        st.success("복원 완")
+
+        st.success("✅ 복원 완료 (nan 제거 및 날짜 동기화)")
+        time.sleep(1)
+        st.rerun()
+
     except Exception as e:
-        st.error(f"복원 중 오류 발생: {e}")
+        st.error(f"❌ 복원 실패: {e}")
 
 
 # --- [2. API 함수 정의 구역] ---
@@ -571,5 +575,3 @@ with sub_tabs[0]:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 없습니다.")
-
-
