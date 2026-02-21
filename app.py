@@ -529,16 +529,22 @@ with sub_tabs[0]:
                                     show_details(row)
                 st.divider()
 
-    # --- 2. 카테고리 탭 (수정된 부분) ---
+  # --- 2. 카테고리 탭 (최신 감상일 순 정렬 적용) ---
     cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
     for idx, c_name in enumerate(cats):
         with sub_tabs[idx+1]:
             cat_df = all_df[all_df['category'] == c_name].copy()
             if not cat_df.empty:
-                cat_df['sort_dt'] = pd.to_datetime(cat_df['view_date'].fillna(cat_df['save_date']), errors='coerce')           
+                # [정렬 로직 추가]
+                # 1. view_date가 없으면 save_date를 쓰고, 둘 다 없으면 에러 방지(coerce)
+                cat_df['sort_dt'] = pd.to_datetime(cat_df['view_date'].fillna(cat_df['save_date']), errors='coerce')
+                
+                # 2. 날짜가 비어있는 데이터는 가장 뒤로 보내기 위해 아주 오래된 날짜 채움
                 cat_df['sort_dt'] = cat_df['sort_dt'].fillna(pd.Timestamp('1900-01-01'))
-            
+                
+                # 3. 최신순(ascending=False)으로 정렬
                 cat_df = cat_df.sort_values(by='sort_dt', ascending=False)
+                
                 items = cat_df.to_dict('records')
                 for i in range(0, len(items), 6):
                     cols = st.columns(6)
@@ -546,8 +552,10 @@ with sub_tabs[0]:
                         if i + j < len(items):
                             row = items[i + j]
                             with cols[j]:
-                                # 수정: 배지를 badge-left(왼쪽 상단)로 변경
-                                v_date_full = row['view_date'] if row['view_date'] else ""
+                                # 배지 표시용 날짜 (nan 방어)
+                                v_date_full = row.get('view_date') or row.get('save_date') or ""
+                                if str(v_date_full).lower() == "nan": v_date_full = ""
+
                                 img_html = f'''
                                     <div class="cal-img-box">
                                         <div class="badge badge-left">{v_date_full}</div>
@@ -556,5 +564,7 @@ with sub_tabs[0]:
                                 st.markdown(img_html, unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
-            else: st.info(f"{c_name} 기록이 없습니다.")
+            else: 
+                st.info(f"{c_name} 기록이 없습니다.")
+
 
