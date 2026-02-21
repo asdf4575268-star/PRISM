@@ -493,16 +493,14 @@ with sub_tabs[0]:
     # --- 2. 카테고리 탭 (수정된 부분) ---
     cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
     for idx, c_name in enumerate(cats):
-    with sub_tabs[idx+1]:
-        cat_df = all_df[all_df['category'] == c_name].copy()
-        if not cat_df.empty:
-            # errors='coerce'를 추가하여 빈 문자열이나 잘못된 날짜를 NaT(알 수 없음)로 변환합니다.
-            cat_df['sort_dt'] = pd.to_datetime(cat_df['view_date'].fillna(cat_df['save_date']), errors='coerce')           
-            # NaT인 경우 정렬을 위해 아주 오래된 날짜(1900년)로 잠시 채워줍니다.
-            cat_df['sort_dt'] = cat_df['sort_dt'].fillna(pd.Timestamp('1900-01-01'))
+        with sub_tabs[idx+1]:
+            cat_df = all_df[all_df['category'] == c_name].copy()
+            if not cat_df.empty:
+                cat_df['sort_dt'] = pd.to_datetime(cat_df['view_date'].fillna(cat_df['save_date']), errors='coerce')           
+                cat_df['sort_dt'] = cat_df['sort_dt'].fillna(pd.Timestamp('1900-01-01'))
             
-            cat_df = cat_df.sort_values(by='sort_dt', ascending=False)
-            items = cat_df.to_dict('records')
+                cat_df = cat_df.sort_values(by='sort_dt', ascending=False)
+                items = cat_df.to_dict('records')
                 for i in range(0, len(items), 6):
                     cols = st.columns(6)
                     for j in range(6):
@@ -520,6 +518,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
