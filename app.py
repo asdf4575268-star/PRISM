@@ -20,7 +20,9 @@ DB_NAME = os.path.join(BASE_DIR, "archive_prism_total_v4.db")
 
 TMDB_API_KEY = "YOUR_TMDB_KEY"
 KOPIS_KEY = "YOUR_KOPIS_KEY"
-GOOGLE_SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQDDV1yl-cDAjFN8B0SIpnkGzfGB5gRJvRDjE6AJXqOgWnhJ0hy9tNmW4tkL3SUMBkuX-Uw3um_pdjT/pubhtml?gid=1160662254&single=true"
+
+# ✅ 반드시 CSV 형식이어야 함 (pubhtml ❌)
+GOOGLE_SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQDDV1yl-cDAjFN8B0SIpnkGzfGB5gRJvRDjE6AJXqOgWnhJ0hy9tNmW4tkL3SUMBkuX-Uw3um_pdjT/pub?gid=1160662254&single=true&output=csv"
 
 # ------------------ DB 초기화 ------------------
 
@@ -35,11 +37,46 @@ def init_db():
 
 init_db()
 
-# ------------------ Google 복원 ------------------
+# ------------------ Google 복원 (안전 버전) ------------------
 
 def restore_from_google():
     try:
-        df = pd.read_csv(GOOGLE_SHEET_CSV)
+        df = pd.read_csv(
+            GOOGLE_SHEET_CSV,
+            engine="python",
+            sep=",",
+            quotechar='"',
+            on_bad_lines="skip"
+        )
+
+        df.columns = df.columns.str.strip()
+
+        col_map = {}
+
+        for col in df.columns:
+            lower = col.lower()
+            if "category" in lower:
+                col_map["category"] = col
+            elif "title" in lower:
+                col_map["title"] = col
+            elif "creator" in lower:
+                col_map["creator"] = col
+            elif "rel" in lower:
+                col_map["rel_date"] = col
+            elif "summary" in lower:
+                col_map["summary"] = col
+            elif "brief" in lower:
+                col_map["brief"] = col
+            elif "highlight" in lower:
+                col_map["highlights"] = col
+            elif "note" in lower:
+                col_map["note"] = col
+            elif "img" in lower:
+                col_map["img_url"] = col
+            elif "save" in lower:
+                col_map["save_date"] = col
+            elif "view" in lower:
+                col_map["view_date"] = col
 
         with sqlite3.connect(DB_NAME) as conn:
             conn.execute("DELETE FROM archive")
@@ -52,17 +89,17 @@ def restore_from_google():
                      img_url, save_date, view_date)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
-                    row.get("category"),
-                    row.get("title"),
-                    row.get("creator"),
-                    row.get("rel_date"),
-                    row.get("summary"),
-                    row.get("brief"),
-                    row.get("highlights"),
-                    row.get("note"),
-                    row.get("img_url"),
-                    row.get("save_date"),
-                    row.get("view_date"),
+                    row.get(col_map.get("category"), ""),
+                    row.get(col_map.get("title"), ""),
+                    row.get(col_map.get("creator"), ""),
+                    row.get(col_map.get("rel_date"), ""),
+                    row.get(col_map.get("summary"), ""),
+                    row.get(col_map.get("brief"), ""),
+                    row.get(col_map.get("highlights"), ""),
+                    row.get(col_map.get("note"), ""),
+                    row.get(col_map.get("img_url"), ""),
+                    row.get(col_map.get("save_date"), ""),
+                    row.get(col_map.get("view_date"), ""),
                 ))
 
         st.success("✅ Google 백업 복원 완료")
@@ -77,69 +114,14 @@ def restore_from_google():
 with sqlite3.connect(DB_NAME) as conn:
     check_df = pd.read_sql_query("SELECT COUNT(*) as cnt FROM archive", conn)
 
-if check_df["cnt"][0] == 0 and GOOGLE_SHEET_CSV != "":
+if check_df["cnt"][0] == 0:
     restore_from_google()
 
-# ------------------ 백업 ------------------
+# ------------------ 로컬 백업 ------------------
 
 def backup_local_db():
     backup_name = f"backup_{datetime.now().strftime('%Y%m%d_%H%M')}.db"
     shutil.copy(DB_NAME, os.path.join(BASE_DIR, backup_name))
-
-# ------------------ API ------------------
-
-def search_books(query):
-    headers = {"Authorization": "KakaoAK YOUR_KAKAO_KEY"}
-    try:
-        res = requests.get(
-            "https://dapi.kakao.com/v3/search/book",
-            headers=headers,
-            params={"query": query},
-        )
-        return res.json().get("documents", [])
-    except:
-        return []
-
-def search_apple_music(query):
-    try:
-        res = requests.get(
-            f"https://itunes.apple.com/search?term={query}&limit=20&country=kr"
-        ).json()
-        return res.get("results", [])
-    except:
-        return []
-
-def search_tmdb(query, category):
-    type_path = "movie" if category == "MOVIES" else "tv"
-    try:
-        res = requests.get(
-            f"https://api.themoviedb.org/3/search/{type_path}",
-            params={
-                "api_key": TMDB_API_KEY,
-                "query": query,
-                "language": "ko-KR",
-            },
-        )
-        return res.json().get("results", [])
-    except:
-        return []
-
-def search_kopis(query):
-    try:
-        url = f"http://www.kopis.or.kr/openApi/restful/pblprfr?service={KOPIS_KEY}&shprfnm={query}&stdate=20200101&eddate=20261231&rows=10&cpage=1"
-        res = requests.get(url)
-        root = ET.fromstring(res.content)
-        return [
-            {
-                "title": d.findtext("prfnm"),
-                "date": d.findtext("prfpdfrom"),
-                "img": d.findtext("poster"),
-                "venue": d.findtext("fcltynm"),
-            }
-            for d in root.findall("db")
-        ]
-    except:
-        return []
 
 # ------------------ TAB 구성 ------------------
 
@@ -155,26 +137,6 @@ with tab1:
         horizontal=True,
     )
 
-    search_query = st.text_input("🔍 검색")
-
-    if search_query:
-
-        if category == "BOOKS":
-            res = search_books(search_query)
-
-        elif category == "MUSIC":
-            res = search_apple_music(search_query)
-
-        elif category in ["MOVIES", "SERIES"]:
-            res = search_tmdb(search_query, category)
-
-        elif category == "STAGE":
-            res = search_kopis(search_query)
-
-        st.write(res)
-
-    st.divider()
-
     img_url = st.text_input("🖼️ 이미지 URL")
     title = st.text_input("제목")
     creator = st.text_input("창작자")
@@ -188,49 +150,32 @@ with tab1:
     if st.button("✅ 저장", use_container_width=True):
 
         processed_note = note.replace("KM", "km").replace("BPM", "bpm")
-        safe_img_url = (
-            img_url
-            if img_url
-            else "https://via.placeholder.com/500x750?text=No+Image"
-        )
 
         with sqlite3.connect(DB_NAME) as conn:
-            existing = conn.execute(
-                "SELECT id FROM archive WHERE title=? AND creator=?",
-                (title, creator),
-            ).fetchone()
+            conn.execute("""
+                INSERT INTO archive
+                (category, title, creator, rel_date,
+                 summary, brief, highlights, note,
+                 img_url, save_date, view_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                category,
+                title,
+                creator,
+                rel_date,
+                summary,
+                brief,
+                highlights,
+                processed_note,
+                img_url,
+                str(date.today()),
+                str(view_date),
+            ))
 
-        if existing:
-            st.warning("⚠️ 이미 저장된 기록입니다.")
-        else:
-            with sqlite3.connect(DB_NAME) as conn:
-                conn.execute(
-                    """
-                    INSERT INTO archive
-                    (category, title, creator, rel_date,
-                     summary, brief, highlights, note,
-                     img_url, save_date, view_date)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        category,
-                        title,
-                        creator,
-                        rel_date,
-                        summary,
-                        brief,
-                        highlights,
-                        processed_note,
-                        safe_img_url,
-                        str(date.today()),
-                        str(view_date),
-                    ),
-                )
-
-            backup_local_db()
-            st.success("✅ 저장 완료 (로컬 + 자동 백업)")
-            time.sleep(1)
-            st.rerun()
+        backup_local_db()
+        st.success("✅ 저장 완료")
+        time.sleep(1)
+        st.rerun()
 
 # ================= ARCHIVE =================
 
@@ -248,7 +193,8 @@ with tab2:
         st.info("기록이 없습니다.")
     else:
         df["sort_dt"] = pd.to_datetime(
-            df["view_date"].fillna(df["save_date"])
+            df["view_date"].fillna(df["save_date"]),
+            errors="coerce"
         )
         df = df.sort_values(by="sort_dt", ascending=False)
 
@@ -256,7 +202,8 @@ with tab2:
             with st.container():
                 cols = st.columns([1, 4])
                 with cols[0]:
-                    st.image(row["img_url"])
+                    if row["img_url"]:
+                        st.image(row["img_url"])
                 with cols[1]:
                     st.markdown(f"### {row['title']}")
                     st.write(row["creator"])
