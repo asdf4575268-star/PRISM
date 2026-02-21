@@ -343,16 +343,24 @@ with tab1:
             try:
                 # rel_date가 문자열일 경우를 대비해 변환
                 r_dt = pd.to_datetime(rel_date)
-                ry, rm, rd = str(r_dt.year), f"{r_dt.month:02d}", f"{r_dt.day:02d}"
-                
-                # view_date도 변환
+                ry = str(r_dt.year)
+                rm = str(r_dt.month)
+                rd = str(r_dt.day)
+                #view_date도 변환
                 v_dt = pd.to_datetime(view_date)
-                vy, vm, vd = str(v_dt.year), f"{v_dt.month:02d}", f"{v_dt.day:02d}"
+                vy = str(v_dt.year)
+                vm = str(v_dt.month)   # ← 0패딩 제거
+                vd = str(v_dt.day) 
             except Exception as e:
-                # 변환 실패 시 오늘 날짜로 방어
-                ry, rm, rd = "2026", "02", "20"
-                vy, vm, vd = "2026", "02", "20"
-                st.warning("날짜 형식이 올바르지 않아 기본값으로 설정되었습니다.")
+                ry = str(date.today().year)
+                rm = str(date.today().month)
+                rd = str(date.today().day)
+
+                vy = ry
+                vm = rm
+                vd = rd
+                
+                st.warning("날짜 형식이 올바르지 않아 오늘 날짜로 설정되었습니다.")
 
             # 4. 구글 설문지 전송 (날짜 쪼개기 방식)
             BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
@@ -512,6 +520,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
