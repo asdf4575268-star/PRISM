@@ -529,46 +529,48 @@ with sub_tabs[0]:
                                     show_details(row)
                 st.divider()
 
-# --- 2. 카테고리 탭 (정렬 로직 강화) ---
-    cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
+# --- 2. 카테고리 탭 (날짜 강제 변환 및 최신순 정렬) ---
     for idx, c_name in enumerate(cats):
         with sub_tabs[idx+1]:
-            # 해당 카테고리만 추출 후 복사
             cat_df = all_df[all_df['category'] == c_name].copy()
             
             if not cat_df.empty:
-                # 1. 날짜 데이터 정제: 'nan' 문자열이나 빈 값을 NaT(실제 빈값)로 변환
-                # view_date가 없으면 save_date를 참조
-                cat_df['temp_date'] = pd.to_datetime(
-                    cat_df['view_date'].replace('', None).fillna(cat_df['save_date']), 
-                    errors='coerce'
-                )
+                # [강력 정렬 로직]
+                def force_date(x):
+                    if not x or str(x).lower() in ["nan", "none", ""]: return pd.NaT
+                    # 2026. 2. 21 -> 2026-02-21 형태로 변환 시도
+                    clean_str = str(x).replace(".", "-").replace(" ", "")
+                    return pd.to_datetime(clean_str, errors='coerce')
 
-                # 2. 정렬: temp_date 기준 내림차순 (최신순)
-                # NaT(날짜 없는 데이터)는 맨 뒤로(last) 보냄
-                cat_df = cat_df.sort_values(by='temp_date', ascending=False, na_position='last')
-
-                # 3. 정렬된 데이터프레임으로 리스트 생성 (이게 중요!)
+                # 정렬용 임시 컬럼 생성
+                cat_df['sort_key'] = cat_df['view_date'].apply(force_date)
+                # view_date가 없으면 save_date로 보완
+                cat_df['sort_key'] = cat_df['sort_key'].fillna(cat_df['save_date'].apply(force_date))
+                
+                # 최신순 정렬 (날짜 없는 건 맨 뒤로)
+                cat_df = cat_df.sort_values(by='sort_key', ascending=False, na_position='last')
+                
                 items = cat_df.to_dict('records')
 
-                # 4. 그리드 출력
+                # --- 그리드 출력 구역 ---
                 for i in range(0, len(items), 6):
                     cols = st.columns(6)
                     for j in range(6):
                         if i + j < len(items):
                             row = items[i + j]
                             with cols[j]:
-                                # 날짜 배지 표시 (nan 제거)
-                                raw_d = str(row.get('view_date') or row.get('save_date') or "")
-                                disp_d = "" if raw_d.lower() in ["nan", "none", ""] else raw_d
+                                # 배지 날짜 정제
+                                raw_v = str(row.get('view_date') or "")
+                                badge_d = "" if raw_v.lower() in ["nan", ""] else raw_v
                                 
                                 img_html = f'''
                                     <div class="cal-img-box">
-                                        <div class="badge badge-left">{disp_d}</div>
+                                        <div class="badge badge-left">{badge_d}</div>
                                         <img src="{row["img_url"]}">
                                     </div>'''
                                 st.markdown(img_html, unsafe_allow_html=True)
-                                if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
+                                if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}_{i+j}", use_container_width=True): 
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 없습니다.")
+
