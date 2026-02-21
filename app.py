@@ -44,16 +44,10 @@ init_db()
 
 def restore_from_google():
     try:
-        df = pd.read_csv(
-            GOOGLE_SHEET_CSV,
-            engine="python",
-            sep=",",
-            quotechar='"',
-            on_bad_lines="skip"
-        )
-
+        df = pd.read_csv(GOOGLE_SHEET_CSV, engine="python")
         df.columns = df.columns.str.strip()
         col_map = {}
+        df = df.fillna("")
 
         # 날짜 연동을 위한 매핑 강화
         for col in df.columns:
@@ -524,6 +518,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
