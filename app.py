@@ -227,12 +227,8 @@ def show_details(item):
                         "entry.270693677": n_high,
                         "entry.891180756": final_note,
                         "entry.2056153041": item.get('img_url', ''),
-                        "entry.780422311_year": str(ry),
-                        "entry.780422311_month": str(rm),
-                        "entry.780422311_day": str(rd),
-                        "entry.1446643193_year": vy,
-                        "entry.1446643193_month": vm,
-                        "entry.1446643193_day": vd
+                        "entry.780422311": str(rel_date),
+                        "entry.1446643193": str(view_date),
                     }
 
                     try:
@@ -512,6 +508,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
