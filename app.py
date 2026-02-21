@@ -46,10 +46,11 @@ def restore_from_google():
     try:
         df = pd.read_csv(GOOGLE_SHEET_CSV, engine="python")
         df.columns = df.columns.str.strip()
+        
+        # 1. 모든 NaN 값을 빈 문자열로 치환 (사용자님이 작성하신 부분)
+        df = df.fillna("") 
+        
         col_map = {}
-        df = df.fillna("")
-
-        # 날짜 연동을 위한 매핑 강화
         for col in df.columns:
             lower = col.lower()
             if "category" in lower: col_map["category"] = col
@@ -61,24 +62,21 @@ def restore_from_google():
             elif "highlight" in lower: col_map["highlights"] = col
             elif "note" in lower: col_map["note"] = col
             elif "img" in lower: col_map["img_url"] = col
-            # 타임스탬프 혹은 저장일 처리
+            # 날짜 관련 매핑 (스프레드시트 헤더에 맞춰 조정)
             elif "타임스탬프" in lower or "save" in lower: col_map["save_date"] = col
-            # 감상일 처리
             elif "감상일" in lower or "view" in lower: col_map["view_date"] = col
 
         with sqlite3.connect(DB_NAME) as conn:
             conn.execute("DELETE FROM archive")
 
             for _, row in df.iterrows():
-                # 날짜 데이터 정제: NaN 처리 및 문자열 변환
+                # 2. 날짜 값 추출 (비어있을 경우 오늘 날짜나 빈 값 처리)
                 s_date = str(row.get(col_map.get("save_date"), date.today()))
-                v_date = row.get(col_map.get("view_date"))
+                v_date = str(row.get(col_map.get("view_date"), ""))
                 
-                # 만약 감상일(view_date)이 비어있다면 저장일(save_date)로 대체
-                if pd.isna(v_date) or v_date == "":
+                # 감상일이 비어있으면 저장일(타임스탬프)이라도 넣어 정렬 유지
+                if not v_date:
                     v_date = s_date
-                else:
-                    v_date = str(v_date)
 
                 conn.execute("""
                     INSERT INTO archive
@@ -87,8 +85,8 @@ def restore_from_google():
                      img_url, save_date, view_date)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
-                    str(row.get(col_map.get("category"), "기타")),
-                    str(row.get(col_map.get("title"), "제목 없음")),
+                    str(row.get(col_map.get("category"), "")),
+                    str(row.get(col_map.get("title"), "")),
                     str(row.get(col_map.get("creator"), "")),
                     str(row.get(col_map.get("rel_date"), "")),
                     str(row.get(col_map.get("summary"), "")),
@@ -100,7 +98,7 @@ def restore_from_google():
                     v_date
                 ))
 
-        st.success("✅ Google 백업 복원 및 날짜 동기화 완료")
+        st.success("✅ 복원 완료 (nan 제거 및 날짜 동기화)")
         time.sleep(1)
         st.rerun()
 
@@ -518,6 +516,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
