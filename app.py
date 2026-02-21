@@ -44,39 +44,33 @@ init_db()
 
 def restore_from_google():
     try:
-        df = pd.read_csv(GOOGLE_SHEET_CSV, engine="python")
+        df = pd.read_csv(GOOGLE_SHEET_CSV).fillna("")
         df.columns = df.columns.str.strip()
-        
-        # 1. 모든 NaN 값을 빈 문자열로 치환 (사용자님이 작성하신 부분)
-        df = df.fillna("") 
-        
+
         col_map = {}
         for col in df.columns:
-            lower = col.lower()
-            if "category" in lower: col_map["category"] = col
-            elif "title" in lower: col_map["title"] = col
-            elif "creator" in lower: col_map["creator"] = col
-            elif "rel" in lower: col_map["rel_date"] = col
-            elif "summary" in lower: col_map["summary"] = col
-            elif "brief" in lower: col_map["brief"] = col
-            elif "highlight" in lower: col_map["highlights"] = col
-            elif "note" in lower: col_map["note"] = col
-            elif "img" in lower: col_map["img_url"] = col
-            # 날짜 관련 매핑 (스프레드시트 헤더에 맞춰 조정)
-            elif "타임스탬프" in lower or "save" in lower: col_map["save_date"] = col
-            elif "감상일" in lower or "view" in lower: col_map["view_date"] = col
+            lower = col.lower().replace(" ", "")
+            # [1] 감상일: '감상일'이라는 단어가 들어간 열만 사용 (타임스탬프와 분리)
+            if "감상일" in lower: col_map["view_date"] = col
+            elif "category" in lower or "카테고리" in lower: col_map["category"] = col
+            elif "title" in lower or "제목" in lower: col_map["title"] = col
+            elif "creator" in lower or "작가" in lower or "감독" in lower: col_map["creator"] = col
+            # [2] 공개일 추가
+            elif any(x in lower for x in ["rel", "공개", "출판", "개봉", "발매"]): col_map["rel_date"] = col
+            elif "summary" in lower or "줄거리" in lower: col_map["summary"] = col
+            elif "brief" in lower or "요약" in lower: col_map["brief"] = col
+            elif "highlight" in lower or "인상" in lower: col_map["highlights"] = col
+            elif "note" in lower or "감상" in lower: col_map["note"] = col
+            elif "img" in lower or "이미지" in lower: col_map["img_url"] = col
+            # [3] 타임스탬프는 save_date로 보내서 view_date에 침범 못하게 차단
+            elif "타임스탬프" in lower or "timestamp" in lower: col_map["save_date"] = col
 
         with sqlite3.connect(DB_NAME) as conn:
             conn.execute("DELETE FROM archive")
-
             for _, row in df.iterrows():
-                # 2. 날짜 값 추출 (비어있을 경우 오늘 날짜나 빈 값 처리)
-                s_date = str(row.get(col_map.get("save_date"), date.today()))
-                v_date = str(row.get(col_map.get("view_date"), ""))
-                
-                # 감상일이 비어있으면 저장일(타임스탬프)이라도 넣어 정렬 유지
-                if not v_date:
-                    v_date = s_date
+                # 배지 오류를 막기 위해 값을 가져올 때 한 번 더 체크
+                v_date = str(row.get(col_map.get("view_date"), "")).strip()
+                r_date = str(row.get(col_map.get("rel_date"), "")).strip()
 
                 conn.execute("""
                     INSERT INTO archive
@@ -88,19 +82,18 @@ def restore_from_google():
                     str(row.get(col_map.get("category"), "")),
                     str(row.get(col_map.get("title"), "")),
                     str(row.get(col_map.get("creator"), "")),
-                    str(row.get(col_map.get("rel_date"), "")),
+                    r_date, # 공개일
                     str(row.get(col_map.get("summary"), "")),
                     str(row.get(col_map.get("brief"), "")),
                     str(row.get(col_map.get("highlights"), "")),
                     str(row.get(col_map.get("note"), "")),
                     str(row.get(col_map.get("img_url"), "")),
-                    s_date,
-                    v_date
+                    str(row.get(col_map.get("save_date"), "")), # 타임스탬프는 여기에 격리
+                    v_date # 사용자님이 입력한 진짜 감상일
                 ))
-
-        st.success("✅ 복원 완료 (nan 제거 및 날짜 동기화)")
-        time.sleep(1)
-        st.rerun()
+        st.success("복원 완료")
+    except Exception as e:
+        st.error(f"오류 발생: {e}")
 
     except Exception as e:
         st.error(f"❌ 복원 실패: {e}")
@@ -575,3 +568,4 @@ with sub_tabs[0]:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 없습니다.")
+
