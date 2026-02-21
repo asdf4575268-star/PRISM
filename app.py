@@ -50,7 +50,8 @@ def restore_from_google():
         # 1. 모든 NaN 값을 빈 문자열로 치환 (사용자님이 작성하신 부분)
         df = df.fillna("") 
         
-        col_map = {}
+        # --- [1. 매핑 로직 강화] ---
+    col_map = {}
     for col in df.columns:
         lower = col.lower().replace(" ", "")
         if "category" in lower or "카테고리" in lower: col_map["category"] = col
@@ -570,5 +571,3 @@ with sub_tabs[0]:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 없습니다.")
-
-
