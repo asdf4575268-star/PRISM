@@ -568,3 +568,4 @@ with sub_tabs[0]:
                 st.info(f"{c_name} 기록이 없습니다.")
 
 
+
