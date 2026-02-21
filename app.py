@@ -55,38 +55,39 @@ def restore_from_google():
         )
 
         df.columns = df.columns.str.strip()
-
         col_map = {}
 
+        # 날짜 연동을 위한 매핑 강화
         for col in df.columns:
             lower = col.lower()
-            if "category" in lower:
-                col_map["category"] = col
-            elif "title" in lower:
-                col_map["title"] = col
-            elif "creator" in lower:
-                col_map["creator"] = col
-            elif "rel" in lower:
-                col_map["rel_date"] = col
-            elif "summary" in lower:
-                col_map["summary"] = col
-            elif "brief" in lower:
-                col_map["brief"] = col
-            elif "highlight" in lower:
-                col_map["highlights"] = col
-            elif "note" in lower:
-                col_map["note"] = col
-            elif "img" in lower:
-                col_map["img_url"] = col
-            elif "save" in lower:
-                col_map["save_date"] = col
-            elif "view" in lower:
-                col_map["view_date"] = col
+            if "category" in lower: col_map["category"] = col
+            elif "title" in lower: col_map["title"] = col
+            elif "creator" in lower: col_map["creator"] = col
+            elif "rel" in lower: col_map["rel_date"] = col
+            elif "summary" in lower: col_map["summary"] = col
+            elif "brief" in lower: col_map["brief"] = col
+            elif "highlight" in lower: col_map["highlights"] = col
+            elif "note" in lower: col_map["note"] = col
+            elif "img" in lower: col_map["img_url"] = col
+            # 타임스탬프 혹은 저장일 처리
+            elif "타임스탬프" in lower or "save" in lower: col_map["save_date"] = col
+            # 감상일 처리
+            elif "감상일" in lower or "view" in lower: col_map["view_date"] = col
 
         with sqlite3.connect(DB_NAME) as conn:
             conn.execute("DELETE FROM archive")
 
             for _, row in df.iterrows():
+                # 날짜 데이터 정제: NaN 처리 및 문자열 변환
+                s_date = str(row.get(col_map.get("save_date"), date.today()))
+                v_date = row.get(col_map.get("view_date"))
+                
+                # 만약 감상일(view_date)이 비어있다면 저장일(save_date)로 대체
+                if pd.isna(v_date) or v_date == "":
+                    v_date = s_date
+                else:
+                    v_date = str(v_date)
+
                 conn.execute("""
                     INSERT INTO archive
                     (category, title, creator, rel_date,
@@ -94,20 +95,20 @@ def restore_from_google():
                      img_url, save_date, view_date)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
-                    row.get(col_map.get("category"), ""),
-                    row.get(col_map.get("title"), ""),
-                    row.get(col_map.get("creator"), ""),
-                    row.get(col_map.get("rel_date"), ""),
-                    row.get(col_map.get("summary"), ""),
-                    row.get(col_map.get("brief"), ""),
-                    row.get(col_map.get("highlights"), ""),
-                    row.get(col_map.get("note"), ""),
-                    row.get(col_map.get("img_url"), ""),
-                    row.get(col_map.get("save_date"), ""),
-                    row.get(col_map.get("view_date"), ""),
+                    str(row.get(col_map.get("category"), "기타")),
+                    str(row.get(col_map.get("title"), "제목 없음")),
+                    str(row.get(col_map.get("creator"), "")),
+                    str(row.get(col_map.get("rel_date"), "")),
+                    str(row.get(col_map.get("summary"), "")),
+                    str(row.get(col_map.get("brief"), "")),
+                    str(row.get(col_map.get("highlights"), "")),
+                    str(row.get(col_map.get("note"), "")),
+                    str(row.get(col_map.get("img_url"), "")),
+                    s_date,
+                    v_date
                 ))
 
-        st.success("✅ Google 백업 복원 완료")
+        st.success("✅ Google 백업 복원 및 날짜 동기화 완료")
         time.sleep(1)
         st.rerun()
 
@@ -227,7 +228,7 @@ def show_details(item):
 
                 if st.form_submit_button("💾 저장", use_container_width=True):
                     # KM, BPM 소문자화 (기억하고 있는 가이드 반영)
-                    final_note = n_note.replace("KM", "km").replace("BPM", "bpm")
+                    final_note = n_note
                     
                     # 구글 전송용 날짜 쪼개기
                     vy, vm, vd = str(n_view.year), f"{n_view.month:02d}", f"{n_view.day:02d}"
@@ -266,7 +267,7 @@ def show_details(item):
             st.divider()
             
             # KM, BPM 소문자 강조 출력
-            note_content = str(item.get('note', '')).replace("km", '**km**').replace("bpm", '**bpm**')
+            note_content = str(item.get('note', ''))
             
             if item.get('brief'): st.success(item['brief'])
             if item.get('summary'): st.info(item['summary'])
@@ -344,7 +345,7 @@ with tab1:
             safe_img_url = img_url_val if 'img_url_val' in locals() else ""
             
             # 2. 디자인 가이드: KM, BPM 소문자 처리
-            processed_note = note.replace("KM", "km").replace("BPM", "bpm")
+            processed_note = note
 
             # 3. 날짜 에러(AttributeError) 해결: 문자열을 날짜 객체로 변환
             import pandas as pd
@@ -520,5 +521,6 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
