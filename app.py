@@ -8,25 +8,30 @@ import re
 import time
 import os
 
-# --- [0. DB 및 환경 설정] ---
+# --- [0. 로컬 DB 안전 경로 설정] ---
 os.makedirs('data', exist_ok=True)
 DB_NAME = 'data/archive_prism_total_v4.db'
 
+# --- [1. 스타일 및 설정] ---
 st.set_page_config(layout="wide", page_title="PRISM")
 
-# [디자인 가이드] 폰트 및 크기 설정
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Jolly+Lodger&family=Kirang+Haerang&family=Lacquer&display=swap');
-    .title-text { font-family: 'Jolly Lodger', cursive; font-size: 90px; line-height: 1.1; }
-    .date-text { font-family: 'Kirang Haerang', cursive; font-size: 30px; }
-    .num-text { font-family: 'Lacquer', sans-serif; font-size: 60px; color: #E74C3C; }
+    
+    /* 디자인 가이드 반영 */
+    .title-text { font-family: 'Jolly Lodger', cursive; font-size: 90px; line-height: 1.1; color: #111; }
+    .date-text { font-family: 'Kirang Haerang', cursive; font-size: 30px; color: #555; }
+    .num-text { font-family: 'Lacquer', sans-serif; font-size: 60px; color: #FF4B4B; vertical-align: middle; }
+    
+    /* 그리드 및 이미지 레이아웃 */
     div[data-testid="column"] { display: flex; flex-direction: column; align-items: center; text-align: center !important; }
-    .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 10px; margin-bottom: 5px; border: 1px solid #eee; background-color: #f9f9f9; }
-    .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
-    .badge { position: absolute; top: 5px; background: rgba(0, 0, 0, 0.6); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; z-index: 10; }
-    .badge-left { left: 5px; } 
-    .badge-right { right: 5px; background: #E74C3C; } 
+    .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1.3; overflow: hidden; border-radius: 12px; margin-bottom: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 1px solid #eee; background: #fff; }
+    .cal-img-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
+    .cal-img-box img:hover { transform: scale(1.05); }
+    .badge { position: absolute; top: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 3px 8px; border-radius: 6px; font-size: 11px; z-index: 10; font-weight: bold; }
+    .badge-left { left: 8px; } 
+    .badge-right { right: 8px; background: #FF4B4B; } 
     </style>
 """, unsafe_allow_html=True)
 
@@ -37,134 +42,137 @@ def init_db():
                          rel_date TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, img_url TEXT, save_date TEXT, view_date TEXT)''')
 init_db()
 
-# --- [1. API 검색 및 백업 로직] ---
-def search_books(query):
-    headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
-    try:
-        res = requests.get("https://dapi.kakao.com/v3/search/book", headers=headers, params={"query": query})
-        return res.json().get("documents", []) if res.status_code == 200 else []
-    except: return []
-
-def search_tmdb(query, category):
-    type_path = "movie" if category == "MOVIES" else "tv"
-    url = f"https://api.themoviedb.org/3/search/{type_path}?api_key=6e7c55b6259b7731655033f783f3fc5b&query={query}&language=ko-KR"
-    try: return requests.get(url).json().get("results", [])
-    except: return []
-
-# --- [2. 사이드바: 복구] ---
+# --- [2. 사이드바: 복구 및 설정] ---
 with st.sidebar:
-    st.header("🛠️ SYSTEM")
-    recovery_url = st.text_input("구글 시트 CSV 링크")
-    if st.button("🔄 데이터 강제 복구", use_container_width=True):
-        try:
-            df_backup = pd.read_csv(recovery_url, dtype=str).fillna("")
-            expected_cols = ['save_date', 'category', 'title', 'creator', 'rel_date', 'summary', 'brief', 'highlights', 'note', 'img_url', 'view_date']
-            df_backup.columns = expected_cols[:len(df_backup.columns)]
-            with sqlite3.connect(DB_NAME) as conn:
-                conn.execute("DELETE FROM archive")
-                df_backup.to_sql('archive', conn, if_exists='append', index=False)
-            st.success("복구 완료!")
-            st.rerun()
-        except Exception as e: st.error(f"오류: {e}")
+    st.header("🛠️ SYSTEM MENU")
+    with st.expander("데이터 복구 및 동기화", expanded=False):
+        recovery_url = st.text_input("구글 시트 CSV 링크")
+        if st.button("🔄 전체 데이터 강제 복구", use_container_width=True):
+            try:
+                # 11개 열 순서: 타임스탬프, category, title, creator, 공개일, summary, brief, highlights, note, img_url, 감상일
+                df_backup = pd.read_csv(recovery_url, dtype=str).fillna("")
+                expected_cols = ['save_date', 'category', 'title', 'creator', 'rel_date', 'summary', 'brief', 'highlights', 'note', 'img_url', 'view_date']
+                df_backup.columns = expected_cols[:len(df_backup.columns)]
+                
+                with sqlite3.connect(DB_NAME) as conn:
+                    conn.execute("DELETE FROM archive")
+                    df_backup.to_sql('archive', conn, if_exists='append', index=False)
+                st.success("✅ 복구 완료!")
+                st.rerun()
+            except Exception as e: st.error(f"오류: {e}")
 
-# --- [3. 상세 팝업] ---
-@st.dialog("📋 상세 정보", width="large")
+# --- [3. 상세 팝업 함수] ---
+@st.dialog("📋 ARCHIVE DETAIL", width="large")
 def show_details(item):
-    st.markdown(f'<div class="title-text">{str(item.get("title") or "제목 없음")}</div>', unsafe_allow_html=True)
+    # 활동명(제목) 90px
+    st.markdown(f'<div class="title-text">{str(item.get("title") or "NO TITLE")}</div>', unsafe_allow_html=True)
+    
     col_l, col_r = st.columns([0.4, 0.6])
     with col_l:
         if item.get('img_url'): st.image(item['img_url'], use_container_width=True)
+        else: st.info("이미지가 없습니다.")
+    
     with col_r:
-        st.markdown(f'<p class="date-text">🍿 감상일: {item.get("view_date") or item.get("save_date")}</p>', unsafe_allow_html=True)
-        st.write(f"**Creator:** {item.get('creator')} | **공개일:** {item.get('rel_date')}")
+        # 감상일 30px
+        v_date = item.get('view_date') or item.get('save_date')
+        st.markdown(f'<p class="date-text">🍿 WATCHED ON: {v_date}</p>', unsafe_allow_html=True)
+        st.caption(f"**CREATOR:** {item.get('creator')} | **RELEASE:** {item.get('rel_date')}")
         st.divider()
-        note_text = str(item.get('note') or "").replace("KM", "km").replace("BPM", "bpm")
-        note_text = re.sub(r'(\d+)\s*(km|bpm)', r'<span class="num-text">\1</span> \2', note_text)
+        
+        # 감상평 km/bpm 소문자 변환 및 숫자 60px
+        raw_note = str(item.get('note') or "")
+        processed_note = raw_note.replace("KM", "km").replace("BPM", "bpm")
+        # 숫자 + km/bpm 패턴 찾아서 숫자만 60px 적용
+        highlighted_note = re.sub(r'(\d+)\s*(km|bpm)', r'<span class="num-text">\1</span> \2', processed_note)
+        
         if item.get('brief'): st.success(item['brief'])
-        st.markdown(note_text, unsafe_allow_html=True)
+        st.markdown(highlighted_note, unsafe_allow_html=True)
+        
+        if item.get('highlights'): 
+            with st.expander("✨ Highlights"): st.write(item['highlights'])
 
-# --- [4. 메인 화면] ---
+# --- [4. 메인 화면 구성] ---
+st.title("🌈 PRISM")
+
 tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 
-# --- [WRITE PART] ---
 with tab1:
-    category = st.radio("CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"], horizontal=True)
-    search_q = st.text_input(f"🔍 {category} 검색")
+    cat = st.radio("CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"], horizontal=True)
     
-    # 검색 결과 처리 (예시: BOOKS)
-    if search_q and category == "BOOKS":
-        books = search_books(search_q)
-        if books:
-            sel_b = st.selectbox("책 선택", books, format_func=lambda x: x['title'])
-            if st.button("가져오기"):
-                st.session_state.temp_data = {'title': sel_b['title'], 'creator': ",".join(sel_b['authors']), 'img': sel_b['thumbnail'], 'summary': sel_b['contents']}
-    
-    temp = st.session_state.get('temp_data', {})
-    
-    with st.form("main_form"):
-        c1, c2 = st.columns([0.4, 0.6])
-        with c1:
-            f_title = st.text_input("제목", value=temp.get('title', ''))
-            f_creator = st.text_input("창작자", value=temp.get('creator', ''))
-            f_img = st.text_input("이미지 URL", value=temp.get('img', ''))
-            if f_img: st.image(f_img, width=150)
-        with c2:
-            f_view_date = st.date_input("감상일", date.today())
-            f_brief = st.text_input("요약")
-            f_note = st.text_area("감상 (km, bpm 자동변환)")
-            f_summary = st.text_area("줄거리/정보", value=temp.get('summary', ''))
+    with st.form("write_form"):
+        w_c1, w_c2 = st.columns([0.4, 0.6])
+        with w_c1:
+            w_title = st.text_input("제목")
+            w_creator = st.text_input("창작자")
+            w_img = st.text_input("이미지 URL")
+            if w_img: st.image(w_img, width=200)
+        with w_c2:
+            w_view_date = st.date_input("감상일", date.today())
+            w_brief = st.text_input("한 줄 요약")
+            w_note = st.text_area("감상 (km, bpm은 소문자로 기록됩니다)", height=200)
+            w_summary = st.text_area("정보/줄거리", height=100)
         
-        if st.form_submit_button("✅ 저장 및 백업"):
-            processed_note = f_note.replace("KM", "km").replace("BPM", "bpm")
-            # 로컬 DB 저장
+        if st.form_submit_button("💾 기록 저장 및 백업"):
+            final_note = w_note.replace("KM", "km").replace("BPM", "bpm")
+            # 로컬 저장
             with sqlite3.connect(DB_NAME) as conn:
-                conn.execute("""INSERT INTO archive 
-                    (category, title, creator, rel_date, summary, brief, note, img_url, save_date, view_date) 
-                    VALUES (?,?,?,?,?,?,?,?,?,?)""",
-                    (category, f_title, f_creator, "", f_summary, f_brief, processed_note, f_img, str(date.today()), str(f_view_date)))
+                conn.execute("""INSERT INTO archive (category, title, creator, summary, brief, note, img_url, save_date, view_date) 
+                             VALUES (?,?,?,?,?,?,?,?,?)""",
+                             (cat, w_title, w_creator, w_summary, w_brief, final_note, w_img, str(date.today()), str(w_view_date)))
             
-            # 구글 설문지 백업 (기존 URL 사용)
+            # 구글 백업 (선택사항: 필요시 활성화)
             BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
-            payload = {"entry.574529989": category, "entry.898076783": f_title, "entry.345368346": f_creator, "entry.891180756": processed_note}
-            try: requests.post(BACKUP_URL, data=payload)
+            try: requests.post(BACKUP_URL, data={"entry.574529989": cat, "entry.898076783": w_title, "entry.891180756": final_note})
             except: pass
             
-            st.success("저장되었습니다!")
+            st.success("✅ 저장 완료!")
             st.rerun()
 
-# --- [ARCHIVE PART] ---
 with tab2:
     with sqlite3.connect(DB_NAME) as conn:
         all_df = pd.read_sql_query("SELECT * FROM archive", conn)
-
+    
     if not all_df.empty:
+        # 정렬 로직
         all_df['temp_date'] = pd.to_datetime(all_df['view_date'].replace("", None), errors='coerce').fillna(
                               pd.to_datetime(all_df['save_date'].replace("", None), errors='coerce'))
         all_df = all_df.sort_values(by='temp_date', ascending=False)
-
-        # 연도별 보기 (디자인 가이드 반영)
+        
+        # 필터링 및 연도별 구성
         all_df['year'] = all_df['temp_date'].dt.year.fillna("기타")
         all_df['month'] = all_df['temp_date'].dt.month.fillna(0)
         
         years = sorted([y for y in all_df['year'].unique() if y != "기타"], reverse=True)
-        sel_y = st.selectbox("연도 선택", years)
+        sel_y = st.selectbox("연도 선택", years if years else ["기타"])
         
         y_data = all_df[all_df['year'] == sel_y]
         for m in range(12, 0, -1):
             m_data = y_data[y_data['month'] == m]
             if not m_data.empty:
-                st.subheader(f"🗓️ {m}월")
+                st.subheader(f"🗓️ {int(m)}월")
                 items = m_data.to_dict('records')
                 for i in range(0, len(items), 6):
                     cols = st.columns(6)
                     for j in range(6):
                         if i + j < len(items):
-                            row = items[i + j]
+                            row = items[i+j]
                             with cols[j]:
-                                img_url = row.get('img_url') or "https://via.placeholder.com/300"
-                                st.markdown(f'''<div class="cal-img-box">
-                                    <div class="badge badge-left">{row.get('category')}</div>
-                                    <img src="{img_url}"></div>''', unsafe_allow_html=True)
-                                if st.button(f"{str(row.get('title'))[:7]}", key=f"btn_{row['id']}"):
+                                # 뱃지용 일자 추출
+                                try: d_val = f"{pd.to_datetime(row['view_date']).day}일"
+                                except: d_val = "!"
+                                
+                                img_src = row.get('img_url') if row.get('img_url') else "https://via.placeholder.com/300x400"
+                                st.markdown(f'''
+                                    <div class="cal-img-box">
+                                        <div class="badge badge-left">{row.get('category')}</div>
+                                        <div class="badge badge-right">{d_val}</div>
+                                        <img src="{img_src}">
+                                    </div>''', unsafe_allow_html=True)
+                                
+                                # 버튼 (제목 짤림 방지)
+                                b_title = str(row.get('title') or "제목없음")
+                                if st.button(f"{b_title[:7]}..", key=f"btn_{row['id']}"):
                                     show_details(row)
-    else: st.info("데이터가 없습니다.")
+                st.divider()
+    else:
+        st.info("기록된 데이터가 없습니다. WRITE 탭에서 첫 기록을 시작하거나 사이드바에서 복구하세요!")
