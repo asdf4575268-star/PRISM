@@ -538,14 +538,14 @@ with sub_tabs[0]:
             cat_df = all_df[all_df['category'] == c_name].copy()
             
             if not cat_df.empty:
-                # [강력 정렬 로직] 
-                # 1. 날짜로 변환 가능한 값들만 추출하여 임시 정렬 컬럼 생성
+                # [수정] 1. 오직 감상일(view_date)만 기준으로 정렬 생성
+                # replace를 통해 빈 값들을 NaT로 바꾸어 정렬 시 맨 뒤로 밀어냅니다.
                 cat_df['sort_dt'] = pd.to_datetime(
-                    cat_df['view_date'].replace(['', 'nan', 'NaN', 'None'], pd.NA).fillna(cat_df['save_date']), 
+                    cat_df['view_date'].replace(['', 'nan', 'NaN', 'None'], pd.NA), 
                     errors='coerce'
                 )
                 
-                # 2. 최신순 정렬 (날짜 없는 데이터 NaT는 맨 뒤로 보냄)
+                # 2. 최신순 정렬 (감상일 없는 데이터는 맨 뒤로)
                 cat_df = cat_df.sort_values(by='sort_dt', ascending=False, na_position='last')
                 
                 # 정렬된 상태로 리스트화
@@ -575,3 +575,4 @@ with sub_tabs[0]:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 없습니다.")
+
