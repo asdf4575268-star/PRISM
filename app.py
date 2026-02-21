@@ -212,6 +212,27 @@ def show_details(item):
                 n_high = st.text_area("✨ 인상 깊은 부분", value=str(item.get('highlights') or ''), height=100)
                 n_note = st.text_area("💬 감상", value=str(item.get('note') or ''), height=100)
 
+                try:
+                    r_dt = pd.to_datetime(n_rel)
+                    ry = str(r_dt.year)
+                    rm = str(r_dt.month)
+                    rd = str(r_dt.day)
+
+                    v_dt = pd.to_datetime(n_view)
+                    vy = str(v_dt.year)
+                    vm = str(v_dt.month)
+                    vd = str(v_dt.day)
+
+                except:
+                    today = date.today()
+                    ry = str(today.year)
+                    rm = str(today.month)
+                    rd = str(today.day)
+
+                    vy = ry
+                    vm = rm
+                    vd = rd
+
                 if st.form_submit_button("💾 저장", use_container_width=True):
                     # 1. 소문자 변환
                     final_note = n_note.replace("KM", "km").replace("BPM", "bpm")
@@ -520,6 +541,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
