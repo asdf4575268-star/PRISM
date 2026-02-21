@@ -174,28 +174,38 @@ col_empty, col_btn = st.columns([0.85, 0.15])
 def show_details(item):
     if hasattr(item, 'to_dict'): item = item.to_dict()
     
+    # 세션 상태를 이용해 삭제 여부 체크 (에러 방지)
+    if f"deleted_{item['id']}" in st.session_state:
+        st.rerun()
+        return
+
     # --- [상단 툴바] ---
     t_col1, t_col2, t_col3 = st.columns([0.2, 0.6, 0.2])
     
     with t_col1:
-        # [수정] key 값 뒤에 '_dialog'를 붙여서 중복을 피합니다.
         if st.button("🗑️ 삭제", key=f"del_{item['id']}_dialog", use_container_width=True):
             with sqlite3.connect(DB_NAME) as conn:
                 conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
-            st.rerun()
+            st.session_state[f"deleted_{item['id']}"] = True # 삭제 표식
+            st.rerun() # 즉시 새로고침하여 팝업을 닫음
 
     with t_col3:
-        # [수정] 토글의 key 값도 '_dialog'를 붙여주는 것이 안전합니다.
         edit_mode = st.toggle("✏️ 수정", key=f"tog_{item['id']}_dialog")
 
     st.divider()
 
-
     col_img, col_txt = st.columns([0.3, 0.7])
 
     with col_img:
-        if item.get('img_url'): st.image(item['img_url'], use_container_width=True)
-        else: st.info("등록된 이미지가 없습니다.")
+        # 삭제된 후 이미지를 그리려 하면 에러가 나므로 조건문 강화
+        img_url = item.get('img_url')
+        if img_url:
+            try:
+                st.image(img_url, use_container_width=True)
+            except:
+                st.warning("이미지를 불러올 수 없습니다.")
+        else:
+            st.info("등록된 이미지가 없습니다.")
 
     with col_txt:
         if edit_mode:
@@ -203,10 +213,12 @@ def show_details(item):
                 n_title = st.text_input("📌 Title", value=str(item.get('title', '')))
                 n_creator = st.text_input("👤 Creator", value=str(item.get('creator', '')))
                 n_rel = st.text_input("📅공개일", value=str(item.get('rel_date', '')))
+                
                 try:
                     raw_v = str(item.get('view_date') or item.get('save_date'))[:10]
                     v_dt = datetime.strptime(raw_v, '%Y-%m-%d').date()
                 except: v_dt = date.today()
+                
                 n_view = st.date_input("🍿 감상일", v_dt)
                 n_brief = st.text_input("📝 요약", value=str(item.get('brief') or ''))
                 n_sum = st.text_area("📖 줄거리(첫줄 URL)", value=str(item.get('summary') or ''), height=150)
@@ -214,10 +226,12 @@ def show_details(item):
                 n_note = st.text_area("💬 감상", value=str(item.get('note') or ''), height=100)
 
                 if st.form_submit_button("💾 저장", use_container_width=True):
-                    # 1. 소문자 변환
+                    # KM, BPM 소문자화 (기억하고 있는 가이드 반영)
                     final_note = n_note.replace("KM", "km").replace("BPM", "bpm")
+                    
+                    # 구글 전송용 날짜 쪼개기
+                    vy, vm, vd = str(n_view.year), f"{n_view.month:02d}", f"{n_view.day:02d}"
 
-                    # 2. 구글 백업 데이터 (들여쓰기 주의!)
                     BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
                     edit_payload = {
                         "entry.574529989": item.get('category', '기타'),
@@ -227,39 +241,37 @@ def show_details(item):
                         "entry.1816924330": n_brief,
                         "entry.270693677": n_high,
                         "entry.891180756": final_note,
-                        "entry.2056153041": item.get('img_url', '')
-                        # 날짜 필드는 필요시 추가 (tab1과 동일하게)
+                        "entry.2056153041": item.get('img_url', ''),
+                        "entry.1446643193_year": vy,
+                        "entry.1446643193_month": vm,
+                        "entry.1446643193_day": vd
                     }
 
                     try:
-                        # 구글로 먼저 쏘기
                         requests.post(BACKUP_URL, data=edit_payload, timeout=10)
-                        
-                        # 로컬 DB 수정
                         with sqlite3.connect(DB_NAME) as conn:
                             conn.execute("""UPDATE archive SET title=?, creator=?, rel_date=?, summary=?, brief=?, highlights=?, note=?, view_date=? WHERE id=?""", 
                                          (n_title, n_creator, n_rel, n_sum, n_brief, n_high, final_note, str(n_view), item['id']))
-                        
-                        st.success("✅ 수정 및 백업 완료!")
+                        st.success("✅ 수정 완료!")
                         time.sleep(0.5)
-                        st.rerun() # 모든 작업 끝난 후 새로고침
+                        st.rerun()
                     except Exception as e:
-                        st.error(f"❌ 오류 발생: {e}")
+                        st.error(f"❌ 오류: {e}")
         else:
-            # 조회 모드 (디자인 가이드 반영)
+            # 조회 모드
             st.markdown(f'<div style="font-size:30px; font-weight:bold; line-height:1.1;">{item.get("title")}</div>', unsafe_allow_html=True)
             st.write(f"**Creator:** {item.get('creator')} | **공개일:** {item.get('rel_date')}")
             v_date = item.get('view_date') or item.get('save_date', '')
-            st.markdown(f'<p class="date-text">🍿 감상일: {v_date}</p>', unsafe_allow_html=True)
+            st.markdown(f'<p style="color:gray;">🍿 감상일: {v_date}</p>', unsafe_allow_html=True)
             st.divider()
             
-            # 감상 본문 (KM/BPM 소문자 강조 포함)
-            note_content = str(item.get('note', '')).replace("km", '<span class="num-text">km</span>').replace("bpm", '<span class="num-text">bpm</span>')
+            # KM, BPM 소문자 강조 출력
+            note_content = str(item.get('note', '')).replace("km", '**km**').replace("bpm", '**bpm**')
             
             if item.get('brief'): st.success(item['brief'])
             if item.get('summary'): st.info(item['summary'])
             if item.get('highlights'): st.warning(item['highlights'])
-            if item.get('note'): st.markdown(note_content, unsafe_allow_html=True)
+            if item.get('note'): st.markdown(note_content)
 
 # --- [4. 메인 화면 구성] ---
 tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
@@ -508,4 +520,5 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
