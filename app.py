@@ -405,7 +405,7 @@ with sub_tabs[0]:
                                         <img src="{row["img_url"]}">
                                     </div>'''
                                 st.markdown(img_html, unsafe_allow_html=True)
-                                if st.button(f"{row['title'][:5]}..", key=f"yr_{row['id']}", use_container_width=True): 
+                                if st.button(f"{row['title'][:7]}..", key=f"yr_{row['id']}", use_container_width=True): 
                                     show_details(row)
                 st.divider()
 
@@ -432,9 +432,10 @@ with sub_tabs[0]:
                                         <img src="{row["img_url"]}">
                                     </div>'''
                                 st.markdown(img_html, unsafe_allow_html=True)
-                                if st.button(f"{row['title'][:5]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
+                                if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
