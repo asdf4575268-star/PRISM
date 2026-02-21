@@ -249,20 +249,41 @@ def show_details(item):
                     except Exception as e:
                         st.error(f"❌ 오류: {e}")
         else:
-            # 조회 모드
-            st.markdown(f'<div style="font-size:30px; font-weight:bold; line-height:1.1;">{item.get("title")}</div>', unsafe_allow_html=True)
-            st.write(f"**Creator:** {item.get('creator')} | **공개일:** {item.get('rel_date')}")
-            v_date = item.get('view_date') or item.get('save_date', '')
-            st.markdown(f'<p style="color:gray;">🍿 감상일: {v_date}</p>', unsafe_allow_html=True)
+            def get_val(key):
+                v = str(item.get(key, '')).strip()
+                return "" if v.lower() in ["nan", "none", "null"] else v
+
+            title_v = get_val('title')
+            creator_v = get_val('creator')
+            rel_v = get_val('rel_date')
+            cat_v = get_val('category')
+            view_v = get_val('view_date') or get_val('save_date')
+            
+            # 2. 상단 제목 및 정보
+            st.markdown(f'<div style="font-size:30px; font-weight:bold; line-height:1.1;">{title_v}</div>', unsafe_allow_html=True)
+            # 카테고리 정보 추가
+            st.write(f"**[{cat_v}]** {creator_v} | **공개일:** {rel_v}")
+            st.markdown(f'<p style="color:gray;">🍿 감상일: {view_v}</p>', unsafe_allow_html=True)
             st.divider()
             
-            # KM, BPM 소문자 강조 출력
-            note_content = str(item.get('note', ''))
+            # 3. 본문 출력 (데이터가 있을 때만 표시)
+            if get_val('brief'): 
+                st.success(get_val('brief'))
             
-            if item.get('brief'): st.success(item['brief'])
-            if item.get('summary'): st.info(item['summary'])
-            if item.get('highlights'): st.warning(item['highlights'])
-            if item.get('note'): st.markdown(note_content)
+            if get_val('summary'): 
+                st.info(get_val('summary'))
+            
+            if get_val('highlights'): 
+                st.warning(get_val('highlights'))
+            
+            # 4. 감상(Note) 부분만 노란색 박스로 강조
+            note_v = get_val('note')
+            if note_v:
+                st.markdown(f"""
+                <div style="background-color: #fff4cc; padding: 15px; border-radius: 10px; color: #000; border-left: 5px solid #ffcc00;">
+                    <strong>💬 감상</strong><br><br>{note_v}
+                </div>
+                """, unsafe_allow_html=True)
 
 # --- [4. 메인 화면 구성] ---
 tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
@@ -518,6 +539,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
