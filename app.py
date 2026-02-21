@@ -639,25 +639,39 @@ with tab2:
                                         show_details(row)
 
     # 카테고리별 탭 루프
+    # --- 카테고리별 탭 루프 (에러 발생 구간 교정) ---
     cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
     for idx, c_name in enumerate(cats):
         with sub_tabs[idx+1]:
+            # 해당 카테고리 데이터 필터링
             c_df = all_df[all_df['category'] == c_name].copy()
+            
             if not c_df.empty:
-                c_df['v_dt'] = pd.to_datetime(c_df['view_date'])
+                # 날짜 순 정렬 (감상일 기준)
+                c_df['v_dt'] = pd.to_datetime(c_df['view_date'], errors='coerce')
                 items = c_df.sort_values(by='v_dt', ascending=False).to_dict('records')
+                
+                # 6열 그리드 출력
                 for i in range(0, len(items), 6):
                     cols = st.columns(6)
                     for j in range(6):
-                        if i+j < len(items):
-                            row = items[i+j]
+                        if i + j < len(items):
+                            row = items[i + j]
                             with cols[j]:
-                                st.markdown(f'''<div class="cal-img-box">
-                                    <div class="badge badge-left">{row['view_date']}</div>
-                                    <img src="{row['img_url']}">
-                                </div>''', unsafe_allow_html=True)
-                                if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}"):
+                                v_date_str = str(row['view_date']) if row['view_date'] else ""
+                                # 이미지 박스 및 배지 출력
+                                st.markdown(f'''
+                                    <div class="cal-img-box">
+                                        <div class="badge badge-left">{v_date_str}</div>
+                                        <img src="{row['img_url']}">
+                                    </div>''', unsafe_allow_html=True)
+                                
+                                # 상세 보기 버튼 (중복 방지를 위해 unique key 설정)
+                                btn_key = f"cat_list_{idx}_{row['id']}"
+                                if st.button(f"{row['title'][:7]}..", key=btn_key, use_container_width=True):
                                     show_details(row)
+            else:
+                st.info(f"{c_name} 카테고리에 등록된 기록이 없습니다.")
 
                
 
@@ -775,6 +789,7 @@ with sub_tabs[0]:
                                 if st.button(f"{row['title'][:7]}..", key=f"cat_{idx}_{row['id']}", use_container_width=True): 
                                     show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
