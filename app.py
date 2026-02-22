@@ -313,12 +313,21 @@ def show_details(item):
             rel_v = get_val('rel_date')
             cat_v = get_val('category')
             view_v = get_val('view_date') or get_val('save_date')
+            venue_v = item.get('venue', '') # venue 정보 가져오기
             
-            # 2. 상단 제목 및 정보
+            # 1. 상단 제목
             st.markdown(f'<div style="font-size:30px; font-weight:bold; line-height:1.1;">{title_v}</div>', unsafe_allow_html=True)
-            # 카테고리 정보 추가
-            st.write(f"**[{cat_v}]** {creator_v} **공개일:** {rel_v} @{row.get('venue', '')}")
-            st.markdown(f'<p style="color:gray;">🍿 감상일: {view_v}</p>', unsafe_allow_html=True)
+            
+            # 2. 카테고리 및 창작자 (첫 번째 줄)
+            st.write(f"**[{cat_v}]** {creator_v}")
+            
+            # 3. 공개일 및 장소 (두 번째 줄로 이동)
+            # 장소 정보가 있을 경우에만 @venue를 표시하도록 구성했습니다.
+            venue_display = f" @{venue_v}" if venue_v else ""
+            st.markdown(f'<p style="margin-top:-15px;">📅 <b>공개일:</b> {rel_v}{venue_display}</p>', unsafe_allow_html=True)
+            
+            # 4. 감상일
+            st.markdown(f'<p style="color:gray; margin-top:-10px;"> popcorn 🍿 감상일: {view_v}</p>', unsafe_allow_html=True)
             st.divider()
             
            # 3. 본문 출력
@@ -640,4 +649,5 @@ with tab2:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
