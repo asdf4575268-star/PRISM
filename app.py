@@ -298,8 +298,8 @@ with tab1:
         title = st.text_input("제목", value=data.get('title', ''))
         creator = st.text_input("창작자 정보", value=data.get('creator', ''))
         c_rel, c_ven = st.columns(2)
-        rel_date = c_rel.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
-        venue = c_ven.text_input("📍 장소", value=data.get('venue', ''))
+        rel_date = c_rel.text_input("📅 ", value=data.get('date', str(date.today())))
+        venue = c_ven.text_input("📍", value=data.get('venue', ''))
         
     with cr:
         summary = st.text_area("📖 줄거리", value=data.get('summary', ''), height=150)
@@ -438,6 +438,7 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
 
 
 
