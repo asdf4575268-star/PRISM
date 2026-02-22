@@ -434,7 +434,7 @@ with tab1:
         title = st.text_input("제목", value=data.get('title', ''))
         creator = st.text_input("창작자 정보", value=data.get('creator', ''))
         col_rel, col_ven = st.columns(2)
-        rel_date = col1.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
+        rel_date = col.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
         venue = col_ven.text_input("📍 장소", value=data.get('venue', ''))
         
     with cr:
@@ -651,6 +651,7 @@ with tab2:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
 
 
