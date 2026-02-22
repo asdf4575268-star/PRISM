@@ -338,20 +338,26 @@ with tab1:
             except Exception as e: st.error(f"❌ 오류 발생: {e}")
 
 # --- TAB 2: ARCHIVE ---
+에고, DuplicateElementKey 오류가 났네요! 이건 한 페이지 안에 똑같은 key값을 가진 버튼이 두 개 이상 생겼을 때 발생하는 스트림릿의 전형적인 오류입니다.
+
+YEARLY 탭과 카테고리별 탭에 똑같은 아이템이 들어가면서, 제가 버튼 생성 시 부여한 key값이 중복된 것 같습니다. 각 탭의 버튼이 고유한 ID를 가질 수 있도록 key 생성 로직을 안전하게 수정해 드릴게요.
+
+🛠️ 오류 수정 코드 (Tab 2 부분)
+아래 코드로 tab2 전체를 교체하시면 중복 키 오류가 해결됩니다.
+
+Python
 # --- TAB 2: ARCHIVE ---
 with tab2:
     if st.button("🔄"):
         restore_from_google()
         st.rerun()
 
-    # [수정] 제목 가운데 정렬을 위한 CSS 추가
     st.markdown("""
         <style>
         .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 6px; margin-bottom: 5px; }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
         .badge { position: absolute; top: 5px; left: 5px; background: rgba(0, 0, 0, 0.6); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
         
-        /* 제목 버튼 가운데 정렬 */
         div.stButton > button {
             display: block;
             margin: 0 auto;
@@ -365,11 +371,9 @@ with tab2:
         all_df = pd.read_sql_query("SELECT * FROM archive", conn)
 
     if not all_df.empty:
-        # [수정] 누적 개수 계산 및 탭 이름 설정
         cat_list = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
         total_count = len(all_df)
         
-        # 각 카테고리별 개수 포함된 탭 이름 생성
         tab_names = [f"📅 YEARLY ({total_count})"]
         for c in cat_list:
             count = len(all_df[all_df['category'] == c])
@@ -388,7 +392,7 @@ with tab2:
                 for m in range(12, 0, -1):
                     m_data = y_data[y_data['v_dt'].dt.month == m]
                     if not m_data.empty:
-                        st.subheader(f"🗓️ {m}월 ({len(m_data)})") # 월별 누적도 표시
+                        st.subheader(f"🗓️ {m}월 ({len(m_data)})")
                         items = m_data.to_dict('records')
                         for i in range(0, len(items), 6):
                             cols = st.columns(6)
@@ -397,8 +401,8 @@ with tab2:
                                     row = items[i+j]
                                     with cols[j]:
                                         st.markdown(f'<div class="cal-img-box"><div class="badge">{row["category"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
-                                        # [수정] 제목 가운데 정렬 버튼
-                                        if st.button(f"{str(row['title'])[:7]}..", key=f"yr_{row['id']}"): 
+                                        # [수정] key에 'yearly' 접두어 추가하여 중복 방지
+                                        if st.button(f"{str(row['title'])[:7]}..", key=f"btn_yr_{row['id']}"): 
                                             show_details(row)
 
         # --- [탭 1~5: 카테고리별 탭] ---
@@ -416,7 +420,6 @@ with tab2:
                             if i + j < len(items):
                                 row = items[i + j]
                                 with cols[j]:
-                                    # 날짜 배지 로직 (기존과 동일)
                                     raw_v = str(row.get('view_date') or "").strip()
                                     badge_d = ""
                                     if raw_v.lower() not in ["nan", "none", ""]:
@@ -432,60 +435,12 @@ with tab2:
                                             <img src="{row["img_url"]}">
                                         </div>''', unsafe_allow_html=True)
                                     
-                                    # [수정] 제목 가운데 정렬 버튼
-                                    btn_key = f"cat_{c_name}_{row['id']}_{i+j}"
+                                    # [수정] key에 카테고리 이름을 명확히 넣어 중복 방지
+                                    btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(f"{str(row['title'])[:7]}..", key=btn_key, use_container_width=True): 
                                         show_details(row)
                 else: 
                     st.info(f"{c_name} 기록이 아직 없습니다.")
-
-        # --- [탭 1~5: 카테고리별 탭 (사용자님이 주신 코드)] ---
-        for idx, c_name in enumerate(cat_list):
-            with sub_tabs[idx + 1]: # YEARLY가 0이므로 카테고리는 1부터 시작
-                cat_df = all_df[all_df['category'] == c_name].copy()
-                
-                if not cat_df.empty:
-                    # 정렬 로직
-                    cat_df['sort_dt'] = pd.to_datetime(
-                        cat_df['view_date'].replace(['', 'nan', 'NaN', 'None'], pd.NA), 
-                        errors='coerce'
-                    )
-                    cat_df = cat_df.sort_values(by='sort_dt', ascending=False, na_position='last')
-                    items = cat_df.to_dict('records')
-
-                    # 그리드 출력 (6열)
-                    for i in range(0, len(items), 6):
-                        cols = st.columns(6)
-                        for j in range(6):
-                            if i + j < len(items):
-                                row = items[i + j]
-                                with cols[j]:
-                                    # 날짜 배지 텍스트 정제
-                                    raw_v = str(row.get('view_date') or "").strip()
-                                    if raw_v.lower() in ["nan", "none", ""]:
-                                        badge_d = ""
-                                    else:
-                                        try:
-                                            temp_dt = pd.to_datetime(raw_v.split(' ')[0])
-                                            badge_d = temp_dt.strftime('%y.%m.%d')
-                                        except:
-                                            badge_d = raw_v[:10]
-                                    
-                                    img_html = f'''
-                                        <div class="cal-img-box">
-                                            <div class="badge badge-left">{badge_d}</div>
-                                            <img src="{row["img_url"]}">
-                                        </div>'''
-                                    st.markdown(img_html, unsafe_allow_html=True)
-                                    
-                                    # 버튼 키값 (중복 방지)
-                                    btn_key = f"cat_{c_name}_{row['id']}_{i+j}"
-                                    if st.button(f"{str(row['title'])[:10]}", key=btn_key, use_container_width=True): 
-                                        show_details(row)
-                else: 
-                    st.info(f"{c_name} 기록이 아직 없습니다.")
-    else:
-        st.info("데이터가 없습니다. 구글 시트에서 복원 버튼을 눌러주세요.")
 
 
 
