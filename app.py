@@ -435,12 +435,14 @@ with tab1:
         creator = st.text_input("창작자 정보", value=data.get('creator', ''))
         col1, col2 = st.columns(2)
         rel_date = col1.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
-        view_date = col2.date_input("🍿 감상일", value=date.today())
+        venue = col_ven.text_input("📍 장소", value=data.get('venue', ''))
+        
     with cr:
         summary = st.text_area("📖 줄거리", value=data.get('summary', ''), height=150)
         brief = st.text_input("📝 요약")
         highlights = st.text_area("✨ 인상 깊은 부분", height=100)
         note = st.text_area("💬 감상", height=100)
+        view_date = st.date_input("🍿 감상일", value=date.today())
         
 # 바로 아래에 버튼을 배치 (가로로 길게 들어갑니다)
         if st.button("✅ 저장", use_container_width=True):
@@ -649,6 +651,7 @@ with tab2:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
 
 
