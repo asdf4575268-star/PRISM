@@ -360,7 +360,7 @@ with tab2:
         <style>
         .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 6px; margin-bottom: 5px; }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
-        .badge { position: absolute; top: 5px; right: 5px; background: rgba(0, 0, 0, 0.6); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+        .badge { position: absolute; bottom: 5px; right: 5px; background: rgba(0, 0, 0, 0.6); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
         
         /* 버튼 내부 텍스트 무조건 가운데 정렬 */
         button[data-testid="stBaseButton-secondary"] p {
@@ -417,7 +417,7 @@ with tab2:
                                             try:
                                                 temp_dt = pd.to_datetime(raw_v)
                                                 # 월별로 묶여있으니 '일'을 강조 (예: 21일)
-                                                badge_text = temp_dt.strftime('%d일') 
+                                                badge_text = f"{dt_obj.day}일"
                                             except:
                                                 badge_text = "미상"
                                         else:
@@ -458,7 +458,7 @@ with tab2:
                                     if raw_v.lower() not in ["nan", "none", ""]:
                                         try:
                                             temp_dt = pd.to_datetime(raw_v.split(' ')[0])
-                                            badge_d = temp_dt.strftime('%y.%m.%d')
+                                            badge_text = pd.to_datetime(raw_v).strftime('%Y-%m-%d')
                                         except:
                                             badge_d = raw_v[:10]
                                     
@@ -471,6 +471,7 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
 
 
 
