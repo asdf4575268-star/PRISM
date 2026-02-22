@@ -32,11 +32,13 @@ init_db()
 
 def restore_from_google():
     try:
+        # 1. 데이터 불러오기
         df = pd.read_csv(GOOGLE_SHEET_CSV).fillna("")
         df.columns = df.columns.str.strip()
 
+        # 2. 컬럼 매핑 로직 (이름 기반)
         col_map = {}
-        for col in df.columns:
+        for i, col in enumerate(df.columns):
             lower = col.lower().replace(" ", "")
             if "감상일" in lower: col_map["view_date"] = col
             elif "category" in lower or "카테고리" in lower: col_map["category"] = col
@@ -50,9 +52,14 @@ def restore_from_google():
             elif "img" in lower or "이미지" in lower: col_map["img_url"] = col
             elif "타임스탬프" in lower or "timestamp" in lower: col_map["save_date"] = col
             elif "venue" in lower or "장소" in lower: col_map["venue"] = col
+        
+        # [강제 매칭] 사용자님 정보: 장소가 6번째 열(인덱스 5)일 경우
+        if "venue" not in col_map and len(df.columns) >= 6:
+            col_map["venue"] = df.columns[5] # 6번째 열을 장소로 강제 지정
 
+        # 3. DB 저장
         with sqlite3.connect(DB_NAME) as conn:
-            conn.execute("DELETE FROM archive")
+            conn.execute("DELETE FROM archive") # 기존 로컬 데이터 초기화
             for _, row in df.iterrows():
                 # 날짜 처리
                 raw_v = str(row.get(col_map.get("view_date"), "")).strip()
@@ -65,19 +72,19 @@ def restore_from_google():
 
                 r_date = str(row.get(col_map.get("rel_date"), "")).strip()
 
-                # ★ [수정 포인트] 컬럼 개수 12개와 VALUES 개수 12개 정확히 일치 ★
+                # INSERT 실행 (12개 컬럼 순서 일치)
                 conn.execute("""
-                    INSERT INTO archive
-                    (category, title, creator, rel_date, venue,
-                     summary, brief, highlights, note,
-                     img_url, save_date, view_date)
+                    INSERT INTO archive 
+                    (category, title, creator, rel_date, venue, 
+                     summary, brief, highlights, note, 
+                     img_url, save_date, view_date) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     str(row.get(col_map.get("category"), "")),
                     str(row.get(col_map.get("title"), "")),
                     str(row.get(col_map.get("creator"), "")),
                     r_date,
-                    str(row.get(col_map.get("venue"), "")),
+                    str(row.get(col_map.get("venue"), "")), # 📍 핵심: 장소 데이터
                     str(row.get(col_map.get("summary"), "")),
                     str(row.get(col_map.get("brief"), "")),
                     str(row.get(col_map.get("highlights"), "")),
@@ -86,7 +93,7 @@ def restore_from_google():
                     str(row.get(col_map.get("save_date"), "")),
                     v_date
                 ))
-        st.success("데이터 복원 완료!")
+        st.success("✅ '장소'를 포함하여 데이터 복원이 완료되었습니다!")
     except Exception as e:
         st.error(f"❌ 복원 실패: {e}")
 
@@ -355,3 +362,4 @@ with tab2:
                             with cols[j]:
                                 st.markdown(f'<div class="cal-img-box"><div class="badge">{row["category"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:7]}..", key=f"btn_{row['id']}"): show_details(row)
+
