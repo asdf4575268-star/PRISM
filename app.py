@@ -197,11 +197,13 @@ def show_details(item):
                 n_title = st.text_input("📌 Title", value=str(item.get('title', '')))
                 n_creator = st.text_input("👤 Creator", value=str(item.get('creator', '')))
                 n_rel = st.text_input("📅공개일", value=str(item.get('rel_date', '')))
-                
+
+                orig_view = str(item.get('view_date') or '').strip()
                 try:
-                    raw_v = str(item.get('view_date') or item.get('save_date'))[:10]
-                    v_dt = datetime.strptime(raw_v, '%Y-%m-%d').date()
-                except: v_dt = date.today()
+                    # 입력을 위해 date 객체로 변환 시도
+                    v_dt = pd.to_datetime(orig_view).date()
+                except:
+                    v_dt = date.today()
                 
                 n_view = st.date_input("🍿 감상일", v_dt)
                 n_brief = st.text_input("📝 요약", value=str(item.get('brief') or ''))
@@ -212,6 +214,7 @@ def show_details(item):
                 if st.form_submit_button("💾 저장", use_container_width=True):
                     # KM, BPM 소문자화 (기억하고 있는 가이드 반영)
                     final_note = n_note
+                    final_view_date = str(n_view) if str(n_view) != str(v_dt) else orig_view
                     
                     # 구글 전송용 날짜 쪼개기
                     vy, vm, vd = str(n_view.year), f"{n_view.month:02d}", f"{n_view.day:02d}"
@@ -523,38 +526,35 @@ with sub_tabs[0]:
                 st.divider()
 
 # --- 2. 카테고리 탭 (이 위치가 sub_tabs 정의 바로 아래인지 확인하세요) ---
+    # --- 2. 카테고리 탭 정렬 및 배지 위치 수정 ---
     cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
     
     for idx, c_name in enumerate(cats):
         with sub_tabs[idx+1]:
-            # 해당 카테고리만 가져와서 복사
             cat_df = all_df[all_df['category'] == c_name].copy()
             
             if not cat_df.empty:
-                # [수정] 1. 오직 감상일(view_date)만 기준으로 정렬 생성
-                # replace를 통해 빈 값들을 NaT로 바꾸어 정렬 시 맨 뒤로 밀어냅니다.
+                # 정렬 로직 (사용자 가이드 반영)
                 cat_df['sort_dt'] = pd.to_datetime(
                     cat_df['view_date'].replace(['', 'nan', 'NaN', 'None'], pd.NA), 
                     errors='coerce'
                 )
-                
-                # 2. 최신순 정렬 (감상일 없는 데이터는 맨 뒤로)
                 cat_df = cat_df.sort_values(by='sort_dt', ascending=False, na_position='last')
-                
-                # 정렬된 상태로 리스트화
                 items = cat_df.to_dict('records')
 
-                # 그리드 출력 (6열)
                 for i in range(0, len(items), 6):
                     cols = st.columns(6)
                     for j in range(6):
                         if i + j < len(items):
                             row = items[i + j]
                             with cols[j]:
-                                # 배지 날짜 표시 정제
-                                raw_v = str(row.get('view_date') or "")
-                                badge_d = "" if raw_v.lower() in ["nan", "none", ""] else raw_v
+                                # 날짜 배지 정제
+                                raw_v = str(row.get('view_date') or "").strip()
+                                # 시간이 포함된 경우 날짜만 추출
+                                badge_d = raw_v.split(' ')[0] if " " in raw_v else raw_v
+                                if badge_d.lower() in ["nan", "none", ""]: badge_d = ""
                                 
+                                # [수정] 배지를 좌상단(badge-left) 하나로 통일하여 표시
                                 img_html = f'''
                                     <div class="cal-img-box">
                                         <div class="badge badge-left">{badge_d}</div>
@@ -562,10 +562,10 @@ with sub_tabs[0]:
                                     </div>'''
                                 st.markdown(img_html, unsafe_allow_html=True)
                                 
-                                # 버튼 키값 중복 방지를 위해 카테고리+ID+인덱스 조합
-                                btn_key = f"cat_{c_name}_{row['id']}_{i+j}"
+                                btn_key = f"cat_{c_name}_{row['id']}_{idx}_{i+j}"
                                 if st.button(f"{str(row['title'])[:7]}..", key=btn_key, use_container_width=True): 
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
