@@ -347,4 +347,50 @@ with tab2:
                                 st.markdown(f'<div class="cal-img-box"><div class="badge">{row["category"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:7]}..", key=f"btn_{row['id']}"): show_details(row)
 
+    # --- 2. 카테고리 탭 내용 채우기 (정확한 인덱스 관리) ---
+    for idx, c_name in enumerate(cat_list):
+        with sub_tabs[idx + 1]: # YEARLY가 0이므로 카테고리는 1부터 시작
+            cat_df = all_df[all_df['category'] == c_name].copy()
+            
+            if not cat_df.empty:
+                # 정렬 로직
+                cat_df['sort_dt'] = pd.to_datetime(
+                    cat_df['view_date'].replace(['', 'nan', 'NaN', 'None'], pd.NA), 
+                    errors='coerce'
+                )
+                cat_df = cat_df.sort_values(by='sort_dt', ascending=False, na_position='last')
+                items = cat_df.to_dict('records')
+
+                # 그리드 출력 (6열)
+                for i in range(0, len(items), 6):
+                    cols = st.columns(6)
+                    for j in range(6):
+                        if i + j < len(items):
+                            row = items[i + j]
+                            with cols[j]:
+                                # 날짜 배지 텍스트 정제
+                                raw_v = str(row.get('view_date') or "").strip()
+                                if raw_v.lower() in ["nan", "none", ""]:
+                                    badge_d = ""
+                                else:
+                                    try:
+                                        temp_dt = pd.to_datetime(raw_v.split(' ')[0])
+                                        badge_d = temp_dt.strftime('%y.%m.%d')
+                                    except:
+                                        badge_d = raw_v[:10]
+                                
+                                img_html = f'''
+                                    <div class="cal-img-box">
+                                        <div class="badge badge-left">{badge_d}</div>
+                                        <img src="{row["img_url"]}">
+                                    </div>'''
+                                st.markdown(img_html, unsafe_allow_html=True)
+                                
+                                # 버튼 키값 (중복 방지)
+                                btn_key = f"cat_{c_name}_{row['id']}_{i+j}"
+                                if st.button(f"{str(row['title'])[:7]}..", key=btn_key, use_container_width=True): 
+                                    show_details(row)
+            else: 
+                st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
