@@ -343,33 +343,6 @@ with tab2:
         restore_from_google()
         st.rerun()
 
-    st.markdown("""
-        <style>
-        .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 6px; margin-bottom: 5px; }
-        .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
-        .badge { position: absolute; top: 5px; left: 5px; background: rgba(0, 0, 0, 0.6); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
-        
-        /* 버튼 텍스트 강제 가운데 정렬 및 스타일 */
-        div.stButton > button {
-            width: 100% !important;
-            display: flex !important;
-            justify-content: center !important; /* 가로 가운데 */
-            align-items: center !important;     /* 세로 가운데 */
-            text-align: center !important;
-            padding: 0px !important;            /* 여백 제거 */
-            min-height: 2.5rem !important;
-            word-break: break-all !important;   /* 긴 제목 대응 */
-        }
-
-        /* 버튼 내부의 텍스트 레이어까지 정렬 */
-        div.stButton > button p {
-            width: 100%;
-            text-align: center !important;
-            margin: 0 !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
     with sqlite3.connect(DB_NAME) as conn:
         all_df = pd.read_sql_query("SELECT * FROM archive", conn)
 
@@ -440,10 +413,11 @@ with tab2:
                                     
                                     # [수정] key에 카테고리 이름을 명확히 넣어 중복 방지
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
-                                    if st.button(f"{str(row['title'])[:7]}..", key=btn_key, use_container_width=True): 
+                                    if st.button(btn_label, key=f"btn_yr_{row['id']}", use_container_width=True):
                                         show_details(row)
                 else: 
                     st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
 
 
