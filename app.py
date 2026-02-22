@@ -338,15 +338,6 @@ with tab1:
             except Exception as e: st.error(f"❌ 오류 발생: {e}")
 
 # --- TAB 2: ARCHIVE ---
-에고, DuplicateElementKey 오류가 났네요! 이건 한 페이지 안에 똑같은 key값을 가진 버튼이 두 개 이상 생겼을 때 발생하는 스트림릿의 전형적인 오류입니다.
-
-YEARLY 탭과 카테고리별 탭에 똑같은 아이템이 들어가면서, 제가 버튼 생성 시 부여한 key값이 중복된 것 같습니다. 각 탭의 버튼이 고유한 ID를 가질 수 있도록 key 생성 로직을 안전하게 수정해 드릴게요.
-
-🛠️ 오류 수정 코드 (Tab 2 부분)
-아래 코드로 tab2 전체를 교체하시면 중복 키 오류가 해결됩니다.
-
-Python
-# --- TAB 2: ARCHIVE ---
 with tab2:
     if st.button("🔄"):
         restore_from_google()
@@ -441,10 +432,4 @@ with tab2:
                                         show_details(row)
                 else: 
                     st.info(f"{c_name} 기록이 아직 없습니다.")
-
-
-
-
-
-
 
