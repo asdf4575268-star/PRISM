@@ -360,7 +360,7 @@ with tab2:
         <style>
         .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 6px; margin-bottom: 5px; }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
-        .badge { position: absolute; bottom: 5px; right: 5px; background: rgba(0, 0, 0, 0.6); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+        .badge { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.6); color: white; padding: 3px 8px; border-radius: 4px; font-size: 10px; z-index: 10; pointer-events: none;}
         
         /* 버튼 내부 텍스트 무조건 가운데 정렬 */
         button[data-testid="stBaseButton-secondary"] p {
@@ -425,9 +425,9 @@ with tab2:
                                         
                                         # 이미지와 뱃지 출력
                                         st.markdown(f'''
-                                            <div class="cal-img-box">
+                                            <div class="cal-img-box" style="position: relative;">
+                                                <img src="{row["img_url"]}" style="width: 100%; display: block;">
                                                 <div class="badge">{badge_text}</div>
-                                                <img src="{row["img_url"]}">
                                             </div>
                                         ''', unsafe_allow_html=True)
                                         
@@ -454,15 +454,19 @@ with tab2:
                                 row = items[i + j]
                                 with cols[j]:
                                     raw_v = str(row.get('view_date') or "").strip()
-                                    badge_d = ""
+                                    badge_display = "미상"
                                     if raw_v.lower() not in ["nan", "none", ""]:
                                         try:
-                                            temp_dt = pd.to_datetime(raw_v.split(' ')[0])
-                                            badge_text = pd.to_datetime(raw_v).strftime('%Y-%m-%d')
+                                            badge_display = pd.to_datetime(raw_v).strftime('%Y-%m-%d')
                                         except:
-                                            badge_d = raw_v[:10]
+                                            badge_display = raw_v[:10]
                                     
-                                    st.markdown(f'<div class="cal-img-box"><div class="badge">{badge_d}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
+                                    st.markdown(f'''
+                                        <div class="cal-img-box" style="position: relative;">
+                                            <img src="{row["img_url"]}" style="width: 100%; display: block;">
+                                            <div class="badge">{badge_display}</div>
+                                        </div>
+                                    ''', unsafe_allow_html=True)
                                     
                                     # [수정] 7자 넘을 때만 '..' 붙이기
                                     orig_title = str(row['title'])
@@ -471,6 +475,7 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
 
 
 
