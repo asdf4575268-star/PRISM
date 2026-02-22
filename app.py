@@ -154,12 +154,36 @@ def get_tmdb_details(item_id, category):
     except: return "정보 없음"
 
 def search_kopis(query):
-    url = f"http://www.kopis.or.kr/openApi/restful/pblprfr?service={KOPIS_KEY}&shprfnm={query}&stdate=19500101&eddate=20261231&rows=20&cpage=1"
+    year_match = re.search(r'\d{4}', query)
+    search_year = year_match.group() if year_match else None
+    clean_query = re.sub(r'\d{4}', '', query).strip()
+    url = f"http://www.kopis.or.kr/openApi/restful/pblprfr?service={KOPIS_KEY}&shprfnm={clean_query}&stdate=19500101&eddate=20261231&rows=100&cpage=1"
+    
     try:
         res = requests.get(url)
         root = ET.fromstring(res.content)
-        return [{'title': d.findtext('prfnm'), 'id': d.findtext('mt20id'), 'img': d.findtext('poster'), 'date': d.findtext('prfpdfrom'), 'venue': d.findtext('fcltynm')} for d in root.findall('db')]
-    except: return []
+        items = root.findall('db')
+        
+        results = []
+        for d in items:
+            title = d.findtext('prfnm')
+            date_from = d.findtext('prfpdfrom')
+            
+            # 3. 만약 사용자가 연도를 입력했다면, 해당 연도와 일치하는 공연만 필터링
+            if search_year:
+                if search_year not in date_from:
+                    continue
+            
+            results.append({
+                'title': title, 
+                'id': d.findtext('mt20id'), 
+                'img': d.findtext('poster'), 
+                'date': date_from, 
+                'venue': d.findtext('fcltynm')
+            })
+        return results
+    except:
+        return []
 def get_kopis_detail(mt20id):
     """공연 ID를 이용해 제작진(prfcrew)과 출연진(prfcast) 정보를 정밀 추출"""
     url = f"http://www.kopis.or.kr/openApi/restful/pblprfr/{mt20id}?service={KOPIS_KEY}"
@@ -624,6 +648,7 @@ with sub_tabs[0]:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
