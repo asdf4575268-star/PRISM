@@ -403,7 +403,7 @@ with tab2:
                                     with cols[j]:
                                         st.markdown(f'<div class="cal-img-box"><div class="badge">{row["category"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                         # [수정] key에 'yearly' 접두어 추가하여 중복 방지
-                                        if st.button(f"{str(row['title'])[:7]}..", key=f"btn_yr_{row['id']}"): 
+                                        if st.button(f"{str(row['title'])[:10]}", key=f"btn_yr_{row['id']}"): 
                                             show_details(row)
 
         # --- [탭 1~5: 카테고리별 탭] ---
@@ -442,6 +442,7 @@ with tab2:
                                         show_details(row)
                 else: 
                     st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
 
 
