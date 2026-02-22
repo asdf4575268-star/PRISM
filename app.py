@@ -436,10 +436,11 @@ with tab2:
                                         </div>''', unsafe_allow_html=True)
                                     
                                     # [수정] 변수 선언 먼저!
-                                    btn_label = f"{str(row['title'])[:7]}.."
+                                    btn_label = f"{str(row['title'])[:10]}"
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(btn_label, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
 
 
 
