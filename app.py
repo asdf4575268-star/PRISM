@@ -32,37 +32,23 @@ init_db()
 
 def restore_from_google():
     try:
-        # 1. 데이터 불러오기
         df = pd.read_csv(GOOGLE_SHEET_CSV).fillna("")
-        df.columns = df.columns.str.strip()
-
-        # 2. 컬럼 매핑 로직 (이름 기반)
-        col_map = {}
-        for i, col in enumerate(df.columns):
-            lower = col.lower().replace(" ", "")
-            if "감상일" in lower: col_map["view_date"] = col
-            elif "category" in lower or "카테고리" in lower: col_map["category"] = col
-            elif "title" in lower or "제목" in lower: col_map["title"] = col
-            elif "creator" in lower or "작가" in lower or "감독" in lower: col_map["creator"] = col
-            elif any(x in lower for x in ["rel", "공개", "출판", "개봉", "발매"]): col_map["rel_date"] = col
-            elif "summary" in lower or "줄거리" in lower: col_map["summary"] = col
-            elif "brief" in lower or "요약" in lower: col_map["brief"] = col
-            elif "highlight" in lower or "인상" in lower: col_map["highlights"] = col
-            elif "note" in lower or "감상" in lower: col_map["note"] = col
-            elif "img" in lower or "이미지" in lower: col_map["img_url"] = col
-            elif "타임스탬프" in lower or "timestamp" in lower: col_map["save_date"] = col
-            elif "venue" in lower or "장소" in lower: col_map["venue"] = col
         
-        # [강제 매칭] 사용자님 정보: 장소가 6번째 열(인덱스 5)일 경우
-        if "venue" not in col_map and len(df.columns) >= 6:
-            col_map["venue"] = df.columns[5] # 6번째 열을 장소로 강제 지정
+        if df.empty:
+            st.warning("복원할 데이터가 시트에 없습니다.")
+            return
 
-        # 3. DB 저장
         with sqlite3.connect(DB_NAME) as conn:
-            conn.execute("DELETE FROM archive") # 기존 로컬 데이터 초기화
+            conn.execute("DELETE FROM archive")
+            
             for _, row in df.iterrows():
-                # 날짜 처리
-                raw_v = str(row.get(col_map.get("view_date"), "")).strip()
+                vals = row.tolist()
+                # 시트의 컬럼 개수가 부족할 경우를 대비해 빈 값 채우기
+                while len(vals) < 12:
+                    vals.append("")
+
+                # [날짜 처리] 12번째 컬럼(index 11)이 감상일
+                raw_v = str(vals[11]).strip()
                 if raw_v:
                     try:
                         clean_v = raw_v.replace("오전", "AM").replace("오후", "PM")
@@ -70,9 +56,7 @@ def restore_from_google():
                     except: v_date = raw_v
                 else: v_date = ""
 
-                r_date = str(row.get(col_map.get("rel_date"), "")).strip()
-
-                # INSERT 실행 (12개 컬럼 순서 일치)
+                # [데이터 입력] 시트 인덱스 번호와 DB 컬럼 매칭
                 conn.execute("""
                     INSERT INTO archive 
                     (category, title, creator, rel_date, venue, 
@@ -80,20 +64,20 @@ def restore_from_google():
                      img_url, save_date, view_date) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
-                    str(row.get(col_map.get("category"), "")),
-                    str(row.get(col_map.get("title"), "")),
-                    str(row.get(col_map.get("creator"), "")),
-                    r_date,
-                    str(row.get(col_map.get("venue"), "")), # 📍 핵심: 장소 데이터
-                    str(row.get(col_map.get("summary"), "")),
-                    str(row.get(col_map.get("brief"), "")),
-                    str(row.get(col_map.get("highlights"), "")),
-                    str(row.get(col_map.get("note"), "")),
-                    str(row.get(col_map.get("img_url"), "")),
-                    str(row.get(col_map.get("save_date"), "")),
-                    v_date
+                    str(vals[1]),  # 카테고리 (2번째)
+                    str(vals[2]),  # 제목 (3번째)
+                    str(vals[3]),  # 창작자 정보 (4번째)
+                    str(vals[4]),  # 작품 날짜 (5번째)
+                    str(vals[5]),  # 📍 장소 (6번째) - 이제 정확히 들어갑니다!
+                    str(vals[6]),  # 줄거리 (7번째)
+                    str(vals[7]),  # 요약 (8번째)
+                    str(vals[8]),  # 인상 깊은 부분 (9번째)
+                    str(vals[9]),  # 감상 (10번째)
+                    str(vals[10]), # 이미지 (11번째)
+                    str(vals[0]),  # 타임스탬프 (1번째)
+                    v_date         # 감상일 (변환됨)
                 ))
-        st.success("✅ '장소'를 포함하여 데이터 복원이 완료되었습니다!")
+        st.success("✅ 시트 순서에 맞춰 복원이 완료되었습니다!")
     except Exception as e:
         st.error(f"❌ 복원 실패: {e}")
 
@@ -362,4 +346,5 @@ with tab2:
                             with cols[j]:
                                 st.markdown(f'<div class="cal-img-box"><div class="badge">{row["category"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:7]}..", key=f"btn_{row['id']}"): show_details(row)
+
 
