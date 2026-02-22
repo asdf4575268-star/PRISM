@@ -399,7 +399,7 @@ with tab1:
                     detail_url = f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id={s['id']}"
                     
                     st.session_state.api_data = {
-                        'title': f"{s['title']},
+                        'title': f"{s['title']}",
                         'creator': combined_creator, 
                         'date': s['date'],
                         'venue': s['venue'],
@@ -646,6 +646,7 @@ with tab2:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
 
 
