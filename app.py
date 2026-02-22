@@ -525,47 +525,54 @@ with sub_tabs[0]:
                                     show_details(row)
                 st.divider()
 
-# --- 2. 카테고리 탭 (이 위치가 sub_tabs 정의 바로 아래인지 확인하세요) ---
-    # --- 2. 카테고리 탭 정렬 및 배지 위치 수정 ---
-    cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
-    
-    for idx, c_name in enumerate(cats):
-        with sub_tabs[idx+1]:
-            cat_df = all_df[all_df['category'] == c_name].copy()
-            
-            if not cat_df.empty:
-                # 정렬 로직 (사용자 가이드 반영)
-                cat_df['sort_dt'] = pd.to_datetime(
-                    cat_df['view_date'].replace(['', 'nan', 'NaN', 'None'], pd.NA), 
-                    errors='coerce'
-                )
-                cat_df = cat_df.sort_values(by='sort_dt', ascending=False, na_position='last')
-                items = cat_df.to_dict('records')
+# --- 2. 카테고리 탭 (탭 생성 부분부터 시작) ---
+cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
 
-                for i in range(0, len(items), 6):
-                    cols = st.columns(6)
-                    for j in range(6):
-                        if i + j < len(items):
-                            row = items[i + j]
-                            with cols[j]:
-                                # 날짜 배지 정제
-                                raw_v = str(row.get('view_date') or "").strip()
-                                # 시간이 포함된 경우 날짜만 추출
-                                badge_d = raw_v.split(' ')[0] if " " in raw_v else raw_v
-                                if badge_d.lower() in ["nan", "none", ""]: badge_d = ""
-                                
-                                # [수정] 배지를 좌상단(badge-left) 하나로 통일하여 표시
-                                img_html = f'''
-                                    <div class="cal-img-box">
-                                        <div class="badge badge-left">{badge_d}</div>
-                                        <img src="{row["img_url"]}">
-                                    </div>'''
-                                st.markdown(img_html, unsafe_allow_html=True)
-                                
-                                btn_key = f"cat_{c_name}_{row['id']}_{idx}_{i+j}"
-                                if st.button(f"{str(row['title'])[:7]}..", key=btn_key, use_container_width=True): 
-                                    show_details(row)
-            else: 
-                st.info(f"{c_name} 기록이 없습니다.")
+for idx, c_name in enumerate(cats):
+    with sub_tabs[idx+1]: # 탭 안으로 한 번 들어감 (공백 4칸)
+        cat_df = all_df[all_df['category'] == c_name].copy()
+        
+        if not cat_df.empty: # 데이터가 있을 때 (공백 8칸)
+            cat_df['sort_dt'] = pd.to_datetime(
+                cat_df['view_date'].replace(['', 'nan', 'NaN', 'None'], pd.NA), 
+                errors='coerce'
+            )
+            cat_df = cat_df.sort_values(by='sort_dt', ascending=False, na_position='last')
+            items = cat_df.to_dict('records')
+
+            # 그리드 출력 시작
+            for i in range(0, len(items), 6): # 행 시작 (공백 12칸)
+                cols = st.columns(6)
+                for j in range(6): # 열 시작 (공백 16칸)
+                    if i + j < len(items): # 개별 아이템 (공백 20칸)
+                        row = items[i + j]
+                        with cols[j]: # 컬럼 안으로 (공백 24칸)
+                            # 날짜 가공
+                            raw_v = str(row.get('view_date') or "").strip()
+                            if raw_v.lower() in ["nan", "none", ""]:
+                                badge_d = ""
+                            else:
+                                pure_date = raw_v.split(' ')[0]
+                                try:
+                                    temp_dt = pd.to_datetime(pure_date)
+                                    badge_d = temp_dt.strftime('%y.%m.%d')
+                                except:
+                                    badge_d = pure_date[:10]
+
+                            # 배지 HTML (우상단 배치)
+                            img_html = f'''
+                                <div class="cal-img-box">
+                                    <div class="badge">{badge_d}</div>
+                                    <img src="{row["img_url"]}">
+                                </div>'''
+                            st.markdown(img_html, unsafe_allow_html=True)
+                            
+                            # 버튼 키값 중복 방지
+                            btn_key = f"cat_{c_name}_{row['id']}_{idx}_{i+j}"
+                            if st.button(f"{str(row['title'])[:7]}..", key=btn_key, use_container_width=True): 
+                                show_details(row)
+        else: # 데이터 없을 때
+            st.info(f"{c_name} 기록이 없습니다.")
+
 
 
