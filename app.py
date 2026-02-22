@@ -402,9 +402,9 @@ with tab1:
                         'title': f"{s['title']} @{s['venue']}",
                         'creator': combined_creator, 
                         'date': s['date'],
-                        'venue': s['venue']
+                        'venue': s['venue'],
                         'img': s['img'],
-                        'summary': detail_url,
+                        'summary': detail_url
                     }
                     st.rerun()
                     
@@ -646,5 +646,6 @@ with tab2:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
 
