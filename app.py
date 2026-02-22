@@ -395,7 +395,7 @@ with tab1:
                     combined_creator = get_kopis_detail(s['id'])
                     detail_url = f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id={s['id']}"
                     st.session_state.api_data = {
-                        'title': f"{s['title']}",
+                        'title': f"{s['title']} ",
                         'creator': combined_creator, # 상세 정보에서 가져온 제작진/출연진
                         'date': s['date']@{s['venue']},
                         'img': s['img'],
