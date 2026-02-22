@@ -263,9 +263,13 @@ with tab1:
             if res:
                 opts = {m['display_name']: m for m in res}
                 sel = st.selectbox("결과 선택", list(opts.keys()))
+                
                 if st.button("✨ 가져오기"):
+                    # [순서 변경] m을 먼저 정의해야 정보를 꺼낼 수 있습니다.
+                    m = opts[sel]
                     collection_id = m.get('collectionId')
                     label_info = ""
+                    
                     if collection_id:
                         lookup_url = f"https://itunes.apple.com/lookup?id={collection_id}&entity=album"
                         try:
@@ -273,10 +277,18 @@ with tab1:
                             if l_res.get('results'):
                                 raw_copyright = l_res['results'][0].get('copyright', '')
                                 label_info = re.sub(r'℗|©|\d{4}', '', raw_copyright).strip()
-                            except:
-                                label_info = ""
-                    m = opts[sel]
-                    st.session_state.api_data = {'title': m['title'], 'creator': m['creator'], 'date': m['date'], 'img': m['img'], 'venue': label_info if label_info else m['creator'], 'summary': f"{m['url']}\n\n"}
+                        except:
+                            label_info = ""
+
+                    # 최종 데이터 할당
+                    st.session_state.api_data = {
+                        'title': m['title'], 
+                        'creator': m['creator'], 
+                        'date': m['date'], 
+                        'img': m['img'], 
+                        'venue': label_info if label_info else m['creator'], 
+                        'summary': f"{m['url']}\n\n"
+                    }
                     st.rerun()
         elif category == "STAGE":
             res = search_kopis(search_query)
@@ -449,6 +461,7 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
 
 
 
