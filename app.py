@@ -397,7 +397,7 @@ with tab1:
                     st.session_state.api_data = {
                         'title': f"{s['title']} ",
                         'creator': combined_creator, # 상세 정보에서 가져온 제작진/출연진
-                        'date': s['date']@{s['venue']},
+                        'date': f"{s['date']} @{s['venue']}",
                         'img': s['img'],
                         'summary': detail_url
                     }
