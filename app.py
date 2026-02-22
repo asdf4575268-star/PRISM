@@ -199,12 +199,9 @@ def show_details(item):
                 n_rel = st.text_input("📅공개일", value=str(item.get('rel_date', '')))
                 
                 try:
-                    # 빈 칸을 제거하고 앞부분 날짜만 가져옵니다.
-                    raw_v = str(item.get('view_date') or item.get('save_date')).strip().split(' ')[0]
-                    # Pandas를 이용해 유연하게 날짜 객체로 변환
-                    v_dt = pd.to_datetime(raw_v).date()
-                except: 
-                    v_dt = date.today() # 완전한 빈 값일 때만 오늘 날짜 적용
+                    raw_v = str(item.get('view_date') or item.get('save_date'))[:10]
+                    v_dt = datetime.strptime(raw_v, '%Y-%m-%d').date()
+                except: v_dt = date.today()
                 
                 n_view = st.date_input("🍿 감상일", v_dt)
                 n_brief = st.text_input("📝 요약", value=str(item.get('brief') or ''))
@@ -555,16 +552,8 @@ with sub_tabs[0]:
                             row = items[i + j]
                             with cols[j]:
                                 # 배지 날짜 표시 정제
-                                raw_v = str(row.get('view_date') or "").strip()
-                                if raw_v.lower() in ["nan", "none", ""]:
-                                    badge_d = ""
-                                else:
-                                    try:
-                                        # '26.02.22' 형태로 짧고 깔끔하게 변환
-                                        temp_dt = pd.to_datetime(raw_v.split(' ')[0])
-                                        badge_d = temp_dt.strftime('%y.%m.%d')
-                                    except:
-                                        badge_d = raw_v[:10]
+                                raw_v = str(row.get('view_date') or "")
+                                badge_d = "" if raw_v.lower() in ["nan", "none", ""] else raw_v
                                 
                                 img_html = f'''
                                     <div class="cal-img-box">
@@ -579,4 +568,3 @@ with sub_tabs[0]:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 없습니다.")
-
