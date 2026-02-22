@@ -50,26 +50,30 @@ def restore_from_google():
         col_map = {}
         for col in df.columns:
             lower = col.lower().replace(" ", "")
-            # [1] 감상일: '감상일'이라는 단어가 들어간 열만 사용 (타임스탬프와 분리)
             if "감상일" in lower: col_map["view_date"] = col
             elif "category" in lower or "카테고리" in lower: col_map["category"] = col
             elif "title" in lower or "제목" in lower: col_map["title"] = col
             elif "creator" in lower or "작가" in lower or "감독" in lower: col_map["creator"] = col
-            # [2] 공개일 추가
             elif any(x in lower for x in ["rel", "공개", "출판", "개봉", "발매"]): col_map["rel_date"] = col
             elif "summary" in lower or "줄거리" in lower: col_map["summary"] = col
             elif "brief" in lower or "요약" in lower: col_map["brief"] = col
             elif "highlight" in lower or "인상" in lower: col_map["highlights"] = col
             elif "note" in lower or "감상" in lower: col_map["note"] = col
             elif "img" in lower or "이미지" in lower: col_map["img_url"] = col
-            # [3] 타임스탬프는 save_date로 보내서 view_date에 침범 못하게 차단
             elif "타임스탬프" in lower or "timestamp" in lower: col_map["save_date"] = col
 
         with sqlite3.connect(DB_NAME) as conn:
             conn.execute("DELETE FROM archive")
             for _, row in df.iterrows():
-                # 배지 오류를 막기 위해 값을 가져올 때 한 번 더 체크
-                v_date = str(row.get(col_map.get("view_date"), "")).strip()
+                # [핵심 수정] 감상일 값에서 시간/타임스탬프 제거 로직
+                raw_view = str(row.get(col_map.get("view_date"), "")).strip()
+                
+                # 공백이 있다면 (예: 2026. 2. 21 오후...) 첫 번째 덩어리만 취함
+                if raw_view and " " in raw_view:
+                    v_date = raw_view.split(" ")[0]
+                else:
+                    v_date = raw_view
+
                 r_date = str(row.get(col_map.get("rel_date"), "")).strip()
 
                 conn.execute("""
@@ -82,21 +86,18 @@ def restore_from_google():
                     str(row.get(col_map.get("category"), "")),
                     str(row.get(col_map.get("title"), "")),
                     str(row.get(col_map.get("creator"), "")),
-                    r_date, # 공개일
+                    r_date,
                     str(row.get(col_map.get("summary"), "")),
                     str(row.get(col_map.get("brief"), "")),
                     str(row.get(col_map.get("highlights"), "")),
                     str(row.get(col_map.get("note"), "")),
                     str(row.get(col_map.get("img_url"), "")),
-                    str(row.get(col_map.get("save_date"), "")), # 타임스탬프는 여기에 격리
-                    v_date # 사용자님이 입력한 진짜 감상일
+                    str(row.get(col_map.get("save_date"), "")),
+                    v_date # 깨끗해진 날짜 저장
                 ))
         st.success("복원 완료")
     except Exception as e:
         st.error(f"오류 발생: {e}")
-
-    except Exception as e:
-        st.error(f"❌ 복원 실패: {e}")
 
 
 # --- [2. API 함수 정의 구역] ---
@@ -568,6 +569,7 @@ for idx, c_name in enumerate(cats):
                                 show_details(row)
         else: # 데이터 없을 때
             st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
