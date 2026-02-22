@@ -365,7 +365,7 @@ with tab2:
         cat_list = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
         total_count = len(all_df)
         
-        tab_names = [f"📅 YEARLY ({total_count})"]
+        tab_names = [f"📅ALL ({total_count})"]
         for c in cat_list:
             count = len(all_df[all_df['category'] == c])
             tab_names.append(f"{c} ({count})")
@@ -432,4 +432,5 @@ with tab2:
                                         show_details(row)
                 else: 
                     st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
