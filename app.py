@@ -207,7 +207,7 @@ def show_details(item):
                 n_high = st.text_area("✨ 인상 깊은 부분", value=str(item.get('highlights', '')), height=100)
                 n_note = st.text_area("💬 감상", value=str(item.get('note', '')), height=100)
 
-                if st.form_submit_button("💾 로컬 저장"):
+                if st.form_submit_button("💾 저장"):
                     with sqlite3.connect(DB_NAME) as conn:
                         # [수정] DB 업데이트 쿼리에 rel_date와 view_date 추가
                         conn.execute("""UPDATE archive SET 
@@ -430,4 +430,5 @@ with tab2:
                     st.info(f"{c_name} 기록이 아직 없습니다.")
     else:
         st.info("데이터가 없습니다. 구글 시트에서 복원 버튼을 눌러주세요.")
+
 
