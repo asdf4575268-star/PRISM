@@ -250,7 +250,7 @@ def show_details(item):
                         requests.post(BACKUP_URL, data=edit_payload, timeout=10)
                         with sqlite3.connect(DB_NAME) as conn:
                             conn.execute("""UPDATE archive SET title=?, creator=?, rel_date=?, summary=?, brief=?, highlights=?, note=?, view_date=? WHERE id=?""", 
-                                         (n_title, n_creator, n_rel, n_sum, n_brief, n_high, n_note, str(n_view), item['id']))
+                                         (n_title, n_creator, n_rel, n_sum, n_brief, n_high, n_note, str(n_view), str(n_view), item['id']))
                         st.success("✅ 수정 완료!")
                         time.sleep(0.5)
                         st.rerun()
@@ -365,7 +365,8 @@ with tab1:
                 "entry.543246487": summary, "entry.1816924330": brief, "entry.270693677": highlights,
                 "entry.891180756": note, "entry.2056153041": img_url_val,
                 "entry.780422311_year": ry, "entry.780422311_month": rm, "entry.780422311_day": rd,
-                "entry.1446643193_year": vy, "entry.1446643193_month": vm, "entry.1446643193_day": vd
+                "entry.1446643193_year": vy, "entry.1446643193_month": vm, "entry.1446643193_day": vd,
+                "entry.250402237": venue
             }
 
             try:
@@ -447,6 +448,7 @@ with tab2:
                                 st.markdown(f'<div class="cal-img-box"><div class="badge badge-left">{b_date}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:7]}..", key=f"c_{c_name}_{row['id']}"): show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
