@@ -41,6 +41,14 @@ def init_db():
                         (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
                          rel_date TEXT, venue TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, img_url TEXT, save_date TEXT, view_date TEXT)''')
 init_db()
+def upgrade_db():
+    with sqlite3.connect(DB_NAME) as conn:
+        try:
+            conn.execute("ALTER TABLE archive ADD COLUMN venue TEXT")
+            st.success("✅ DB 구조 업데이트 완료! 이제 장소가 저장됩니다.")
+        except:
+            # 이미 컬럼이 있으면 에러가 나는데, 그건 무시해도 됩니다.
+            pass
 
 def restore_from_google():
     try:
@@ -644,6 +652,7 @@ with tab2:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
 
 
