@@ -191,12 +191,15 @@ def show_details(item):
                 n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
                 n_creator = st.text_input("👤 창작자", value=str(item.get('creator', '')))
                 
-                # [수정] 날짜 및 장소 입력란 분리
+                # [수정] 카테고리별 맞춤 라벨 적용
+                cat = item.get('category')
+                labels = {"BOOKS": "📖 출판사", "MUSIC": "💿 레이블", "MOVIES": "🎬 제작사", "SERIES": "📺 플랫폼", "STAGE": "📍 장소"}
+                v_label = labels.get(cat, "📍 장소")
+
                 c1, c2 = st.columns(2)
-                n_rel = c1.text_input("📅 ", value=str(item.get('rel_date', '')))
-                n_venue = c2.text_input("📍 ", value=str(item.get('venue', '')))
+                n_rel = c1.text_input("📅 작품 날짜", value=str(item.get('rel_date', '')))
+                n_venue = c2.text_input(v_label, value=str(item.get('venue', '')))
                 
-                # [수정] 감상일 수정 (날짜 선택기)
                 try:
                     curr_view = pd.to_datetime(item.get('view_date')).date()
                 except:
@@ -209,17 +212,36 @@ def show_details(item):
                 n_note = st.text_area("💬 감상", value=str(item.get('note', '')), height=100)
 
                 if st.form_submit_button("💾 저장"):
-                    with sqlite3.connect(DB_NAME) as conn:
-                        # [수정] DB 업데이트 쿼리에 rel_date와 view_date 추가
-                        conn.execute("""UPDATE archive SET 
-                                        title=?, creator=?, rel_date=?, venue=?, 
-                                        summary=?, brief=?, highlights=?, note=?, view_date=? 
-                                        WHERE id=?""", 
-                                     (n_title, n_creator, n_rel, n_venue, 
-                                      n_sum, n_brief, n_high, n_note, str(n_view_date), item['id']))
-                    st.success("✅ 로컬 수정 완료!")
-                    time.sleep(0.5)
-                    st.rerun()
+                    try:
+                        # 1. 구글 시트 백업 연동 (수정본 전송)
+                        r_dt = pd.to_datetime(n_rel) if n_rel else date.today()
+                        v_dt = pd.to_datetime(n_view_date)
+                        
+                        BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
+                        payload = {
+                            "entry.574529989": cat, "entry.898076783": n_title, "entry.345368346": n_creator,
+                            "entry.543246487": n_sum, "entry.1816924330": n_brief, "entry.270693677": n_high,
+                            "entry.891180756": n_note, "entry.2056153041": item.get('img_url'),
+                            "entry.780422311_year": str(r_dt.year), "entry.780422311_month": f"{r_dt.month:02d}", "entry.780422311_day": f"{r_dt.day:02d}",
+                            "entry.1446643193_year": str(v_dt.year), "entry.1446643193_month": f"{v_dt.month:02d}", "entry.1446643193_day": f"{v_dt.day:02d}",
+                            "entry.250402237": n_venue
+                        }
+                        requests.post(BACKUP_URL, data=payload, timeout=5)
+
+                        # 2. 로컬 SQLite 업데이트
+                        with sqlite3.connect(DB_NAME) as conn:
+                            conn.execute("""UPDATE archive SET 
+                                            title=?, creator=?, rel_date=?, venue=?, 
+                                            summary=?, brief=?, highlights=?, note=?, view_date=? 
+                                            WHERE id=?""", 
+                                         (n_title, n_creator, n_rel, n_venue, 
+                                          n_sum, n_brief, n_high, n_note, str(n_view_date), item['id']))
+                        
+                        st.success("✅ 수정 내용이 저장 및 백업되었습니다!")
+                        time.sleep(0.5)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ 저장 실패: {e}")
         else:
             # --- [조회 모드: 요청하신 레이아웃 적용] ---
             st.markdown(f'# {item.get("title")}')
@@ -438,6 +460,7 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
 
 
 
