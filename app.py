@@ -268,13 +268,25 @@ with tab1:
             if res:
                 t_key = 'title' if category == 'MOVIES' else 'name'
                 d_key = 'release_date' if category == 'MOVIES' else 'first_air_date'
-                opts = {f"🎬 {r.get(t_key)} ({str(r.get(d_key))[:4]})": r for r in res}
+                
+                # 결과 리스트 생성
+                opts = {f"🎬 {r.get(t_key)} ({str(r.get(d_key, ''))[:4]})": r for r in res}
                 sel = st.selectbox("결과 선택", list(opts.keys()))
-                if st.button("✨ 가져오기"):
+                
+                if st.button("✨ 가져오기", key=f"btn_{category}"):
                     s = opts[sel]
-                    st.session_state.api_data = {'title': s.get(t_key), 'creator': get_tmdb_details(s['id'], category), 'date': s.get(d_key), 'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", 'summary': s.get('overview', '')}
+                    # [수정된 부분] 안전하게 데이터를 가져와서 세션에 저장
+                    st.session_state.api_data = {
+                        'title': s.get(t_key, '제목 없음'),
+                        'creator': get_tmdb_details(s.get('id'), category),
+                        'date': s.get(d_key, str(date.today())),
+                        'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}" if s.get('poster_path') else "",
+                        'venue': '', # 영화는 장소 비움
+                        'summary': s.get('overview', '')
+                    }
+                    st.success(f"'{s.get(t_key)}' 정보를 가져왔습니다!")
+                    time.sleep(0.5)
                     st.rerun()
-
     st.divider()
     data = st.session_state.get('api_data', {})
     cl, cr = st.columns([0.4, 0.6])
@@ -424,6 +436,7 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
 
 
 
