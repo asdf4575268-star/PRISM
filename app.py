@@ -293,7 +293,7 @@ with tab1:
     data = st.session_state.get('api_data', {})
     cl, cr = st.columns([0.4, 0.6])
     with cl:
-        img_url_val = st.text_input("🖼️ 이미지", value=data.get('img', ''))
+        img_url_val = st.text_input("🖼️ ", value=data.get('img', ''))
         if img_url_val: st.image(img_url_val, use_container_width=True)
         title = st.text_input("제목", value=data.get('title', ''))
         creator = st.text_input("창작자 정보", value=data.get('creator', ''))
@@ -438,6 +438,7 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
 
 
 
