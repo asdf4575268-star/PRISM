@@ -361,11 +361,20 @@ with tab1:
         elif category == "STAGE":
             res = search_kopis(search_query)
             if res:
-                opts = {f"🎭 {s['title']} ({s['venue']})": s for s in res}
+                opts = {f"🎭 {s['title']} [{s['date']}~] ({s['venue']})": s for s in res}
                 sel = st.selectbox("결과 선택", list(opts.keys()))
+                
                 if st.button("✨ 가져오기"):
                     s = opts[sel]
-                    st.session_state.api_data = {'title': s['title'], 'creator': f"@{s['venue']}", 'date': s['date'], 'img': s['img'], 'summary': ''}
+                    combined_creator = get_kopis_detail(s['id'])
+                    st.session_state.api_data = {
+                        'title': s['title'],
+                        'creator': combined_creator, # 상세 정보에서 가져온 제작진/출연진
+                        'date': s['date'],
+                        'img': s['img'],
+                        'summary': f"공연 장소: {s['venue']}" # 공연장은 줄거리/정보 칸으로 이동
+                    }
+                    
                     st.rerun()
         else: # MOVIES, SERIES
             res = search_tmdb(search_query, category)
@@ -612,6 +621,7 @@ with sub_tabs[0]:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
