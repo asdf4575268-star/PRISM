@@ -160,6 +160,26 @@ def search_kopis(query):
         root = ET.fromstring(res.content)
         return [{'title': d.findtext('prfnm'), 'id': d.findtext('mt20id'), 'img': d.findtext('poster'), 'date': d.findtext('prfpdfrom'), 'venue': d.findtext('fcltynm')} for d in root.findall('db')]
     except: return []
+def get_kopis_detail(mt20id):
+    """공연 ID를 이용해 제작진(prfcrew)과 출연진(prfcast) 정보를 가져오는 함수"""
+    url = f"http://www.kopis.or.kr/openApi/restful/pblprfr/{mt20id}?service={KOPIS_KEY}"
+    try:
+        res = requests.get(url)
+        root = ET.fromstring(res.content)
+        d = root.find('db')
+        if d is not None:
+            crew = d.findtext('prfcrew').strip()
+            cast = d.findtext('prfcast').strip()
+            
+            # 정보가 없는 경우를 대비한 처리
+            crew = crew if crew and crew != " " else "제작진 정보 없음"
+            cast = cast if cast and cast != " " else "출연진 정보 없음"
+            
+            # 요청하신 '제작진 / 출연진' 형식으로 결합
+            return f"{crew} / {cast}"
+    except:
+        return "정보 없음"
+    return "정보 없음"
 
 col_empty, col_btn = st.columns([0.85, 0.15]) 
 
@@ -590,6 +610,7 @@ with sub_tabs[0]:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
