@@ -305,7 +305,7 @@ def show_details(item):
                     try:
                         requests.post(BACKUP_URL, data=edit_payload, timeout=10)
                         with sqlite3.connect(DB_NAME) as conn:
-                            conn.execute("""UPDATE archive SET title=?, creator=?, rel_date=?, summary=?, brief=?, highlights=?, note=?, view_date=? WHERE id=?""", 
+                            conn.execute("""UPDATE archive SET title=?, creator=?, rel_date=?, venue=?, summary=?, brief=?, highlights=?, note=?, view_date=? WHERE id=?""", 
                                          (n_title, n_creator, n_rel, n_sum, n_brief, n_high, final_note, str(n_view), item['id']))
                         st.success("✅ 수정 완료!")
                         time.sleep(0.5)
@@ -652,6 +652,7 @@ with tab2:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
 
 
