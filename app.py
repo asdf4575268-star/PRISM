@@ -445,25 +445,8 @@ with tab1:
 
 # --- TAB 2: ARCHIVE ---
 with tab2:
-    # 1. 상단 바 (새로고침 버튼과 검색창을 한 줄에 배치)
-    c1, c2 = st.columns([0.1, 0.9])
-    with c1:
-        if st.button("🔄"):
-            restore_from_google()
-            st.rerun()
-    with c2:
-        # 1931년작 지킬앤하이드를 찾아줄 핵심 검색창
-        search_q = st.text_input("🔍 검색 (제목, 배우, 연도 등)", placeholder="1931 또는 지킬 입력...")
-
-    # 2. DB 데이터 로드
-    with sqlite3.connect(DB_NAME) as conn:
-        all_df = pd.read_sql_query("SELECT * FROM archive", conn)
-
-    # 3. [핵심] 10년 전, 90년 전 데이터도 다 찾아내는 필터
-    if search_q and not all_df.empty:
-        # 모든 열을 글자로 취급해서 검색어가 포함된 것만 남깁니다.
-        mask = all_df.apply(lambda row: row.astype(str).str.contains(search_q, case=False, na=False).any(), axis=1)
-        all_df = all_df[mask]
+    if st.button("🔄"):
+        restore_from_google()
     st.markdown("""
         <style>
         div[data-testid="column"] {
@@ -607,6 +590,7 @@ with sub_tabs[0]:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
