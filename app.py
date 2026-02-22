@@ -549,7 +549,7 @@ with tab2:
     counts = {cat: len(all_df[all_df['category'] == cat]) for cat in cat_list}
     
     # 탭 이름 정의: YEARLY(0) + 나머지 5개(1~5) = 총 6개 탭
-    tab_names = [f"📅 YEARLY ({total_cnt})"] + [f"{cat} ({counts[cat]})" for cat in cat_list]
+    tab_names = [f"📅 ALL ({total_cnt})"] + [f"{cat} ({counts[cat]})" for cat in cat_list]
     sub_tabs = st.tabs(tab_names)
 
     # --- 1. Yearly 탭 내용 채우기 ---
@@ -640,4 +640,5 @@ with tab2:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
