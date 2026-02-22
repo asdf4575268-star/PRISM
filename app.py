@@ -344,24 +344,20 @@ with tab2:
         restore_from_google()
         st.rerun()
 
-    # [수정] 더 강력해진 버튼 가운데 정렬 CSS
+    # [디자인] 버튼 텍스트 가운데 정렬 및 스타일
     st.markdown("""
         <style>
         .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 6px; margin-bottom: 5px; }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
         .badge { position: absolute; top: 5px; left: 5px; background: rgba(0, 0, 0, 0.6); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
         
-        /* 버튼 내부의 모든 텍스트 요소를 강제로 센터링 */
-        button[data-testid="stBaseButton-secondary"], 
-        button[data-testid="stBaseButton-secondary"] div, 
-        button[data-testid="stBaseButton-secondary"] p, 
-        button[data-testid="stBaseButton-secondary"] span {
+        /* 버튼 내부 텍스트 무조건 가운데 정렬 */
+        button[data-testid="stBaseButton-secondary"] p {
             display: flex !important;
             justify-content: center !important;
-            align-items: center !important;
             text-align: center !important;
             width: 100% !important;
-            margin: 0 auto !important;
+            margin: 0 !important;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -373,7 +369,7 @@ with tab2:
         cat_list = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
         total_count = len(all_df)
         
-        tab_names = [f"📅ALL ({total_count})"]
+        tab_names = [f"📅 YEARLY ({total_count})"]
         for c in cat_list:
             count = len(all_df[all_df['category'] == c])
             tab_names.append(f"{c} ({count})")
@@ -400,9 +396,12 @@ with tab2:
                                     row = items[i+j]
                                     with cols[j]:
                                         st.markdown(f'<div class="cal-img-box"><div class="badge">{row["category"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
-                                        # [수정] 변수 선언 먼저!
-                                        btn_label = f"{str(row['title'])[:10]}"
-                                        if st.button(btn_label, key=f"btn_yr_{row['id']}", use_container_width=True): 
+                                        
+                                        # [수정] 7자 넘을 때만 '..' 붙이기
+                                        orig_title = str(row['title'])
+                                        display_title = orig_title[:10] + ".." if len(orig_title) > 7 else orig_title
+                                        
+                                        if st.button(display_title, key=f"btn_yr_{row['id']}", use_container_width=True): 
                                             show_details(row)
 
         # --- [탭 1~5: 카테고리별 탭] ---
@@ -429,16 +428,14 @@ with tab2:
                                         except:
                                             badge_d = raw_v[:10]
                                     
-                                    st.markdown(f'''
-                                        <div class="cal-img-box">
-                                            <div class="badge">{badge_d}</div>
-                                            <img src="{row["img_url"]}">
-                                        </div>''', unsafe_allow_html=True)
+                                    st.markdown(f'<div class="cal-img-box"><div class="badge">{badge_d}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     
-                                    # [수정] 변수 선언 먼저!
-                                    btn_label = f"{str(row['title'])[:10]}"
+                                    # [수정] 7자 넘을 때만 '..' 붙이기
+                                    orig_title = str(row['title'])
+                                    display_title = orig_title[:10] + ".." if len(orig_title) > 7 else orig_title
+                                    
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
-                                    if st.button(btn_label, key=btn_key, use_container_width=True): 
+                                    if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
 
 
