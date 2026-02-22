@@ -540,17 +540,24 @@ with tab2:
     with sqlite3.connect(DB_NAME) as conn:
         all_df = pd.read_sql_query("SELECT * FROM archive", conn)
 
-    sub_tabs = st.tabs(["📅 YEARLY", "📚 BOOKS", "🎸 MUSIC", "🎬 MOVIES", "📺 SERIES", "🎭 STAGE"])
+    total_cnt = len(all_df)
+    stage_cnt = len(all_df[all_df['category'] == 'STAGE'])
+    movie_cnt = len(all_df[all_df['category'] == 'MOVIES'])
+    series_cnt = len(all_df[all_df['category'] == 'SERIES'])
+    book_cnt = len(all_df[all_df['category'] == 'BOOKS'])
+    sub_tabs = st.tabs([
+        f"📅 YEARLY ({total_cnt})", 
+        f"🎭 STAGE ({stage_cnt})", 
+        f"🎬 MOVIES ({movie_cnt})", 
+        f"📺 SERIES ({series_cnt})", 
+        f"📚 BOOKS ({book_cnt})"
+    ])
 
     # --- 1. Yearly 탭 (배지 형식 수정) ---
 with sub_tabs[0]:
     if not all_df.empty:
-        # errors='coerce'를 추가하여 잘못된 날짜는 NaT(빈값)로 변환합니다.
         all_df['v_dt'] = pd.to_datetime(all_df['view_date'].fillna(all_df['save_date']), errors='coerce')
-        
-        # NaT(변환실패)인 행은 오늘 날짜로 채워 에러를 방지합니다.
-        all_df['v_dt'] = all_df['v_dt'].fillna(pd.Timestamp.now())
-        
+        all_df['v_dt'] = all_df['v_dt'].fillna(pd.Timestamp.now()) 
         all_df['year_int'] = all_df['v_dt'].dt.year
         all_df['month_int'] = all_df['v_dt'].dt.month
         yearly_df = all_df.sort_values(by='v_dt', ascending=False)
@@ -648,6 +655,7 @@ with sub_tabs[0]:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
