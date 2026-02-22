@@ -370,7 +370,7 @@ with tab1:
                     s = opts[sel]
                     combined_creator = get_kopis_detail(s['id'])
                     st.session_state.api_data = {
-                        'title': s['title'],
+                        'title': f"{s['title']} @{s['venue']}",
                         'creator': combined_creator, # 상세 정보에서 가져온 제작진/출연진
                         'date': s['date'],
                         'img': s['img'],
@@ -623,6 +623,7 @@ with sub_tabs[0]:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
