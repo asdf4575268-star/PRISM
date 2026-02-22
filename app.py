@@ -105,6 +105,7 @@ def search_apple_music(query):
                 'date': m.get('releaseDate', '')[:10],
                 'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'),
                 'url': info_url
+                'venue': m.get('artistName', '')
             })
         return formatted_res
     except: return []
@@ -264,7 +265,7 @@ with tab1:
                 sel = st.selectbox("결과 선택", list(opts.keys()))
                 if st.button("✨ 가져오기"):
                     m = opts[sel]
-                    st.session_state.api_data = {'title': m['title'], 'creator': m['creator'], 'date': m['date'], 'img': m['img'], 'venue': m.get('artistName', ''), 'summary': f"{m['url']}\n\n"}
+                    st.session_state.api_data = {'title': m['title'], 'creator': m['creator'], 'date': m['date'], 'img': m['img'], 'venue': m.get('venue', ''), 'summary': f"{m['url']}\n\n"}
                     st.rerun()
         elif category == "STAGE":
             res = search_kopis(search_query)
@@ -437,6 +438,7 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
 
 
 
