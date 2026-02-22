@@ -490,7 +490,7 @@ with tab1:
                     conn.execute("""INSERT INTO archive 
                         (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) 
                         VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-                        (category, title, creator, str(rel_date), summary, brief, highlights, processed_note, safe_img_url, str(date.today()), str(view_date)))
+                        (category, title, creator, str(rel_date), data.get('venue', ''), summary, brief, highlights, processed_note, safe_img_url, str(date.today()), str(view_date)))
                 
                 if res.status_code == 200:
                     st.success("✅ 로컬 저장 및 구글 백업 성공!")
@@ -643,6 +643,7 @@ with tab2:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
 
 
