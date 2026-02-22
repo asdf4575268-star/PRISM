@@ -369,12 +369,13 @@ with tab1:
                 if st.button("✨ 가져오기"):
                     s = opts[sel]
                     combined_creator = get_kopis_detail(s['id'])
+                    detail_url = f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id={s['id']}"
                     st.session_state.api_data = {
                         'title': f"{s['title']} @{s['venue']}",
                         'creator': combined_creator, # 상세 정보에서 가져온 제작진/출연진
                         'date': s['date'],
                         'img': s['img'],
-                        'summary': f"공연 장소: {s['venue']}" # 공연장은 줄거리/정보 칸으로 이동
+                        'summary': detail_url
                     }
                     
                     st.rerun()
@@ -623,6 +624,7 @@ with sub_tabs[0]:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
