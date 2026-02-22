@@ -243,7 +243,8 @@ def show_details(item):
                         "entry.2056153041": item.get('img_url', ''),
                         "entry.1446643193_year": vy,
                         "entry.1446643193_month": vm,
-                        "entry.1446643193_day": vd
+                        "entry.1446643193_day": vd,
+                        "entry.250402237": entry_data.get("venue")
                     }
                     try:
                         requests.post(BACKUP_URL, data=edit_payload, timeout=10)
@@ -446,5 +447,6 @@ with tab2:
                                 st.markdown(f'<div class="cal-img-box"><div class="badge badge-left">{b_date}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:7]}..", key=f"c_{c_name}_{row['id']}"): show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
 
