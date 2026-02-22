@@ -323,8 +323,11 @@ def show_details(item):
             
             # 3. 공개일 및 장소 (두 번째 줄로 이동)
             # 장소 정보가 있을 경우에만 @venue를 표시하도록 구성했습니다.
-            venue_display = f" | 📍 {venue_v}" if venue_v else ""
-            st.markdown(f'<p style="margin-top:-15px;">📅 {rel_v}{venue_display}</p>', unsafe_allow_html=True)
+            st.markdown(f'''
+                <p style="margin-top:-10px; margin-bottom:5px;">
+                    📅 {rel_v}{venue_display}
+                </p>
+                ''', unsafe_allow_html=True)
             
             # 4. 감상일
             st.markdown(f'<p style="color:gray; margin-top:-10px;"> 🍿 감상일: {view_v}</p>', unsafe_allow_html=True)
@@ -652,6 +655,7 @@ with tab2:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
 
 
