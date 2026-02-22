@@ -314,23 +314,22 @@ def show_details(item):
             cat_v = get_val('category')
             view_v = get_val('view_date') or get_val('save_date')
             venue_v = get_val('venue')
-            
-            # 1. 상단 제목
+
+            # 1. 상단 제목 (폰트 크기 및 줄간격 조절)
             st.markdown(f'<div style="font-size:30px; font-weight:bold; line-height:1.1;">{title_v}</div>', unsafe_allow_html=True)
             
-            # 2. 카테고리 및 창작자 (첫 번째 줄)
+            # 2. 카테고리 및 창작자
             st.write(f"**[{cat_v}]** {creator_v}")
             
-            # 3. 공개일 및 장소 (두 번째 줄로 이동)
-            # 장소 정보가 있을 경우에만 @venue를 표시하도록 구성했습니다.
-            st.markdown(f'''
-                <p style="margin-top:-10px; margin-bottom:5px;">
-                    📅 {rel_v}{venue_display}
-                </p>
-                ''', unsafe_allow_html=True)
+            # 3. [공개일 | 장소] 나란히 배치 (에러 방지용 변수 생성 및 통합)
+            venue_display = f" | 📍 {venue_v}" if venue_v else ""
             
-            # 4. 감상일
-            st.markdown(f'<p style="color:gray; margin-top:-10px;"> 🍿 감상일: {view_v}</p>', unsafe_allow_html=True)
+            # 한 줄의 <p> 태그 안에 📅와 📍 정보를 모두 넣습니다.
+            st.markdown(f'<p style="margin-top:-15px; margin-bottom:5px;">📅 {rel_v}{venue_display}</p>', unsafe_allow_html=True)
+            
+            # 4. 감상일 (별도의 줄에 회색으로 표시)
+            st.markdown(f'<p style="color:gray; font-size:0.9em; margin-top:-5px;">🍿 감상일: {view_v}</p>', unsafe_allow_html=True)
+            
             st.divider()
             
            # 3. 본문 출력
@@ -655,6 +654,7 @@ with tab2:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
 
 
