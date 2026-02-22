@@ -188,10 +188,12 @@ def show_details(item):
     with col_txt:
         if edit_mode:
             with st.form(key=f"edit_form_{item['id']}"):
+                # [추가] 이미지 URL 수정창 (미리보기는 폼 외부나 상단에 위치)
+                n_img = st.text_input("🖼️ 이미지 URL", value=str(item.get('img_url', '')))
+                
                 n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
                 n_creator = st.text_input("👤 창작자", value=str(item.get('creator', '')))
                 
-                # [수정] 카테고리별 맞춤 라벨 적용
                 cat = item.get('category')
                 labels = {"BOOKS": "📖 출판사", "MUSIC": "💿 레이블", "MOVIES": "🎬 제작사", "SERIES": "📺 플랫폼", "STAGE": "📍 장소"}
                 v_label = labels.get(cat, "📍 장소")
@@ -213,7 +215,7 @@ def show_details(item):
 
                 if st.form_submit_button("💾 저장"):
                     try:
-                        # 1. 구글 시트 백업 연동 (수정본 전송)
+                        # 1. 구글 시트 백업 (이미지 URL 포함)
                         r_dt = pd.to_datetime(n_rel) if n_rel else date.today()
                         v_dt = pd.to_datetime(n_view_date)
                         
@@ -221,23 +223,23 @@ def show_details(item):
                         payload = {
                             "entry.574529989": cat, "entry.898076783": n_title, "entry.345368346": n_creator,
                             "entry.543246487": n_sum, "entry.1816924330": n_brief, "entry.270693677": n_high,
-                            "entry.891180756": n_note, "entry.2056153041": item.get('img_url'),
+                            "entry.891180756": n_note, "entry.2056153041": n_img, # 새로 입력한 이미지 URL
                             "entry.780422311_year": str(r_dt.year), "entry.780422311_month": f"{r_dt.month:02d}", "entry.780422311_day": f"{r_dt.day:02d}",
                             "entry.1446643193_year": str(v_dt.year), "entry.1446643193_month": f"{v_dt.month:02d}", "entry.1446643193_day": f"{v_dt.day:02d}",
                             "entry.250402237": n_venue
                         }
                         requests.post(BACKUP_URL, data=payload, timeout=5)
 
-                        # 2. 로컬 SQLite 업데이트
+                        # 2. 로컬 SQLite 업데이트 (img_url 필드 추가)
                         with sqlite3.connect(DB_NAME) as conn:
                             conn.execute("""UPDATE archive SET 
                                             title=?, creator=?, rel_date=?, venue=?, 
-                                            summary=?, brief=?, highlights=?, note=?, view_date=? 
+                                            summary=?, brief=?, highlights=?, note=?, view_date=?, img_url=? 
                                             WHERE id=?""", 
                                          (n_title, n_creator, n_rel, n_venue, 
-                                          n_sum, n_brief, n_high, n_note, str(n_view_date), item['id']))
+                                          n_sum, n_brief, n_high, n_note, str(n_view_date), n_img, item['id']))
                         
-                        st.success("✅ 수정 내용이 저장 및 백업되었습니다!")
+                        st.success("✅ 이미지와 정보가 모두 수정되었습니다!")
                         time.sleep(0.5)
                         st.rerun()
                     except Exception as e:
@@ -460,6 +462,7 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
 
 
 
