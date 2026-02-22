@@ -61,6 +61,7 @@ def restore_from_google():
             elif "note" in lower or "감상" in lower: col_map["note"] = col
             elif "img" in lower or "이미지" in lower: col_map["img_url"] = col
             elif "타임스탬프" in lower or "timestamp" in lower: col_map["save_date"] = col
+            elif "venue" in lower or "장소" in lower: col_map["venue"] = col
 
         with sqlite3.connect(DB_NAME) as conn:
             conn.execute("DELETE FROM archive")
@@ -82,12 +83,13 @@ def restore_from_google():
                     (category, title, creator, rel_date,
                      summary, brief, highlights, note,
                      img_url, save_date, view_date)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     str(row.get(col_map.get("category"), "")),
                     str(row.get(col_map.get("title"), "")),
                     str(row.get(col_map.get("creator"), "")),
                     r_date,
+                    str(row.get(col_map.get("venue"), "")),
                     str(row.get(col_map.get("summary"), "")),
                     str(row.get(col_map.get("brief"), "")),
                     str(row.get(col_map.get("highlights"), "")),
@@ -444,3 +446,4 @@ with tab2:
                                 st.markdown(f'<div class="cal-img-box"><div class="badge badge-left">{b_date}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:7]}..", key=f"c_{c_name}_{row['id']}"): show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
