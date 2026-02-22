@@ -317,7 +317,7 @@ def show_details(item):
             # 2. 상단 제목 및 정보
             st.markdown(f'<div style="font-size:25px; font-weight:bold; line-height:1.1;">{title_v}</div>', unsafe_allow_html=True)
             st.write(f"**[{cat_v}]** {creator_v}")
-            st.write(f"**공개일:** {rel_v} @{row.get('venue', s['venue'])}")
+            st.write(f"**공개일:** {rel_v}{venue_display}")
             st.markdown(f'<p style="color:gray;">🍿 감상일: {view_v}</p>', unsafe_allow_html=True)
             
             st.divider()
@@ -641,6 +641,7 @@ with tab2:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
 
 
