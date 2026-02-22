@@ -193,8 +193,8 @@ def show_details(item):
                 
                 # [수정] 날짜 및 장소 입력란 분리
                 c1, c2 = st.columns(2)
-                n_rel = c1.text_input("📅 공개일", value=str(item.get('rel_date', '')))
-                n_venue = c2.text_input("📍 장소", value=str(item.get('venue', '')))
+                n_rel = c1.text_input("📅 ", value=str(item.get('rel_date', '')))
+                n_venue = c2.text_input("📍 ", value=str(item.get('venue', '')))
                 
                 # [수정] 감상일 수정 (날짜 선택기)
                 try:
@@ -438,6 +438,7 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
 
 
 
