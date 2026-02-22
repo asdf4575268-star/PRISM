@@ -264,8 +264,19 @@ with tab1:
                 opts = {m['display_name']: m for m in res}
                 sel = st.selectbox("결과 선택", list(opts.keys()))
                 if st.button("✨ 가져오기"):
+                    collection_id = m.get('collectionId')
+                    label_info = ""
+                    if collection_id:
+                        lookup_url = f"https://itunes.apple.com/lookup?id={collection_id}&entity=album"
+                        try:
+                            l_res = requests.get(lookup_url).json()
+                            if l_res.get('results'):
+                                raw_copyright = l_res['results'][0].get('copyright', '')
+                                label_info = re.sub(r'℗|©|\d{4}', '', raw_copyright).strip()
+                            except:
+                                label_info = ""
                     m = opts[sel]
-                    st.session_state.api_data = {'title': m['title'], 'creator': m['creator'], 'date': m['date'], 'img': m['img'], 'venue': m.get('venue', ''), 'summary': f"{m['url']}\n\n"}
+                    st.session_state.api_data = {'title': m['title'], 'creator': m['creator'], 'date': m['date'], 'img': m['img'], 'venue': label_info if label_info else m['creator'], 'summary': f"{m['url']}\n\n"}
                     st.rerun()
         elif category == "STAGE":
             res = search_kopis(search_query)
@@ -438,6 +449,7 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
 
 
 
