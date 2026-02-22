@@ -85,52 +85,26 @@ def restore_from_google():
 def search_books(query):
     headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
     try:
-        res = requests.get("https://dapi.kakao.com/v3/search/book", headers=headers, params={"query": query})
+        # size=50으로 늘려서 과거 판본까지 확보
+        res = requests.get("https://dapi.kakao.com/v3/search/book", 
+                           headers=headers, 
+                           params={"query": query, "size": 50}) 
         return res.json().get("documents", []) if res.status_code == 200 else []
-    except: return []
-
-def search_apple_music(query):
-    url = f"https://itunes.apple.com/search?term={query}&limit=20&country=kr&entity=musicTrack,album"
-    try:
-        res = requests.get(url).json().get("results", [])
-        formatted_res = []
-        for m in res:
-            is_album = m.get('wrapperType') == 'collection'
-            title = m.get('collectionName' if is_album else 'trackName', 'Unknown')
-            info_url = m.get('collectionViewUrl' if is_album else 'trackViewUrl', '')
-            prefix = "📀 [ALBUM]" if is_album else "🎵 [SINGLE]"
-            formatted_res.append({
-                'display_name': f"{prefix} {title} - {m.get('artistName', '')}",
-                'title': title, 'creator': m.get('artistName', ''),
-                'date': m.get('releaseDate', '')[:10],
-                'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'),
-                'url': info_url,
-                'venue': m.get('artistName', '')
-            })
-        return formatted_res
     except: return []
 
 def search_tmdb(query, category):
     type_path = "movie" if category == "MOVIES" else "tv"
-    url = f"https://api.themoviedb.org/3/search/{type_path}?api_key={TMDB_API_KEY}&query={query}&language=ko-KR"
+    # include_adult=true로 누락 방지
+    url = f"https://api.themoviedb.org/3/search/{type_path}?api_key={TMDB_API_KEY}&query={query}&language=ko-KR&include_adult=true"
     try: return requests.get(url).json().get("results", [])
     except: return []
-
-def get_tmdb_details(item_id, category):
-    type_path = "movie" if category == "MOVIES" else "tv"
-    url = f"https://api.themoviedb.org/3/{type_path}/{item_id}/credits?api_key={TMDB_API_KEY}&language=ko-KR"
-    try:
-        res = requests.get(url).json()
-        director = next((m['name'] for m in res.get('crew', []) if m.get('job') == 'Director'), "정보 없음")
-        cast = ", ".join([c['name'] for c in res.get('cast', [])[:3]])
-        return f"감독: {director} / 출연: {cast}"
-    except: return "정보 없음"
 
 def search_kopis(query):
     year_match = re.search(r'\d{4}', query)
     search_year = year_match.group() if year_match else None
     clean_query = re.sub(r'\d{4}', '', query).strip()
-    url = f"http://www.kopis.or.kr/openApi/restful/pblprfr?service={KOPIS_KEY}&shprfnm={clean_query}&stdate=19500101&eddate=20261231&rows=100&cpage=1"
+    # stdate를 1900년으로 앞당겨서 모든 과거 기록 포함
+    url = f"http://www.kopis.or.kr/openApi/restful/pblprfr?service={KOPIS_KEY}&shprfnm={clean_query}&stdate=19000101&eddate=20261231&rows=100&cpage=1"
     try:
         res = requests.get(url)
         root = ET.fromstring(res.content)
@@ -149,20 +123,6 @@ def search_kopis(query):
             })
         return results
     except: return []
-
-def get_kopis_detail(mt20id):
-    url = f"http://www.kopis.or.kr/openApi/restful/pblprfr/{mt20id}?service={KOPIS_KEY}"
-    try:
-        res = requests.get(url)
-        root = ET.fromstring(res.content)
-        d = root.find('db')
-        if d is not None:
-            crew = d.findtext('prfcrew').strip() if d.findtext('prfcrew') else ""
-            cast = d.findtext('prfcast').strip() if d.findtext('prfcast') else ""
-            if not crew and not cast: return "정보 없음"
-            return f"{crew} / {cast}".strip(" / ")
-    except: return "상세정보 로드 실패"
-    return "정보 없음"
 
 # --- [3. 팝업 함수 수정본] ---
 @st.dialog("📋 기록", width="large")
@@ -462,3 +422,4 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
