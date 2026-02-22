@@ -312,7 +312,7 @@ with tab1:
 
 # --- TAB 2: ARCHIVE ---
 with tab2:
-    if st.button("🔄 구글 시트에서 복원"):
+    if st.button("🔄"):
         restore_from_google()
         st.rerun()
 
@@ -321,6 +321,7 @@ with tab2:
         .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 6px; margin-bottom: 5px; }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
         .badge { position: absolute; top: 5px; left: 5px; background: rgba(0, 0, 0, 0.6); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+        .badge-left { left: 5px; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -328,69 +329,77 @@ with tab2:
         all_df = pd.read_sql_query("SELECT * FROM archive", conn)
 
     if not all_df.empty:
-        all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
-        years = sorted(all_df['v_dt'].dt.year.unique(), reverse=True)
-        sel_y = st.selectbox("연도", years)
-        
-        y_data = all_df[all_df['v_dt'].dt.year == sel_y].sort_values('v_dt', ascending=False)
-        for m in range(12, 0, -1):
-            m_data = y_data[y_data['v_dt'].dt.month == m]
-            if not m_data.empty:
-                st.subheader(f"🗓️ {m}월")
-                items = m_data.to_dict('records')
-                for i in range(0, len(items), 6):
-                    cols = st.columns(6)
-                    for j in range(6):
-                        if i+j < len(items):
-                            row = items[i+j]
-                            with cols[j]:
-                                st.markdown(f'<div class="cal-img-box"><div class="badge">{row["category"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
-                                if st.button(f"{row['title'][:7]}..", key=f"btn_{row['id']}"): show_details(row)
+        # 1. 탭 구성 (YEARLY + 각 카테고리)
+        cat_list = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
+        tab_names = ["📅 YEARLY"] + cat_list
+        sub_tabs = st.tabs(tab_names)
 
-    # --- 2. 카테고리 탭 내용 채우기 (정확한 인덱스 관리) ---
-    for idx, c_name in enumerate(cat_list):
-        with sub_tabs[idx + 1]: # YEARLY가 0이므로 카테고리는 1부터 시작
-            cat_df = all_df[all_df['category'] == c_name].copy()
-            
-            if not cat_df.empty:
-                # 정렬 로직
-                cat_df['sort_dt'] = pd.to_datetime(
-                    cat_df['view_date'].replace(['', 'nan', 'NaN', 'None'], pd.NA), 
-                    errors='coerce'
-                )
-                cat_df = cat_df.sort_values(by='sort_dt', ascending=False, na_position='last')
-                items = cat_df.to_dict('records')
+        # --- [탭 0: YEARLY (기존 월별 보기)] ---
+        with sub_tabs[0]:
+            all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
+            years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
+            if years:
+                sel_y = st.selectbox("연도 선택", years, key="year_sel")
+                y_data = all_df[all_df['v_dt'].dt.year == sel_y].sort_values('v_dt', ascending=False)
+                
+                for m in range(12, 0, -1):
+                    m_data = y_data[y_data['v_dt'].dt.month == m]
+                    if not m_data.empty:
+                        st.subheader(f"🗓️ {m}월")
+                        items = m_data.to_dict('records')
+                        for i in range(0, len(items), 6):
+                            cols = st.columns(6)
+                            for j in range(6):
+                                if i+j < len(items):
+                                    row = items[i+j]
+                                    with cols[j]:
+                                        st.markdown(f'<div class="cal-img-box"><div class="badge">{row["category"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
+                                        if st.button(f"{str(row['title'])[:7]}..", key=f"yr_{row['id']}"): show_details(row)
 
-                # 그리드 출력 (6열)
-                for i in range(0, len(items), 6):
-                    cols = st.columns(6)
-                    for j in range(6):
-                        if i + j < len(items):
-                            row = items[i + j]
-                            with cols[j]:
-                                # 날짜 배지 텍스트 정제
-                                raw_v = str(row.get('view_date') or "").strip()
-                                if raw_v.lower() in ["nan", "none", ""]:
-                                    badge_d = ""
-                                else:
-                                    try:
-                                        temp_dt = pd.to_datetime(raw_v.split(' ')[0])
-                                        badge_d = temp_dt.strftime('%y.%m.%d')
-                                    except:
-                                        badge_d = raw_v[:10]
-                                
-                                img_html = f'''
-                                    <div class="cal-img-box">
-                                        <div class="badge badge-left">{badge_d}</div>
-                                        <img src="{row["img_url"]}">
-                                    </div>'''
-                                st.markdown(img_html, unsafe_allow_html=True)
-                                
-                                # 버튼 키값 (중복 방지)
-                                btn_key = f"cat_{c_name}_{row['id']}_{i+j}"
-                                if st.button(f"{str(row['title'])[:7]}..", key=btn_key, use_container_width=True): 
-                                    show_details(row)
-            else: 
-                st.info(f"{c_name} 기록이 아직 없습니다.")
+        # --- [탭 1~5: 카테고리별 탭 (사용자님이 주신 코드)] ---
+        for idx, c_name in enumerate(cat_list):
+            with sub_tabs[idx + 1]: # YEARLY가 0이므로 카테고리는 1부터 시작
+                cat_df = all_df[all_df['category'] == c_name].copy()
+                
+                if not cat_df.empty:
+                    # 정렬 로직
+                    cat_df['sort_dt'] = pd.to_datetime(
+                        cat_df['view_date'].replace(['', 'nan', 'NaN', 'None'], pd.NA), 
+                        errors='coerce'
+                    )
+                    cat_df = cat_df.sort_values(by='sort_dt', ascending=False, na_position='last')
+                    items = cat_df.to_dict('records')
 
-
+                    # 그리드 출력 (6열)
+                    for i in range(0, len(items), 6):
+                        cols = st.columns(6)
+                        for j in range(6):
+                            if i + j < len(items):
+                                row = items[i + j]
+                                with cols[j]:
+                                    # 날짜 배지 텍스트 정제
+                                    raw_v = str(row.get('view_date') or "").strip()
+                                    if raw_v.lower() in ["nan", "none", ""]:
+                                        badge_d = ""
+                                    else:
+                                        try:
+                                            temp_dt = pd.to_datetime(raw_v.split(' ')[0])
+                                            badge_d = temp_dt.strftime('%y.%m.%d')
+                                        except:
+                                            badge_d = raw_v[:10]
+                                    
+                                    img_html = f'''
+                                        <div class="cal-img-box">
+                                            <div class="badge badge-left">{badge_d}</div>
+                                            <img src="{row["img_url"]}">
+                                        </div>'''
+                                    st.markdown(img_html, unsafe_allow_html=True)
+                                    
+                                    # 버튼 키값 (중복 방지)
+                                    btn_key = f"cat_{c_name}_{row['id']}_{i+j}"
+                                    if st.button(f"{str(row['title'])[:7]}..", key=btn_key, use_container_width=True): 
+                                        show_details(row)
+                else: 
+                    st.info(f"{c_name} 기록이 아직 없습니다.")
+    else:
+        st.info("데이터가 없습니다. 구글 시트에서 복원 버튼을 눌러주세요.")
