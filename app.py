@@ -93,6 +93,7 @@ def restore_from_google():
                     str(row.get(col_map.get("title"), "")),
                     str(row.get(col_map.get("creator"), "")),
                     r_date, # 공개일
+                    data.get('venue', ''),
                     str(row.get(col_map.get("summary"), "")),
                     str(row.get(col_map.get("brief"), "")),
                     str(row.get(col_map.get("highlights"), "")),
@@ -643,6 +644,7 @@ with tab2:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
 
 
