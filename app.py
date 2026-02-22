@@ -438,12 +438,6 @@ with tab2:
         restore_from_google()
     st.markdown("""
         <style>
-        div[data-testid="column"] {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center !important;
-        }
         .cal-img-box { 
             position: relative; 
             width: 100%; aspect-ratio: 1/1; 
@@ -452,19 +446,20 @@ with tab2:
         }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
         
-        /* 배지 스타일 */
+        /* 배지 스타일: 우상단(오른쪽 위) 고정 */
         .badge {
             position: absolute;
             top: 5px;
+            right: 5px; /* 오른쪽 위로 배치 */
             background: rgba(0, 0, 0, 0.6);
             color: white;
-            padding: 2px 6px;
+            padding: 2px 8px;
             border-radius: 4px;
-            font-size: 10px;
+            font-size: 11px;
             z-index: 10;
+            white-space: nowrap; /* 날짜가 잘리지 않고 한 줄로 나오게 함 */
+            pointer-events: none; /* 배지가 버튼 클릭을 방해하지 않도록 설정 */
         }
-        .badge-left { left: 5px; background: rgba(50, 50, 50, 0.8); } 
-        .badge-right { right: 5px; } 
         </style>
     """, unsafe_allow_html=True)
 
@@ -573,6 +568,7 @@ for idx, c_name in enumerate(cats):
                                 show_details(row)
         else: # 데이터 없을 때
             st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
