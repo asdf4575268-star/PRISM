@@ -154,7 +154,7 @@ def get_tmdb_details(item_id, category):
     except: return "정보 없음"
 
 def search_kopis(query):
-    url = f"http://www.kopis.or.kr/openApi/restful/pblprfr?service={KOPIS_KEY}&shprfnm={query}&stdate=20200101&eddate=20261231&rows=10&cpage=1"
+    url = f"http://www.kopis.or.kr/openApi/restful/pblprfr?service={KOPIS_KEY}&shprfnm={query}&stdate=19500101&eddate=20261231&rows=20&cpage=1"
     try:
         res = requests.get(url)
         root = ET.fromstring(res.content)
@@ -590,6 +590,7 @@ with sub_tabs[0]:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
