@@ -163,7 +163,7 @@ def get_kopis_detail(mt20id):
     except: return "상세정보 로드 실패"
     return "정보 없음"
 
-# --- [3. 팝업 함수] ---
+# --- [3. 팝업 함수 수정본] ---
 @st.dialog("📋 기록", width="large")
 def show_details(item):
     if hasattr(item, 'to_dict'): item = item.to_dict()
@@ -189,7 +189,19 @@ def show_details(item):
             with st.form(key=f"edit_form_{item['id']}"):
                 n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
                 n_creator = st.text_input("👤 창작자", value=str(item.get('creator', '')))
-                n_venue = st.text_input("📍 장소", value=str(item.get('venue', '')))
+                
+                # [수정] 날짜 및 장소 입력란 분리
+                c1, c2 = st.columns(2)
+                n_rel = c1.text_input("📅 공개일", value=str(item.get('rel_date', '')))
+                n_venue = c2.text_input("📍 장소", value=str(item.get('venue', '')))
+                
+                # [수정] 감상일 수정 (날짜 선택기)
+                try:
+                    curr_view = pd.to_datetime(item.get('view_date')).date()
+                except:
+                    curr_view = date.today()
+                n_view_date = st.date_input("🍿 감상일 수정", value=curr_view)
+                
                 n_brief = st.text_input("📝 요약", value=str(item.get('brief', '')))
                 n_sum = st.text_area("📖 줄거리", value=str(item.get('summary', '')), height=150)
                 n_high = st.text_area("✨ 인상 깊은 부분", value=str(item.get('highlights', '')), height=100)
@@ -197,16 +209,31 @@ def show_details(item):
 
                 if st.form_submit_button("💾 로컬 저장"):
                     with sqlite3.connect(DB_NAME) as conn:
-                        conn.execute("""UPDATE archive SET title=?, creator=?, venue=?, summary=?, brief=?, highlights=?, note=? WHERE id=?""", 
-                                     (n_title, n_creator, n_venue, n_sum, n_brief, n_high, n_note, item['id']))
-                    st.success("로컬 수정 완료! (구글 시트 반영은 수동)")
+                        # [수정] DB 업데이트 쿼리에 rel_date와 view_date 추가
+                        conn.execute("""UPDATE archive SET 
+                                        title=?, creator=?, rel_date=?, venue=?, 
+                                        summary=?, brief=?, highlights=?, note=?, view_date=? 
+                                        WHERE id=?""", 
+                                     (n_title, n_creator, n_rel, n_venue, 
+                                      n_sum, n_brief, n_high, n_note, str(n_view_date), item['id']))
+                    st.success("✅ 로컬 수정 완료!")
                     time.sleep(0.5)
                     st.rerun()
         else:
-            # 조회 모드 (기존 로직 유지)
+            # --- [조회 모드: 요청하신 레이아웃 적용] ---
             st.markdown(f'# {item.get("title")}')
             st.write(f"**[{item.get('category')}]** {item.get('creator')}")
-            st.write(f"📅 {item.get('rel_date')} | 📍 {item.get('venue')}")
+            
+            # 1. 공개일 | 장소 표시
+            rel_v = item.get('rel_date') or "정보 없음"
+            venue_v = item.get('venue') or ""
+            venue_display = f" | 📍 {venue_v}" if venue_v else ""
+            st.write(f"📅 {rel_v}{venue_display}")
+            
+            # 2. 감상일 (강조 및 분리)
+            view_v = item.get('view_date') or "날짜 미상"
+            st.markdown(f'<p style="color: #FF4B4B; font-weight: bold; font-size: 1.1em; margin-top: -10px;">🍿 감상일: {view_v}</p>', unsafe_allow_html=True)
+            
             st.divider()
             if item.get('brief'): st.info(f"**요약:** {item.get('brief')}")
             if item.get('summary'): st.write(f"**줄거리:**\n{item.get('summary')}")
@@ -403,3 +430,4 @@ with tab2:
                     st.info(f"{c_name} 기록이 아직 없습니다.")
     else:
         st.info("데이터가 없습니다. 구글 시트에서 복원 버튼을 눌러주세요.")
+
