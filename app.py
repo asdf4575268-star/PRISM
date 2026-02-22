@@ -161,25 +161,27 @@ def search_kopis(query):
         return [{'title': d.findtext('prfnm'), 'id': d.findtext('mt20id'), 'img': d.findtext('poster'), 'date': d.findtext('prfpdfrom'), 'venue': d.findtext('fcltynm')} for d in root.findall('db')]
     except: return []
 def get_kopis_detail(mt20id):
-    """공연 ID를 이용해 제작진(prfcrew)과 출연진(prfcast) 정보를 가져오는 함수"""
     url = f"http://www.kopis.or.kr/openApi/restful/pblprfr/{mt20id}?service={KOPIS_KEY}"
     try:
         res = requests.get(url)
+        # 응답이 정상인지 먼저 확인
+        if res.status_code != 200:
+            return "API 응답 오류"
+            
         root = ET.fromstring(res.content)
         d = root.find('db')
         if d is not None:
-            crew = d.findtext('prfcrew').strip()
-            cast = d.findtext('prfcast').strip()
+            # 태그가 아예 없을 경우를 대비해 None 체크
+            crew_node = d.find('prfcrew')
+            cast_node = d.find('prfcast')
             
-            # 정보가 없는 경우를 대비한 처리
-            crew = crew if crew and crew != " " else "제작진 정보 없음"
-            cast = cast if cast and cast != " " else "출연진 정보 없음"
+            crew = crew_node.text.strip() if crew_node is not None and crew_node.text else "제작진 미상"
+            cast = cast_node.text.strip() if cast_node is not None and cast_node.text else "출연진 미상"
             
-            # 요청하신 '제작진 / 출연진' 형식으로 결합
             return f"{crew} / {cast}"
-    except:
-        return "정보 없음"
-    return "정보 없음"
+    except Exception as e:
+        return f"데이터 파싱 오류: {str(e)}"
+    return "상세 정보 없음"
 
 col_empty, col_btn = st.columns([0.85, 0.15]) 
 
@@ -610,6 +612,7 @@ with sub_tabs[0]:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
