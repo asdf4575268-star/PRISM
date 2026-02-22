@@ -104,6 +104,18 @@ def search_tmdb(query, category):
             r = requests.get(url_en).json().get("results", [])
         return r
     except: return []
+def get_tmdb_details(item_id, category):
+    type_path = "movie" if category == "MOVIES" else "tv"
+    url = f"https://api.themoviedb.org/3/{type_path}/{item_id}/credits?api_key={TMDB_API_KEY}&language=ko-KR"
+    try:
+        res = requests.get(url).json()
+        # 감독 찾기
+        director = next((m['name'] for m in res.get('crew', []) if m.get('job') == 'Director'), "정보 없음")
+        # 주요 출연진 3명
+        cast = ", ".join([c['name'] for c in res.get('cast', [])[:3]])
+        return f"감독: {director} / 출연: {cast}"
+    except: 
+        return "정보 없음"
 
 # 3. 공연: 시작 날짜만 1900년으로 변경 (stdate=19000101)
 def search_kopis(query):
@@ -436,6 +448,7 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
 
 
 
