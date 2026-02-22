@@ -161,27 +161,29 @@ def search_kopis(query):
         return [{'title': d.findtext('prfnm'), 'id': d.findtext('mt20id'), 'img': d.findtext('poster'), 'date': d.findtext('prfpdfrom'), 'venue': d.findtext('fcltynm')} for d in root.findall('db')]
     except: return []
 def get_kopis_detail(mt20id):
+    """공연 ID를 이용해 제작진(prfcrew)과 출연진(prfcast) 정보를 정밀 추출"""
     url = f"http://www.kopis.or.kr/openApi/restful/pblprfr/{mt20id}?service={KOPIS_KEY}"
     try:
         res = requests.get(url)
-        # 응답이 정상인지 먼저 확인
-        if res.status_code != 200:
-            return "API 응답 오류"
-            
+        # XML 구조를 더 확실히 파악하기 위해 루트부터 다시 잡습니다.
         root = ET.fromstring(res.content)
+        
+        # 상세 정보는 <db> 태그 안에 들어있습니다.
         d = root.find('db')
         if d is not None:
-            # 태그가 아예 없을 경우를 대비해 None 체크
-            crew_node = d.find('prfcrew')
-            cast_node = d.find('prfcast')
+            # 태그를 찾고 내용이 비어있으면 '미상'으로 처리
+            crew = d.findtext('prfcrew').strip() if d.findtext('prfcrew') else ""
+            cast = d.findtext('prfcast').strip() if d.findtext('prfcast') else ""
             
-            crew = crew_node.text.strip() if crew_node is not None and crew_node.text else "제작진 미상"
-            cast = cast_node.text.strip() if cast_node is not None and cast_node.text else "출연진 미상"
+            # 둘 다 정보가 아예 없을 경우를 대비
+            if not crew and not cast:
+                return "정보 없음"
             
-            return f"{crew} / {cast}"
+            # 정보가 하나라도 있으면 결합 (제작진 / 출연진)
+            return f"{crew} / {cast}".strip(" / ")
     except Exception as e:
-        return f"데이터 파싱 오류: {str(e)}"
-    return "상세 정보 없음"
+        return f"상세정보 로드 실패"
+    return "정보 없음"
 
 col_empty, col_btn = st.columns([0.85, 0.15]) 
 
@@ -621,6 +623,7 @@ with sub_tabs[0]:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
