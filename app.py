@@ -82,55 +82,32 @@ def restore_from_google():
         st.error(f"❌ 복원 실패: {e}")
 
 # --- [API 함수들 생략 - 사용자 원본과 동일] ---
+# 1. 책: 한 번에 보여주는 결과 수만 늘리기 (size=50)
 def search_books(query):
     headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
+    params = {"query": query, "size": 50}  # 더 많이 가져오게 설정
     try:
-        # size=50으로 늘려서 과거 판본까지 확보
-        res = requests.get("https://dapi.kakao.com/v3/search/book", 
-                           headers=headers, 
-                           params={"query": query, "size": 50}) 
+        res = requests.get("https://dapi.kakao.com/v3/search/book", headers=headers, params=params)
         return res.json().get("documents", []) if res.status_code == 200 else []
     except: return []
 
+# 2. 영화/시리즈: 제목에 숫자가 섞여도 잘 찾도록 include_adult만 추가
 def search_tmdb(query, category):
     type_path = "movie" if category == "MOVIES" else "tv"
-    # 1. 먼저 한국어로 검색 시도
     url = f"https://api.themoviedb.org/3/search/{type_path}?api_key={TMDB_API_KEY}&query={query}&language=ko-KR&include_adult=true"
-    try:
-        res = requests.get(url).json().get("results", [])
-        
-        # 2. 결과가 없으면 언어 설정을 빼고(영문 위주) 다시 검색
-        if not res:
-            url_en = f"https://api.themoviedb.org/3/search/{type_path}?api_key={TMDB_API_KEY}&query={query}&include_adult=true"
-            res = requests.get(url_en).json().get("results", [])
-            
-        return res
-    except:
-        return []
+    try: return requests.get(url).json().get("results", [])
+    except: return []
 
+# 3. 공연: 시작 날짜만 1900년으로 변경 (stdate=19000101)
 def search_kopis(query):
-    year_match = re.search(r'\d{4}', query)
-    search_year = year_match.group() if year_match else None
     clean_query = re.sub(r'\d{4}', '', query).strip()
-    # stdate를 1900년으로 앞당겨서 모든 과거 기록 포함
+    # 1950 대신 1900으로 숫자 하나만 바꿨습니다.
     url = f"http://www.kopis.or.kr/openApi/restful/pblprfr?service={KOPIS_KEY}&shprfnm={clean_query}&stdate=19000101&eddate=20261231&rows=100&cpage=1"
     try:
         res = requests.get(url)
         root = ET.fromstring(res.content)
         items = root.findall('db')
-        results = []
-        for d in items:
-            title = d.findtext('prfnm')
-            date_from = d.findtext('prfpdfrom')
-            if search_year and search_year not in date_from: continue
-            results.append({
-                'title': title, 
-                'id': d.findtext('mt20id'), 
-                'img': d.findtext('poster'), 
-                'date': date_from, 
-                'venue': d.findtext('fcltynm')
-            })
-        return results
+        return [{'title': d.findtext('prfnm'), 'id': d.findtext('mt20id'), 'img': d.findtext('poster'), 'date': d.findtext('prfpdfrom'), 'venue': d.findtext('fcltynm')} for d in items]
     except: return []
 
 # --- [3. 팝업 함수 수정본] ---
@@ -431,5 +408,6 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
 
 
