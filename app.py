@@ -318,10 +318,12 @@ def show_details(item):
             st.markdown(f'<div style="font-size:30px; font-weight:bold; line-height:1.1;">{title_v}</div>', unsafe_allow_html=True)
             # 카테고리 정보 추가
             # 1. 제목 (진하게 크게)
-            st.markdown(f"### {row['title']}")
-            st.write(f"{row.get('creator', '-')}")
-            venue_text = f"@{row.get('venue', '')}" if row.get('venue') else ""
-            st.write(f"**공개일:** {row.get('date', '-')} {venue_text}")
+            st.markdown(f'<div style="font-size:30px; font-weight:bold; line-height:1.1;">{title_v}</div>', unsafe_allow_html=True)
+            st.write(f"**[{cat_v}]** {creator_v}")
+            st.write(f"**공개일:** {rel_v} @{row.get('venue', '')}")
+            st.markdown(f'<p style="color:gray;">🍿 감상일: {view_v}</p>', unsafe_allow_html=True)
+            
+            st.divider()
             
            # 3. 본문 출력
             # [요약] - 심플 스타일
@@ -642,5 +644,6 @@ with tab2:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
 
