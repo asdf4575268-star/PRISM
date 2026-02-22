@@ -343,6 +343,31 @@ with tab2:
         restore_from_google()
         st.rerun()
 
+    st.markdown("""
+        <style>
+        .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 6px; margin-bottom: 5px; }
+        .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
+        .badge { position: absolute; top: 5px; left: 5px; background: rgba(0, 0, 0, 0.6); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+        
+        /* [강력 권장] 스트림릿 버튼 텍스트 정렬 */
+        [data-testid="stBaseButton-secondary"] {
+            display: flex !important;
+            justify-content: center !important;
+            text-align: center !important;
+            width: 100% !important;
+        }
+
+        /* 버튼 내부의 텍스트가 들어가는 span과 p 태그 모두 강제 정렬 */
+        [data-testid="stBaseButton-secondary"] div, 
+        [data-testid="stBaseButton-secondary"] p,
+        [data-testid="stBaseButton-secondary"] span {
+            width: 100% !important;
+            text-align: center !important;
+            display: block !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     with sqlite3.connect(DB_NAME) as conn:
         all_df = pd.read_sql_query("SELECT * FROM archive", conn)
 
@@ -417,6 +442,7 @@ with tab2:
                                         show_details(row)
                 else: 
                     st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
 
 
