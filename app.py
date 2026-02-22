@@ -350,7 +350,7 @@ with tab1:
             if res:
                 t_key = 'title' if category == 'MOVIES' else 'name'
                 d_key = 'release_date' if category == 'MOVIES' else 'first_air_date'
-                opts = {f"🎬 {r.get(t_key)}": r for r in res}
+                opts = {f"🎬 {r.get(t_key)} ({str(r.get(d_key))[:4]})": r for r in res}
                 sel = st.selectbox("결과 선택", list(opts.keys()))
                 if st.button("✨ 가져오기"):
                     s = opts[sel]
@@ -590,6 +590,7 @@ with sub_tabs[0]:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
 
 
