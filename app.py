@@ -68,8 +68,18 @@ def restore_from_google():
         with sqlite3.connect(DB_NAME) as conn:
             conn.execute("DELETE FROM archive")
             for _, row in df.iterrows():
-                # 배지 오류를 막기 위해 값을 가져올 때 한 번 더 체크
-                v_date = str(row.get(col_map.get("view_date"), "")).strip()
+                # [핵심 수정] 1월 1일 오류 방지 (정교한 날짜 파싱)
+                raw_v = str(row.get(col_map.get("view_date"), "")).strip()
+                if raw_v:
+                    try:
+                        # 오전/오후 텍스트 처리 후 YYYY-MM-DD 포맷으로 완벽 변환
+                        clean_v = raw_v.replace("오전", "AM").replace("오후", "PM")
+                        v_date = pd.to_datetime(clean_v).strftime('%Y-%m-%d')
+                    except:
+                        v_date = raw_v # 변환 실패 시 원본 유지
+                else:
+                    v_date = ""
+
                 r_date = str(row.get(col_map.get("rel_date"), "")).strip()
 
                 conn.execute("""
@@ -89,7 +99,7 @@ def restore_from_google():
                     str(row.get(col_map.get("note"), "")),
                     str(row.get(col_map.get("img_url"), "")),
                     str(row.get(col_map.get("save_date"), "")), # 타임스탬프는 여기에 격리
-                    v_date # 사용자님이 입력한 진짜 감상일
+                    v_date # 깨끗해진 날짜 저장
                 ))
         st.success("복원 완료")
     except Exception as e:
@@ -199,9 +209,12 @@ def show_details(item):
                 n_rel = st.text_input("📅공개일", value=str(item.get('rel_date', '')))
                 
                 try:
-                    raw_v = str(item.get('view_date') or item.get('save_date'))[:10]
-                    v_dt = datetime.strptime(raw_v, '%Y-%m-%d').date()
-                except: v_dt = date.today()
+                    # 빈 칸을 제거하고 앞부분 날짜만 가져옵니다.
+                    raw_v = str(item.get('view_date') or item.get('save_date')).strip().split(' ')[0]
+                    # Pandas를 이용해 유연하게 날짜 객체로 변환
+                    v_dt = pd.to_datetime(raw_v).date()
+                except: 
+                    v_dt = date.today()
                 
                 n_view = st.date_input("🍿 감상일", v_dt)
                 n_brief = st.text_input("📝 요약", value=str(item.get('brief') or ''))
@@ -552,8 +565,16 @@ with sub_tabs[0]:
                             row = items[i + j]
                             with cols[j]:
                                 # 배지 날짜 표시 정제
-                                raw_v = str(row.get('view_date') or "")
-                                badge_d = "" if raw_v.lower() in ["nan", "none", ""] else raw_v
+                                raw_v = str(row.get('view_date') or "").strip()
+                                if raw_v.lower() in ["nan", "none", ""]:
+                                    badge_d = ""
+                                else:
+                                    try:
+                                        # '26.02.22' 형태로 짧고 깔끔하게 변환
+                                        temp_dt = pd.to_datetime(raw_v.split(' ')[0])
+                                        badge_d = temp_dt.strftime('%y.%m.%d')
+                                    except:
+                                        badge_d = raw_v[:10]
                                 
                                 img_html = f'''
                                     <div class="cal-img-box">
@@ -568,3 +589,4 @@ with sub_tabs[0]:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 없습니다.")
+
