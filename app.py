@@ -50,30 +50,26 @@ def restore_from_google():
         col_map = {}
         for col in df.columns:
             lower = col.lower().replace(" ", "")
+            # [1] 감상일: '감상일'이라는 단어가 들어간 열만 사용 (타임스탬프와 분리)
             if "감상일" in lower: col_map["view_date"] = col
             elif "category" in lower or "카테고리" in lower: col_map["category"] = col
             elif "title" in lower or "제목" in lower: col_map["title"] = col
             elif "creator" in lower or "작가" in lower or "감독" in lower: col_map["creator"] = col
+            # [2] 공개일 추가
             elif any(x in lower for x in ["rel", "공개", "출판", "개봉", "발매"]): col_map["rel_date"] = col
             elif "summary" in lower or "줄거리" in lower: col_map["summary"] = col
             elif "brief" in lower or "요약" in lower: col_map["brief"] = col
             elif "highlight" in lower or "인상" in lower: col_map["highlights"] = col
             elif "note" in lower or "감상" in lower: col_map["note"] = col
             elif "img" in lower or "이미지" in lower: col_map["img_url"] = col
+            # [3] 타임스탬프는 save_date로 보내서 view_date에 침범 못하게 차단
             elif "타임스탬프" in lower or "timestamp" in lower: col_map["save_date"] = col
 
         with sqlite3.connect(DB_NAME) as conn:
             conn.execute("DELETE FROM archive")
             for _, row in df.iterrows():
-                # [핵심 수정] 감상일 값에서 시간/타임스탬프 제거 로직
-                raw_view = str(row.get(col_map.get("view_date"), "")).strip()
-                
-                # 공백이 있다면 (예: 2026. 2. 21 오후...) 첫 번째 덩어리만 취함
-                if raw_view and " " in raw_view:
-                    v_date = raw_view.split(" ")[0]
-                else:
-                    v_date = raw_view
-
+                # 배지 오류를 막기 위해 값을 가져올 때 한 번 더 체크
+                v_date = str(row.get(col_map.get("view_date"), "")).strip()
                 r_date = str(row.get(col_map.get("rel_date"), "")).strip()
 
                 conn.execute("""
@@ -86,18 +82,21 @@ def restore_from_google():
                     str(row.get(col_map.get("category"), "")),
                     str(row.get(col_map.get("title"), "")),
                     str(row.get(col_map.get("creator"), "")),
-                    r_date,
+                    r_date, # 공개일
                     str(row.get(col_map.get("summary"), "")),
                     str(row.get(col_map.get("brief"), "")),
                     str(row.get(col_map.get("highlights"), "")),
                     str(row.get(col_map.get("note"), "")),
                     str(row.get(col_map.get("img_url"), "")),
-                    str(row.get(col_map.get("save_date"), "")),
-                    v_date # 깨끗해진 날짜 저장
+                    str(row.get(col_map.get("save_date"), "")), # 타임스탬프는 여기에 격리
+                    v_date # 사용자님이 입력한 진짜 감상일
                 ))
         st.success("복원 완료")
     except Exception as e:
         st.error(f"오류 발생: {e}")
+
+    except Exception as e:
+        st.error(f"❌ 복원 실패: {e}")
 
 
 # --- [2. API 함수 정의 구역] ---
@@ -198,13 +197,11 @@ def show_details(item):
                 n_title = st.text_input("📌 Title", value=str(item.get('title', '')))
                 n_creator = st.text_input("👤 Creator", value=str(item.get('creator', '')))
                 n_rel = st.text_input("📅공개일", value=str(item.get('rel_date', '')))
-
-                orig_view = str(item.get('view_date') or '').strip()
+                
                 try:
-                    # 입력을 위해 date 객체로 변환 시도
-                    v_dt = pd.to_datetime(orig_view).date()
-                except:
-                    v_dt = date.today()
+                    raw_v = str(item.get('view_date') or item.get('save_date'))[:10]
+                    v_dt = datetime.strptime(raw_v, '%Y-%m-%d').date()
+                except: v_dt = date.today()
                 
                 n_view = st.date_input("🍿 감상일", v_dt)
                 n_brief = st.text_input("📝 요약", value=str(item.get('brief') or ''))
@@ -215,7 +212,6 @@ def show_details(item):
                 if st.form_submit_button("💾 저장", use_container_width=True):
                     # KM, BPM 소문자화 (기억하고 있는 가이드 반영)
                     final_note = n_note
-                    final_view_date = str(n_view) if str(n_view) != str(v_dt) else orig_view
                     
                     # 구글 전송용 날짜 쪼개기
                     vy, vm, vd = str(n_view.year), f"{n_view.month:02d}", f"{n_view.day:02d}"
@@ -439,6 +435,12 @@ with tab2:
         restore_from_google()
     st.markdown("""
         <style>
+        div[data-testid="column"] {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center !important;
+        }
         .cal-img-box { 
             position: relative; 
             width: 100%; aspect-ratio: 1/1; 
@@ -447,20 +449,19 @@ with tab2:
         }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
         
-        /* 배지 스타일: 우상단(오른쪽 위) 고정 */
+        /* 배지 스타일 */
         .badge {
             position: absolute;
             top: 5px;
-            right: 5px; /* 오른쪽 위로 배치 */
             background: rgba(0, 0, 0, 0.6);
             color: white;
-            padding: 2px 8px;
+            padding: 2px 6px;
             border-radius: 4px;
-            font-size: 11px;
+            font-size: 10px;
             z-index: 10;
-            white-space: nowrap; /* 날짜가 잘리지 않고 한 줄로 나오게 함 */
-            pointer-events: none; /* 배지가 버튼 클릭을 방해하지 않도록 설정 */
         }
+        .badge-left { left: 5px; background: rgba(50, 50, 50, 0.8); } 
+        .badge-right { right: 5px; } 
         </style>
     """, unsafe_allow_html=True)
 
@@ -521,56 +522,49 @@ with sub_tabs[0]:
                                     show_details(row)
                 st.divider()
 
-# --- 2. 카테고리 탭 (탭 생성 부분부터 시작) ---
-cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
+# --- 2. 카테고리 탭 (이 위치가 sub_tabs 정의 바로 아래인지 확인하세요) ---
+    cats = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
+    
+    for idx, c_name in enumerate(cats):
+        with sub_tabs[idx+1]:
+            # 해당 카테고리만 가져와서 복사
+            cat_df = all_df[all_df['category'] == c_name].copy()
+            
+            if not cat_df.empty:
+                # [수정] 1. 오직 감상일(view_date)만 기준으로 정렬 생성
+                # replace를 통해 빈 값들을 NaT로 바꾸어 정렬 시 맨 뒤로 밀어냅니다.
+                cat_df['sort_dt'] = pd.to_datetime(
+                    cat_df['view_date'].replace(['', 'nan', 'NaN', 'None'], pd.NA), 
+                    errors='coerce'
+                )
+                
+                # 2. 최신순 정렬 (감상일 없는 데이터는 맨 뒤로)
+                cat_df = cat_df.sort_values(by='sort_dt', ascending=False, na_position='last')
+                
+                # 정렬된 상태로 리스트화
+                items = cat_df.to_dict('records')
 
-for idx, c_name in enumerate(cats):
-    with sub_tabs[idx+1]: # 탭 안으로 한 번 들어감 (공백 4칸)
-        cat_df = all_df[all_df['category'] == c_name].copy()
-        
-        if not cat_df.empty: # 데이터가 있을 때 (공백 8칸)
-            cat_df['sort_dt'] = pd.to_datetime(
-                cat_df['view_date'].replace(['', 'nan', 'NaN', 'None'], pd.NA), 
-                errors='coerce'
-            )
-            cat_df = cat_df.sort_values(by='sort_dt', ascending=False, na_position='last')
-            items = cat_df.to_dict('records')
-
-            # 그리드 출력 시작
-            for i in range(0, len(items), 6): # 행 시작 (공백 12칸)
-                cols = st.columns(6)
-                for j in range(6): # 열 시작 (공백 16칸)
-                    if i + j < len(items): # 개별 아이템 (공백 20칸)
-                        row = items[i + j]
-                        with cols[j]: # 컬럼 안으로 (공백 24칸)
-                            # 날짜 가공
-                            raw_v = str(row.get('view_date') or "").strip()
-                            if raw_v.lower() in ["nan", "none", ""]:
-                                badge_d = ""
-                            else:
-                                pure_date = raw_v.split(' ')[0]
-                                try:
-                                    temp_dt = pd.to_datetime(pure_date)
-                                    badge_d = temp_dt.strftime('%y.%m.%d')
-                                except:
-                                    badge_d = pure_date[:10]
-
-                            # 배지 HTML (우상단 배치)
-                            img_html = f'''
-                                <div class="cal-img-box">
-                                    <div class="badge">{badge_d}</div>
-                                    <img src="{row["img_url"]}">
-                                </div>'''
-                            st.markdown(img_html, unsafe_allow_html=True)
-                            
-                            # 버튼 키값 중복 방지
-                            btn_key = f"cat_{c_name}_{row['id']}_{idx}_{i+j}"
-                            if st.button(f"{str(row['title'])[:7]}..", key=btn_key, use_container_width=True): 
-                                show_details(row)
-        else: # 데이터 없을 때
-            st.info(f"{c_name} 기록이 없습니다.")
-
-
-
-
-
+                # 그리드 출력 (6열)
+                for i in range(0, len(items), 6):
+                    cols = st.columns(6)
+                    for j in range(6):
+                        if i + j < len(items):
+                            row = items[i + j]
+                            with cols[j]:
+                                # 배지 날짜 표시 정제
+                                raw_v = str(row.get('view_date') or "")
+                                badge_d = "" if raw_v.lower() in ["nan", "none", ""] else raw_v
+                                
+                                img_html = f'''
+                                    <div class="cal-img-box">
+                                        <div class="badge badge-left">{badge_d}</div>
+                                        <img src="{row["img_url"]}">
+                                    </div>'''
+                                st.markdown(img_html, unsafe_allow_html=True)
+                                
+                                # 버튼 키값 중복 방지를 위해 카테고리+ID+인덱스 조합
+                                btn_key = f"cat_{c_name}_{row['id']}_{i+j}"
+                                if st.button(f"{str(row['title'])[:7]}..", key=btn_key, use_container_width=True): 
+                                    show_details(row)
+            else: 
+                st.info(f"{c_name} 기록이 없습니다.")
