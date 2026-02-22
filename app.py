@@ -381,7 +381,7 @@ with tab2:
                                     row = items[i+j]
                                     with cols[j]:
                                         st.markdown(f'<div class="cal-img-box"><div class="badge">{row["category"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
-                                        if st.button(f"{str(row['title'])[:7]}..", key=f"yr_{row['id']}"): show_details(row)
+                                        if st.button(f"{str(row['title'])[:10]}..", key=f"yr_{row['id']}"): show_details(row)
 
         # --- [탭 1~5: 카테고리별 탭 (사용자님이 주신 코드)] ---
         for idx, c_name in enumerate(cat_list):
@@ -424,12 +424,13 @@ with tab2:
                                     
                                     # 버튼 키값 (중복 방지)
                                     btn_key = f"cat_{c_name}_{row['id']}_{i+j}"
-                                    if st.button(f"{str(row['title'])[:7]}..", key=btn_key, use_container_width=True): 
+                                    if st.button(f"{str(row['title'])[:10]}..", key=btn_key, use_container_width=True): 
                                         show_details(row)
                 else: 
                     st.info(f"{c_name} 기록이 아직 없습니다.")
     else:
         st.info("데이터가 없습니다. 구글 시트에서 복원 버튼을 눌러주세요.")
+
 
 
 
