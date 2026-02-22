@@ -30,7 +30,7 @@ def shift_month(delta):
     else:
         st.session_state.cal_month = new_month
 
-DB_NAME = 'archive_prism_total_v4.db'
+DB_NAME = 'archive_prism_total_v5.db'
 TMDB_API_KEY = "6e7c55b6259b7731655033f783f3fc5b"
 KOPIS_KEY = "7a919bc272204f06bbca10e2af376dea"
 GOOGLE_SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQDDV1yl-cDAjFN8B0SIpnkGzfGB5gRJvRDjE6AJXqOgWnhJ0hy9tNmW4tkL3SUMBkuX-Uw3um_pdjT/pub?gid=1160662254&single=true&output=csv"
@@ -446,4 +446,5 @@ with tab2:
                                 st.markdown(f'<div class="cal-img-box"><div class="badge badge-left">{b_date}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                 if st.button(f"{row['title'][:7]}..", key=f"c_{c_name}_{row['id']}"): show_details(row)
             else: st.info(f"{c_name} 기록이 없습니다.")
+
 
