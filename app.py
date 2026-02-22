@@ -165,6 +165,13 @@ col_empty, col_btn = st.columns([0.85, 0.15])
 
 # --- [3. 팝업 함수] ---
 @st.dialog("📋 기록", width="large")
+def search_all_records(df, query):
+    if not query:
+        return df
+    # 모든 컬럼을 문자열로 변환하여 검색어가 포함된 행을 찾음 (1931년 등 연도 검색 가능)
+    mask = df.apply(lambda row: row.astype(str).str.contains(query, case=False, na=False).any(), axis=1)
+    return df[mask]
+
 def show_details(item):
     if hasattr(item, 'to_dict'): item = item.to_dict()
     
@@ -589,4 +596,5 @@ with sub_tabs[0]:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 없습니다.")
+
 
