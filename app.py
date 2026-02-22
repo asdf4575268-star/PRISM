@@ -104,7 +104,7 @@ def search_apple_music(query):
                 'title': title, 'creator': m.get('artistName', ''),
                 'date': m.get('releaseDate', '')[:10],
                 'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'),
-                'url': info_url
+                'url': info_url,
                 'venue': m.get('artistName', '')
             })
         return formatted_res
@@ -438,6 +438,7 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
 
 
 
