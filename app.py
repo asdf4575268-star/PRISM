@@ -392,15 +392,21 @@ with tab1:
                 
                 if st.button("✨ 가져오기"):
                     s = opts[sel]
+                    
+                    # 상세 정보(제작/출연) 가져오기
                     combined_creator = get_kopis_detail(s['id'])
+                    # 상세 페이지 URL
                     detail_url = f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id={s['id']}"
+                    
                     st.session_state.api_data = {
                         'title': f"{s['title']} @{s['venue']}",
-                        'creator': combined_creator, # 상세 정보에서 가져온 제작진/출연진
+                        'creator': combined_creator, 
                         'date': s['date'],
+                        'venue': s['venue']
                         'img': s['img'],
-                        'summary': detail_url
+                        'summary': detail_url,
                     }
+                    st.rerun()
                     
                     st.rerun()
         else: # MOVIES, SERIES
@@ -640,4 +646,5 @@ with tab2:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
