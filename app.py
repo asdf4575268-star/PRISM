@@ -82,61 +82,87 @@ def restore_from_google():
         st.error(f"❌ 복원 실패: {e}")
 
 # --- [API 함수들 생략 - 사용자 원본과 동일] ---
-# 1. 책: 한 번에 보여주는 결과 수만 늘리기 (size=50)
 def search_books(query):
     headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
-    # size=50으로 설정해 관련 서적들을 페이지 넘김 없이 쭉 보여줍니다.
     try:
-        res = requests.get("https://dapi.kakao.com/v3/search/book", 
-                           headers=headers, params={"query": query, "size": 50})
+        res = requests.get("https://dapi.kakao.com/v3/search/book", headers=headers, params={"query": query})
         return res.json().get("documents", []) if res.status_code == 200 else []
     except: return []
 
-# 2. 영화/시리즈: 제목에 숫자가 섞여도 잘 찾도록 include_adult만 추가
+def search_apple_music(query):
+    url = f"https://itunes.apple.com/search?term={query}&limit=20&country=kr&entity=musicTrack,album"
+    try:
+        res = requests.get(url).json().get("results", [])
+        formatted_res = []
+        for m in res:
+            is_album = m.get('wrapperType') == 'collection'
+            title = m.get('collectionName' if is_album else 'trackName', 'Unknown')
+            info_url = m.get('collectionViewUrl' if is_album else 'trackViewUrl', '')
+            prefix = "📀 [ALBUM]" if is_album else "🎵 [SINGLE]"
+            formatted_res.append({
+                'display_name': f"{prefix} {title} - {m.get('artistName', '')}",
+                'title': title, 'creator': m.get('artistName', ''),
+                'date': m.get('releaseDate', '')[:10],
+                'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'),
+                'url': info_url,
+                'venue': m.get('artistName', '')
+            })
+        return formatted_res
+    except: return []
+
 def search_tmdb(query, category):
     type_path = "movie" if category == "MOVIES" else "tv"
-    # 한국어 결과가 없으면 영어 DB까지 뒤지는 로직이 포함되어 고전 검색에 강합니다.
-    url = f"https://api.themoviedb.org/3/search/{type_path}?api_key={TMDB_API_KEY}&query={query}&language=ko-KR&include_adult=true"
-    try:
-        r = requests.get(url).json().get("results", [])
-        if not r: # 한국어 검색결과 없을 때 영어로 재시도
-            url_en = url.replace("language=ko-KR", "language=en-US")
-            r = requests.get(url_en).json().get("results", [])
-        return r
+    url = f"https://api.themoviedb.org/3/search/{type_path}?api_key={TMDB_API_KEY}&query={query}&language=ko-KR"
+    try: return requests.get(url).json().get("results", [])
     except: return []
+
 def get_tmdb_details(item_id, category):
     type_path = "movie" if category == "MOVIES" else "tv"
     url = f"https://api.themoviedb.org/3/{type_path}/{item_id}/credits?api_key={TMDB_API_KEY}&language=ko-KR"
     try:
         res = requests.get(url).json()
-        # 감독 찾기
         director = next((m['name'] for m in res.get('crew', []) if m.get('job') == 'Director'), "정보 없음")
-        # 주요 출연진 3명
         cast = ", ".join([c['name'] for c in res.get('cast', [])[:3]])
         return f"감독: {director} / 출연: {cast}"
-    except: 
-        return "정보 없음"
+    except: return "정보 없음"
 
-# 3. 공연: 시작 날짜만 1900년으로 변경 (stdate=19000101)
 def search_kopis(query):
-    # 검색어에서 숫자를 빼고 순수 제목으로만 검색 (더 많은 결과를 보려고)
+    year_match = re.search(r'\d{4}', query)
+    search_year = year_match.group() if year_match else None
     clean_query = re.sub(r'\d{4}', '', query).strip()
-    url = f"http://www.kopis.or.kr/openApi/restful/pblprfr?service={KOPIS_KEY}&shprfnm={clean_query}&stdate=19000101&eddate=20261231&rows=100&cpage=1"
+    url = f"http://www.kopis.or.kr/openApi/restful/pblprfr?service={KOPIS_KEY}&shprfnm={clean_query}&stdate=19500101&eddate=20261231&rows=100&cpage=1"
     try:
         res = requests.get(url)
         root = ET.fromstring(res.content)
         items = root.findall('db')
         results = []
         for d in items:
+            title = d.findtext('prfnm')
+            date_from = d.findtext('prfpdfrom')
+            if search_year and search_year not in date_from: continue
             results.append({
-                'title': d.findtext('prfnm'), 
+                'title': title, 
                 'id': d.findtext('mt20id'), 
                 'img': d.findtext('poster'), 
-                'date': d.findtext('prfpdfrom'), 
+                'date': date_from, 
                 'venue': d.findtext('fcltynm')
             })
         return results
     except: return []
+
+def get_kopis_detail(mt20id):
+    url = f"http://www.kopis.or.kr/openApi/restful/pblprfr/{mt20id}?service={KOPIS_KEY}"
+    try:
+        res = requests.get(url)
+        root = ET.fromstring(res.content)
+        d = root.find('db')
+        if d is not None:
+            crew = d.findtext('prfcrew').strip() if d.findtext('prfcrew') else ""
+            cast = d.findtext('prfcast').strip() if d.findtext('prfcast') else ""
+            if not crew and not cast: return "정보 없음"
+            return f"{crew} / {cast}".strip(" / ")
+    except: return "상세정보 로드 실패"
+    return "정보 없음"
 
 # --- [3. 팝업 함수 수정본] ---
 @st.dialog("📋 기록", width="large")
@@ -280,25 +306,13 @@ with tab1:
             if res:
                 t_key = 'title' if category == 'MOVIES' else 'name'
                 d_key = 'release_date' if category == 'MOVIES' else 'first_air_date'
-                
-                # 결과 리스트 생성
-                opts = {f"🎬 {r.get(t_key)} ({str(r.get(d_key, ''))[:4]})": r for r in res}
+                opts = {f"🎬 {r.get(t_key)} ({str(r.get(d_key))[:4]})": r for r in res}
                 sel = st.selectbox("결과 선택", list(opts.keys()))
-                
-                if st.button("✨ 가져오기", key=f"btn_{category}"):
+                if st.button("✨ 가져오기"):
                     s = opts[sel]
-                    # [수정된 부분] 안전하게 데이터를 가져와서 세션에 저장
-                    st.session_state.api_data = {
-                        'title': s.get(t_key, '제목 없음'),
-                        'creator': get_tmdb_details(s.get('id'), category),
-                        'date': s.get(d_key, str(date.today())),
-                        'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}" if s.get('poster_path') else "",
-                        'venue': '', # 영화는 장소 비움
-                        'summary': s.get('overview', '')
-                    }
-                    st.success(f"'{s.get(t_key)}' 정보를 가져왔습니다!")
-                    time.sleep(0.5)
+                    st.session_state.api_data = {'title': s.get(t_key), 'creator': get_tmdb_details(s['id'], category), 'date': s.get(d_key), 'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", 'summary': s.get('overview', '')}
                     st.rerun()
+
     st.divider()
     data = st.session_state.get('api_data', {})
     cl, cr = st.columns([0.4, 0.6])
@@ -355,14 +369,26 @@ with tab2:
         restore_from_google()
         st.rerun()
 
-    # [디자인] 버튼 텍스트 가운데 정렬 및 스타일
+    # [디자인] 뱃지 위치(우하단) 및 스타일 강화
     st.markdown("""
         <style>
         .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 6px; margin-bottom: 5px; }
-        .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
-        .badge { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.6); color: white; padding: 3px 8px; border-radius: 4px; font-size: 10px; z-index: 10; pointer-events: none;}
+        .cal-img-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
         
-        /* 버튼 내부 텍스트 무조건 가운데 정렬 */
+        /* 뱃지: 우하단(bottom, right) 배치 및 z-index 상향 */
+        .badge { 
+            position: absolute; 
+            bottom: 5px; 
+            right: 5px; 
+            background: rgba(0, 0, 0, 0.7); 
+            color: white; 
+            padding: 2px 6px; 
+            border-radius: 4px; 
+            font-size: 10px; 
+            z-index: 10;
+            pointer-events: none;
+        }
+        
         button[data-testid="stBaseButton-secondary"] p {
             display: flex !important;
             justify-content: center !important;
@@ -387,58 +413,48 @@ with tab2:
             
         sub_tabs = st.tabs(tab_names)
 
-        # --- [탭 0: YEARLY] ---
+        # --- [탭 0: YEARLY (n일 뱃지 + 날짜순 정렬)] ---
         with sub_tabs[0]:
             all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
-            # 1. 전체 데이터를 날짜 최신순으로 정렬
-            all_df = all_df.sort_values('v_dt', ascending=False)
-            
             years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
             if years:
                 sel_y = st.selectbox("연도 선택", years, key="year_sel")
-                # 선택한 연도 데이터 필터링 (이미 위에서 정렬됨)
-                y_data = all_df[all_df['v_dt'].dt.year == sel_y]
+                # 최신순 정렬 (ascending=False)
+                y_data = all_df[all_df['v_dt'].dt.year == sel_y].sort_values('v_dt', ascending=False)
                 
                 for m in range(12, 0, -1):
                     m_data = y_data[y_data['v_dt'].dt.month == m]
                     if not m_data.empty:
                         st.subheader(f"🗓️ {m}월 ({len(m_data)})")
                         items = m_data.to_dict('records')
-                        
                         for i in range(0, len(items), 6):
                             cols = st.columns(6)
                             for j in range(6):
                                 if i+j < len(items):
                                     row = items[i+j]
                                     with cols[j]:
-                                        # --- 뱃지 날짜 처리 (nn일 또는 yy.mm.dd) ---
+                                        # Yearly 전용 뱃지 (n일 형식)
                                         raw_v = str(row.get('view_date') or "").strip()
-                                        if raw_v and raw_v.lower() != "nan":
-                                            try:
-                                                temp_dt = pd.to_datetime(raw_v)
-                                                # 월별로 묶여있으니 '일'을 강조 (예: 21일)
-                                                badge_text = f"{dt_obj.day}일"
-                                            except:
-                                                badge_text = "미상"
-                                        else:
-                                            badge_text = "미상"
+                                        try:
+                                            dt_obj = pd.to_datetime(raw_v)
+                                            badge_display = f"{dt_obj.day}일"
+                                        except:
+                                            badge_display = "미상"
                                         
-                                        # 이미지와 뱃지 출력
                                         st.markdown(f'''
-                                            <div class="cal-img-box" style="position: relative;">
-                                                <img src="{row["img_url"]}" style="width: 100%; display: block;">
-                                                <div class="badge">{badge_text}</div>
+                                            <div class="cal-img-box">
+                                                <div class="badge">{badge_display}</div>
+                                                <img src="{row["img_url"]}">
                                             </div>
                                         ''', unsafe_allow_html=True)
                                         
-                                        # 제목 버튼 (7자 제한 유지)
                                         orig_title = str(row['title'])
                                         display_title = orig_title[:7] + ".." if len(orig_title) > 7 else orig_title
                                         
                                         if st.button(display_title, key=f"btn_yr_{row['id']}", use_container_width=True): 
                                             show_details(row)
 
-        # --- [탭 1~5: 카테고리별 탭] ---
+        # --- [탭 1~5: 카테고리별 탭 (yyyy-mm-dd 뱃지 + 정렬)] ---
         for idx, c_name in enumerate(cat_list):
             with sub_tabs[idx + 1]:
                 cat_df = all_df[all_df['category'] == c_name].copy()
@@ -453,35 +469,23 @@ with tab2:
                             if i + j < len(items):
                                 row = items[i + j]
                                 with cols[j]:
+                                    # 카테고리 전용 뱃지 (yyyy-mm-dd 형식)
                                     raw_v = str(row.get('view_date') or "").strip()
-                                    badge_display = "미상"
-                                    if raw_v.lower() not in ["nan", "none", ""]:
-                                        try:
-                                            badge_display = pd.to_datetime(raw_v).strftime('%Y-%m-%d')
-                                        except:
-                                            badge_display = raw_v[:10]
+                                    try:
+                                        badge_display = pd.to_datetime(raw_v).strftime('%Y-%m-%d')
+                                    except:
+                                        badge_display = "미상"
                                     
                                     st.markdown(f'''
-                                        <div class="cal-img-box" style="position: relative;">
-                                            <img src="{row["img_url"]}" style="width: 100%; display: block;">
+                                        <div class="cal-img-box">
                                             <div class="badge">{badge_display}</div>
+                                            <img src="{row["img_url"]}">
                                         </div>
                                     ''', unsafe_allow_html=True)
                                     
-                                    # [수정] 7자 넘을 때만 '..' 붙이기
                                     orig_title = str(row['title'])
-                                    display_title = orig_title[:10] + ".." if len(orig_title) > 7 else orig_title
+                                    display_title = orig_title[:7] + ".." if len(orig_title) > 7 else orig_title
                                     
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
-
-
-
-
-
-
-
-
-
-
