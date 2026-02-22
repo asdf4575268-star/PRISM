@@ -87,7 +87,7 @@ def restore_from_google():
                     (category, title, creator, rel_date,
                      summary, brief, highlights, note,
                      img_url, save_date, view_date)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     str(row.get(col_map.get("category"), "")),
                     str(row.get(col_map.get("title"), "")),
@@ -643,6 +643,7 @@ with tab2:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
 
 
