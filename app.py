@@ -233,7 +233,7 @@ def show_details(item):
             
             # 2. 감상일 (강조 및 분리)
             view_v = item.get('view_date') or "날짜 미상"
-            st.markdown(f'<p style="color: #FF4B4B; font-weight: bold; font-size: 1.1em; margin-top: -10px;">🍿 {view_v}</p>', unsafe_allow_html=True)
+            st.markdown(f'<p style="color: #FF4B4B; font-weight: bold; font-size: 1.1em; margin-top: -10px;">🍿감상일 {view_v}</p>', unsafe_allow_html=True)
             
             st.divider()
             if item.get('brief'): st.info(f"**요약:** {item.get('brief')}")
@@ -438,6 +438,7 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
 
 
 
