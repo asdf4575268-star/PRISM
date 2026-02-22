@@ -317,7 +317,7 @@ def show_details(item):
             # 2. 상단 제목 및 정보
             st.markdown(f'<div style="font-size:30px; font-weight:bold; line-height:1.1;">{title_v}</div>', unsafe_allow_html=True)
             # 카테고리 정보 추가
-            st.write(f"**[{cat_v}]** {creator_v} | **공개일:** {rel_v}")
+            st.write(f"**[{cat_v}]** {creator_v} | **공개일:** {rel_v} @{row.get('venue', '')}")
             st.markdown(f'<p style="color:gray;">🍿 감상일: {view_v}</p>', unsafe_allow_html=True)
             st.divider()
             
@@ -373,7 +373,7 @@ with tab1:
                 sel = st.selectbox("결과 선택", list(opts.keys()))
                 if st.button("✨ 가져오기"):
                     b = opts[sel]
-                    st.session_state.api_data = {'title': b['title'], 'creator': f"{', '.join(b['authors'])}", 'date': b['datetime'][:10], 'img': b.get('thumbnail', '').replace("R120x174", "R400x0"), 'summary': f"{b['url']}\n\n{b.get('contents', '')}"}
+                    st.session_state.api_data = {'title': b['title'], 'creator': f"{', '.join(b['authors'])}", 'date': b['datetime'][:10], 'venue': s['venue'], 'img': b.get('thumbnail', '').replace("R120x174", "R400x0"), 'summary': f"{b['url']}\n\n{b.get('contents', '')}"}
                     st.rerun()
         elif category == "MUSIC":
             res = search_apple_music(search_query)
@@ -397,7 +397,7 @@ with tab1:
                     st.session_state.api_data = {
                         'title': f"{s['title']} ",
                         'creator': combined_creator, # 상세 정보에서 가져온 제작진/출연진
-                        'date': f"{s['date']} @{s['venue']}",
+                        'date': f"{s['date']}",
                         'img': s['img'],
                         'summary': detail_url
                     }
