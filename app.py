@@ -39,7 +39,7 @@ def init_db():
     with sqlite3.connect(DB_NAME) as conn:
         conn.execute('''CREATE TABLE IF NOT EXISTS archive 
                         (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
-                         rel_date TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, img_url TEXT, save_date TEXT, view_date TEXT)''')
+                         rel_date TEXT, venue TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, img_url TEXT, save_date TEXT, view_date TEXT)''')
 init_db()
 
 def restore_from_google():
@@ -498,10 +498,10 @@ with tab1:
                 
                 # 로컬 저장
                 with sqlite3.connect(DB_NAME) as conn:
-                    conn.execute("""INSERT INTO archive 
-                        (category, title, creator, rel_date, summary, brief, highlights, note, img_url, save_date, view_date) 
-                        VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-                        (category, title, creator, str(rel_date), summary, brief, highlights, processed_note, safe_img_url, str(date.today()), str(view_date)))
+            conn.execute("""INSERT INTO archive 
+                (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, save_date, view_date) 
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (category, title, creator, str(rel_date), venue, summary, brief, highlights, processed_note, safe_img_url, str(date.today()), str(view_date)))
                 
                 if res.status_code == 200:
                     st.success("✅ 로컬 저장 및 구글 백업 성공!")
@@ -654,6 +654,7 @@ with tab2:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
 
 
