@@ -390,27 +390,50 @@ with tab2:
         # --- [탭 0: YEARLY] ---
         with sub_tabs[0]:
             all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
+            # 1. 전체 데이터를 날짜 최신순으로 정렬
+            all_df = all_df.sort_values('v_dt', ascending=False)
+            
             years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
             if years:
                 sel_y = st.selectbox("연도 선택", years, key="year_sel")
-                y_data = all_df[all_df['v_dt'].dt.year == sel_y].sort_values('v_dt', ascending=False)
+                # 선택한 연도 데이터 필터링 (이미 위에서 정렬됨)
+                y_data = all_df[all_df['v_dt'].dt.year == sel_y]
                 
                 for m in range(12, 0, -1):
                     m_data = y_data[y_data['v_dt'].dt.month == m]
                     if not m_data.empty:
                         st.subheader(f"🗓️ {m}월 ({len(m_data)})")
                         items = m_data.to_dict('records')
+                        
                         for i in range(0, len(items), 6):
                             cols = st.columns(6)
                             for j in range(6):
                                 if i+j < len(items):
                                     row = items[i+j]
                                     with cols[j]:
-                                        st.markdown(f'<div class="cal-img-box"><div class="badge">{row["category"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
+                                        # --- 뱃지 날짜 처리 (nn일 또는 yy.mm.dd) ---
+                                        raw_v = str(row.get('view_date') or "").strip()
+                                        if raw_v and raw_v.lower() != "nan":
+                                            try:
+                                                temp_dt = pd.to_datetime(raw_v)
+                                                # 월별로 묶여있으니 '일'을 강조 (예: 21일)
+                                                badge_text = temp_dt.strftime('%d일') 
+                                            except:
+                                                badge_text = "미상"
+                                        else:
+                                            badge_text = "미상"
                                         
-                                        # [수정] 7자 넘을 때만 '..' 붙이기
+                                        # 이미지와 뱃지 출력
+                                        st.markdown(f'''
+                                            <div class="cal-img-box">
+                                                <div class="badge">{badge_text}</div>
+                                                <img src="{row["img_url"]}">
+                                            </div>
+                                        ''', unsafe_allow_html=True)
+                                        
+                                        # 제목 버튼 (7자 제한 유지)
                                         orig_title = str(row['title'])
-                                        display_title = orig_title[:10] + ".." if len(orig_title) > 7 else orig_title
+                                        display_title = orig_title[:7] + ".." if len(orig_title) > 7 else orig_title
                                         
                                         if st.button(display_title, key=f"btn_yr_{row['id']}", use_container_width=True): 
                                             show_details(row)
@@ -448,6 +471,7 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
 
 
 
