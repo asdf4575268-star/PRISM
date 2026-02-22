@@ -401,7 +401,7 @@ with tab2:
                                     with cols[j]:
                                         st.markdown(f'<div class="cal-img-box"><div class="badge">{row["category"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                         # [수정] 변수 선언 먼저!
-                                        btn_label = f"{str(row['title'])[:7]}.."
+                                        btn_label = f"{str(row['title'])[:10]}"
                                         if st.button(btn_label, key=f"btn_yr_{row['id']}", use_container_width=True): 
                                             show_details(row)
 
@@ -440,6 +440,7 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(btn_label, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
 
 
 
