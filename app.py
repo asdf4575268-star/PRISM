@@ -358,7 +358,7 @@ with tab2:
     if not all_df.empty:
         # 1. 탭 구성 (YEARLY + 각 카테고리)
         cat_list = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
-        tab_names = ["📅 YEARLY"] + cat_list
+        tab_names = ["📅 ALL"] + cat_list
         sub_tabs = st.tabs(tab_names)
 
         # --- [탭 0: YEARLY (기존 월별 보기)] ---
@@ -430,5 +430,6 @@ with tab2:
                     st.info(f"{c_name} 기록이 아직 없습니다.")
     else:
         st.info("데이터가 없습니다. 구글 시트에서 복원 버튼을 눌러주세요.")
+
 
 
