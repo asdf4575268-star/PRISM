@@ -370,7 +370,7 @@ with tab2:
         cat_list = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
         total_count = len(all_df)
         
-        tab_names = [f"📅 YEARLY ({total_count})"]
+        tab_names = [f"📅 ALL ({total_count})"]
         for c in cat_list:
             count = len(all_df[all_df['category'] == c])
             tab_names.append(f"{c} ({count})")
@@ -438,6 +438,7 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
 
 
 
