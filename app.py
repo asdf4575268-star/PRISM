@@ -94,10 +94,19 @@ def search_books(query):
 
 def search_tmdb(query, category):
     type_path = "movie" if category == "MOVIES" else "tv"
-    # include_adult=true로 누락 방지
+    # 1. 먼저 한국어로 검색 시도
     url = f"https://api.themoviedb.org/3/search/{type_path}?api_key={TMDB_API_KEY}&query={query}&language=ko-KR&include_adult=true"
-    try: return requests.get(url).json().get("results", [])
-    except: return []
+    try:
+        res = requests.get(url).json().get("results", [])
+        
+        # 2. 결과가 없으면 언어 설정을 빼고(영문 위주) 다시 검색
+        if not res:
+            url_en = f"https://api.themoviedb.org/3/search/{type_path}?api_key={TMDB_API_KEY}&query={query}&include_adult=true"
+            res = requests.get(url_en).json().get("results", [])
+            
+        return res
+    except:
+        return []
 
 def search_kopis(query):
     year_match = re.search(r'\d{4}', query)
@@ -422,4 +431,5 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
 
