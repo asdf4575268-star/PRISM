@@ -405,8 +405,9 @@ with tab1:
                     detail_url = f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id={s['id']}"
                     st.session_state.api_data = {
                         'title': f"{s['title']} ",
-                        'creator': f"{combined_creator} @{s['venue']}" , # 상세 정보에서 가져온 제작진/출연진
+                        'creator': combined_creator, # 상세 정보에서 가져온 제작진/출연진
                         'date': f"{s['date']}",
+                        'venue': s['venue'],
                         'img': s['img'],
                         'summary': detail_url
                     }
@@ -651,6 +652,7 @@ with tab2:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
 
 
