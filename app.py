@@ -85,29 +85,45 @@ def restore_from_google():
 # 1. 책: 한 번에 보여주는 결과 수만 늘리기 (size=50)
 def search_books(query):
     headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
-    params = {"query": query, "size": 50}  # 더 많이 가져오게 설정
+    # size=50으로 설정해 관련 서적들을 페이지 넘김 없이 쭉 보여줍니다.
     try:
-        res = requests.get("https://dapi.kakao.com/v3/search/book", headers=headers, params=params)
+        res = requests.get("https://dapi.kakao.com/v3/search/book", 
+                           headers=headers, params={"query": query, "size": 50})
         return res.json().get("documents", []) if res.status_code == 200 else []
     except: return []
 
 # 2. 영화/시리즈: 제목에 숫자가 섞여도 잘 찾도록 include_adult만 추가
 def search_tmdb(query, category):
     type_path = "movie" if category == "MOVIES" else "tv"
+    # 한국어 결과가 없으면 영어 DB까지 뒤지는 로직이 포함되어 고전 검색에 강합니다.
     url = f"https://api.themoviedb.org/3/search/{type_path}?api_key={TMDB_API_KEY}&query={query}&language=ko-KR&include_adult=true"
-    try: return requests.get(url).json().get("results", [])
+    try:
+        r = requests.get(url).json().get("results", [])
+        if not r: # 한국어 검색결과 없을 때 영어로 재시도
+            url_en = url.replace("language=ko-KR", "language=en-US")
+            r = requests.get(url_en).json().get("results", [])
+        return r
     except: return []
 
 # 3. 공연: 시작 날짜만 1900년으로 변경 (stdate=19000101)
 def search_kopis(query):
+    # 검색어에서 숫자를 빼고 순수 제목으로만 검색 (더 많은 결과를 보려고)
     clean_query = re.sub(r'\d{4}', '', query).strip()
-    # 1950 대신 1900으로 숫자 하나만 바꿨습니다.
     url = f"http://www.kopis.or.kr/openApi/restful/pblprfr?service={KOPIS_KEY}&shprfnm={clean_query}&stdate=19000101&eddate=20261231&rows=100&cpage=1"
     try:
         res = requests.get(url)
         root = ET.fromstring(res.content)
         items = root.findall('db')
-        return [{'title': d.findtext('prfnm'), 'id': d.findtext('mt20id'), 'img': d.findtext('poster'), 'date': d.findtext('prfpdfrom'), 'venue': d.findtext('fcltynm')} for d in items]
+        results = []
+        for d in items:
+            results.append({
+                'title': d.findtext('prfnm'), 
+                'id': d.findtext('mt20id'), 
+                'img': d.findtext('poster'), 
+                'date': d.findtext('prfpdfrom'), 
+                'venue': d.findtext('fcltynm')
+            })
+        return results
     except: return []
 
 # --- [3. 팝업 함수 수정본] ---
@@ -408,6 +424,7 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
 
 
 
