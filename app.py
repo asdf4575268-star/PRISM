@@ -372,13 +372,13 @@ with tab2:
     # [디자인] 뱃지 위치(우하단) 및 스타일 강화
     st.markdown("""
         <style>
-        .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 6px; margin-bottom: 5px; }
+        .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 6px; margin-top: 5px; }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
         
-        /* 뱃지: 우하단(bottom, right) 배치 및 z-index 상향 */
+        /* 뱃지: 우하단(top, right) 배치 및 z-index 상향 */
         .badge { 
             position: absolute; 
-            bottom: 5px; 
+            top: 5px; 
             right: 5px; 
             background: rgba(0, 0, 0, 0.7); 
             color: white; 
@@ -489,3 +489,4 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
