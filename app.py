@@ -497,18 +497,18 @@ with tab1:
                 res = requests.post(BACKUP_URL, data=payload, timeout=10)
                 
                 # 로컬 저장
-                with sqlite3.connect(DB_NAME) as conn:
-            conn.execute("""INSERT INTO archive 
-                (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, save_date, view_date) 
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (category, title, creator, str(rel_date), venue, summary, brief, highlights, processed_note, safe_img_url, str(date.today()), str(view_date)))
+            with sqlite3.connect(DB_NAME) as conn:
+                conn.execute("""INSERT INTO archive 
+                    (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, save_date, view_date) 
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (category, title, creator, str(rel_date), venue, summary, brief, highlights, processed_note, safe_img_url, str(date.today()), str(view_date)))
                 
-                if res.status_code == 200:
+            if res.status_code == 200:
                     st.success("✅ 로컬 저장 및 구글 백업 성공!")
                     for key in st.session_state.keys():
                         del st.session_state[key]
                     st.rerun()
-                else:
+            else:
                     st.error(f"⚠️ 전송 실패 (코드: {res.status_code})")
             except Exception as e:
                 st.error(f"❌ 오류 발생: {e}")
@@ -654,6 +654,7 @@ with tab2:
                                     show_details(row)
             else: 
                 st.info(f"{c_name} 기록이 아직 없습니다.")
+
 
 
 
