@@ -360,7 +360,7 @@ with tab2:
         <style>
         .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 6px; margin-bottom: 5px; }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
-        .badge { position: absolute; top: 5px; left: 5px; background: rgba(0, 0, 0, 0.6); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+        .badge { position: absolute; top: 5px; right: 5px; background: rgba(0, 0, 0, 0.6); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
         
         /* 버튼 내부 텍스트 무조건 가운데 정렬 */
         button[data-testid="stBaseButton-secondary"] p {
@@ -471,6 +471,7 @@ with tab2:
                                     btn_key = f"btn_cat_{c_name}_{row['id']}"
                                     if st.button(display_title, key=btn_key, use_container_width=True): 
                                         show_details(row)
+
 
 
 
