@@ -102,6 +102,54 @@ with tab2:
                                 if st.button(short_t, key=f"btn_{idx}_{item['id']}", use_container_width=True):
                                     show_details(item)
 
+# --- [tab2: 아카이브 출력 로직 수정본] ---
+with tab2:
+    if st.button("🔄 구글 시트 복원", use_container_width=True):
+        restore_from_google()
+        st.rerun()
+
+    with sqlite3.connect(DB_NAME) as conn:
+        all_df = pd.read_sql_query("SELECT * FROM archive", conn)
+
+    if not all_df.empty:
+        cat_list = ["ALL", "YEARLY", "BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
+        sub_tabs = st.tabs(cat_list)
+        
+        for idx, c_name in enumerate(cat_list):
+            with sub_tabs[idx]:
+                # 필터링 로직 (기존과 동일)
+                df = all_df.copy() if c_name == "ALL" else all_df[all_df['category'] == c_name]
+                if c_name == "YEARLY":
+                    all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
+                    years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
+                    if years:
+                        sel_y = st.selectbox("연도", years, key=f"y_{idx}")
+                        df = all_df[all_df['v_dt'].dt.year == sel_y]
+                
+                df['s_dt'] = pd.to_datetime(df['view_date'], errors='coerce')
+                items = df.sort_values('s_dt', ascending=False).to_dict('records')
+
+                # 🚀 3열 강제 배치 핵심 구간
+                for i in range(0, len(items), 3):
+                    cols = st.columns(3) # 무조건 3열 생성
+                    for j in range(3):
+                        if i + j < len(items):
+                            item = items[i + j]
+                            with cols[j]:
+                                # 뱃지 및 이미지 출력
+                                b_txt = str(item['view_date'])[-5:]
+                                st.markdown(f'''
+                                    <div class="cal-img-box">
+                                        <div class="badge">{b_txt}</div>
+                                        <img src="{item["img_url"]}">
+                                    </div>
+                                ''', unsafe_allow_html=True)
+                                
+                                # 버튼 및 제목
+                                short_t = item['title'][:5] + ".." if len(item['title']) > 5 else item['title']
+                                if st.button(short_t, key=f"btn_{idx}_{item['id']}", use_container_width=True):
+                                    show_details(item)
+
 st.title("🌈 PRISM")
 
 # --- [2. 설정 및 데이터베이스 로직] ---
@@ -278,4 +326,5 @@ with tab2:
                         ''', unsafe_allow_html=True)
                         if st.button("🔎", key=f"v_{idx}_{item['id']}"): show_details(item)
                 st.markdown('</div>', unsafe_allow_html=True)
+
 
