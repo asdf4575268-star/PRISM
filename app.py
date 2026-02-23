@@ -54,26 +54,29 @@ def migrate_to_supabase():
 
 def restore_from_supabase():
     try:
-        # 1. 슈퍼베이스 연결 및 데이터 호출
+        # 1. 슈퍼베이스에서 전체 데이터 긁어오기
         res = supabase.table("archive").select("*").execute()
-        
-        # 데이터가 아예 안 오는지 확인 (객체 구조 대응)
         cloud_data = res.data if hasattr(res, 'data') else res
         
         if not cloud_data:
-            st.session_state.sync_msg = ("warning", "⚠️ 클라우드에 데이터가 한 개도 없습니다. 백업을 먼저 하셨나요?")
+            st.session_state.sync_msg = ("warning", "⚠️ 클라우드(Supabase)가 비어있습니다. 백업된 데이터가 없습니다.")
             return
 
         with sqlite3.connect(DB_NAME) as conn:
             cursor = conn.cursor()
-            added_count = 0
             
+            # 2. 로컬 테이블이 비어있을 수도 있으니 초기화 확인
+            cursor.execute('''CREATE TABLE IF NOT EXISTS archive 
+                            (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
+                             rel_date TEXT, venue TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, img_url TEXT, save_date TEXT, view_date TEXT)''')
+            
+            added_count = 0
             for row in cloud_data:
-                # 2. 중복 체크 (제목과 감상일 기준)
+                # 3. 중복 체크를 '제목'과 '감상일'로 수행 (가장 확실한 기준)
                 cursor.execute("SELECT id FROM archive WHERE title=? AND view_date=?", 
-                             (row.get('title'), row.get('view_date')))
+                               (row.get('title'), row.get('view_date')))
                 if not cursor.fetchone():
-                    # 3. 데이터 삽입 (컬럼명이 다를 경우를 대비해 get() 사용)
+                    # 로컬에 없는 데이터만 삽입
                     cursor.execute("""INSERT INTO archive 
                         (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, save_date, view_date) 
                         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
@@ -81,16 +84,13 @@ def restore_from_supabase():
                          row.get('venue'), row.get('summary'), row.get('brief'), row.get('highlights'), 
                          row.get('note'), row.get('img_url'), row.get('save_date'), row.get('view_date')))
                     added_count += 1
+            
             conn.commit()
             
-        if added_count > 0:
-            st.session_state.sync_msg = ("success", f"✅ {added_count}개의 데이터를 클라우드에서 가져왔습니다!")
-        else:
-            st.session_state.sync_msg = ("info", "ℹ️ 이미 로컬 DB가 최신 상태입니다. (추가할 데이터 없음)")
-            
+        st.session_state.sync_msg = ("success", f"✅ 복구 완료! 클라우드로부터 {added_count}개의 새로운 데이터를 가져왔습니다.")
+        
     except Exception as e:
-        # 에러 내용을 세션에 저장해서 화면에 뿌려줍니다.
-        st.session_state.sync_msg = ("error", f"❌ 복구 실패 이유: {str(e)}")
+        st.session_state.sync_msg = ("error", f"❌ 복구 중 오류 발생: {str(e)}")
 
 # --- [3. API 검색 함수들] ---
 def search_books(query):
@@ -294,6 +294,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else: 
         st.warning("기록이 없습니다.")
+
 
 
 
