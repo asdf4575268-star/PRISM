@@ -229,44 +229,51 @@ if is_admin and tab_w:
 
 # --- [ARCHIVE 탭] ---
 with tab_a:
+    # --- [스타일 정의] ---
     st.markdown("""<style>
         .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1.4; overflow: hidden; border-radius: 8px; margin-bottom: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); transition: 0.3s; }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
         .badge { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
     </style>""", unsafe_allow_html=True)
 
+    # --- [데이터 불러오기] ---
     with sqlite3.connect(DB_NAME) as conn:
         all_df = pd.read_sql_query("SELECT * FROM archive ORDER BY view_date DESC", conn)
 
     if not all_df.empty:
         all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
-        years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
         
-        # 1. 연도 선택 및 숫자 표시
-        year_options = {y: f"{y} ({len(all_df[all_df['v_dt'].dt.year == y])})" for y in years}
-        sel_y = st.selectbox("📅 연도 선택", options=list(year_options.keys()), format_func=lambda x: year_options[x])
-        y_df = all_df[all_df['v_dt'].dt.year == sel_y]
-
-        # 2. 관리자용 백업/복구 버튼 (들여쓰기 수정됨)
+        # --- [1. 관리자 전용 동기화 영역] ---
         if is_admin:
+            # 동기화 결과 메시지 출력
             if 'sync_msg' in st.session_state:
                 m_type, m_txt = st.session_state.sync_msg
                 if m_type == "success": st.success(m_txt)
                 elif m_type == "warning": st.warning(m_txt)
+                elif m_type == "info": st.info(m_txt)
                 else: st.error(m_txt)
-                del st.session_state.sync_msg
+                del st.session_state.sync_msg # 출력 후 삭제
             
             c1, c2, _ = st.columns([0.15, 0.15, 0.7])
-            with c1: st.button("📤 Backup", on_click=migrate_to_supabase, use_container_width=True)
-            with c2: st.button("📥 Restore", on_click=restore_from_supabase, use_container_width=True)
+            with c1: 
+                st.button("📤 Backup", on_click=migrate_to_supabase, use_container_width=True, help="로컬 데이터를 클라우드로 복사")
+            with c2: 
+                st.button("📥 Restore", on_click=restore_from_supabase, use_container_width=True, help="클라우드 데이터를 로컬로 가져오기")
 
-        # 3. 카테고리별 탭 설정
+        # --- [2. 탭 구성 (숫자는 전체 기준)] ---
         cat_order = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
-        tab_titles = [f"📅 ALL ({len(y_df)})"] + [f"📂 {c} ({len(y_df[y_df['category'] == c])})" for c in cat_order]
+        tab_titles = [f"📅 ALL ({len(all_df)})"] + [f"📂 {c} ({len(all_df[all_df['category'] == c])})" for c in cat_order]
         sub_tabs = st.tabs(tab_titles)
 
-        # ALL 탭
+        # --- [3. ALL 탭: 연도별로 모아보기] ---
         with sub_tabs[0]:
+            years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
+            year_options = {y: f"{y}년 기록 ({len(all_df[all_df['v_dt'].dt.year == y])})" for y in years}
+            
+            # 연도 선택 필터
+            sel_y = st.selectbox("📅 연도 선택", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
+            y_df = all_df[all_df['v_dt'].dt.year == sel_y]
+            
             for m in range(12, 0, -1):
                 m_data = y_df[y_df['v_dt'].dt.month == m]
                 if not m_data.empty:
@@ -279,13 +286,15 @@ with tab_a:
                                 row = items[i+j]
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box"><div class="badge">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
-                                    if st.button(row['title'][:8], key=f"all_{row['id']}", use_container_width=True): show_details(row)
+                                    if st.button(row['title'][:8], key=f"all_btn_{row['id']}", use_container_width=True): 
+                                        show_details(row)
 
-        # 개별 카테고리 탭
+        # --- [4. 카테고리 탭: 연도 무시하고 전체 최신순] ---
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
-                c_data = y_df[y_df['category'] == c_name]
-                if c_data.empty: st.info(f"{c_name} 데이터 없음")
+                c_data = all_df[all_df['category'] == c_name]
+                if c_data.empty: 
+                    st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
                 else:
                     items = c_data.to_dict('records')
                     for i in range(0, len(items), 6):
@@ -294,13 +303,9 @@ with tab_a:
                             if i+j < len(items):
                                 row = items[i+j]
                                 with cols[j]:
+                                    # 카테고리 탭은 여러 연도가 섞이므로 배지에 전체 날짜 표시
                                     st.markdown(f'<div class="cal-img-box"><div class="badge">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
-                                    if st.button(row['title'][:8], key=f"cat_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+                                    if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): 
+                                        show_details(row)
     else: 
-        st.warning("기록이 없습니다.")
-
-
-
-
-
-
+        st.warning("아직 기록된 데이터가 없습니다. WRITE 탭에서 첫 기록을 시작해 보세요!")
