@@ -230,7 +230,7 @@ if is_admin and tab_w:
                     if st.button("✨ 가져오기"):
                         b = opts[sel]; st.session_state.api_data = {'title': b['title'], 'creator': ", ".join(b['authors']), 'date': b['datetime'][:10], 'img': b.get('thumbnail', '').replace("R120x174", "R400x0"), 'venue': b.get('publisher', ''), 'summary': b.get('contents', '')}
                         st.rerun()
-            elif category == "MUSIC":
+        elif category == "MUSIC":
             res = search_apple_music(search_query)
             if res:
                 opts = {m['display_name']: m for m in res}
@@ -335,6 +335,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
