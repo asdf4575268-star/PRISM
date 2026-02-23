@@ -15,17 +15,16 @@ st.title("🌈PRISM")
 # API 및 DB 설정
 TMDB_API_KEY = "6e7c55b6259b7731655033f783f3fc5b"
 KOPIS_KEY = "7a919bc272204f06bbca10e2af376dea"
-GOOGLE_SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQDDV1yl-cDAjFN8B0SIpnkGzfGB5gRJvRDjE6AJXqOgWnhJ0hy9tNmW4tkL3SUMBkuX-Uw3um_pdjT/pub?gid=1160662254&single=true&output=csv"
 DB_NAME = 'archive_prism_total_v5.db'
 
-# Supabase 설정
+# Supabase 설정 (secrets 기반)
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 if 'api_data' not in st.session_state: st.session_state.api_data = {}
 
-# --- [2. DB 초기화] ---
+# --- [2. DB 함수 및 초기화] ---
 def init_db():
     with sqlite3.connect(DB_NAME) as conn:
         conn.execute('''CREATE TABLE IF NOT EXISTS archive 
@@ -33,7 +32,31 @@ def init_db():
                          rel_date TEXT, venue TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, img_url TEXT, save_date TEXT, view_date TEXT)''')
 init_db()
 
-# --- [3. API 함수들 (Books, Music, Movies, Kopis)] ---
+def migrate_to_supabase():
+    """로컬 SQLite 데이터를 Supabase로 일괄 전송"""
+    with sqlite3.connect(DB_NAME) as conn:
+        conn.row_factory = sqlite3.Row
+        local_data = conn.execute("SELECT * FROM archive").fetchall()
+    
+    if not local_data:
+        st.warning("로컬에 전송할 데이터가 없습니다.")
+        return
+
+    upload_list = []
+    for row in local_data:
+        d = dict(row)
+        if 'id' in d: del d['id']  # ID는 Supabase에서 자동 생성됨
+        upload_list.append(d)
+
+    try:
+        supabase.table("archive").insert(upload_list).execute()
+        st.success(f"✅ {len(upload_list)}개의 기록이 클라우드로 동기화되었습니다!")
+        time.sleep(1)
+        st.rerun()
+    except Exception as e:
+        st.error(f"❌ 동기화 실패: {e}")
+
+# --- [3. API 검색 함수들 (Books, Music, Movies, Kopis)] ---
 def search_books(query):
     headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
     try:
@@ -92,7 +115,7 @@ def show_details(item):
             # SQLite 삭제
             with sqlite3.connect(DB_NAME) as conn:
                 conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
-            # Supabase 삭제 (제목과 날짜가 일치하는 행 삭제)
+            # Supabase 삭제
             supabase.table("archive").delete().eq("title", item['title']).eq("view_date", item['view_date']).execute()
             st.rerun()
     with t_col3:
@@ -118,12 +141,10 @@ def show_details(item):
                 n_note = st.text_area("💬 감상", value=item.get('note', ''), height=100)
 
                 if st.form_submit_button("💾 저장"):
-                    # SQLite 업데이트
                     with sqlite3.connect(DB_NAME) as conn:
                         conn.execute("""UPDATE archive SET title=?, creator=?, rel_date=?, venue=?, summary=?, brief=?, highlights=?, note=?, view_date=?, img_url=? WHERE id=?""", 
                                      (n_title, n_creator, n_rel, n_venue, n_sum, n_brief, n_high, n_note, str(n_view_date), n_img, item['id']))
-                    # Supabase 업데이트 (Upsert 혹은 Delete 후 Insert 방식 사용 가능하나 여기선 간략화)
-                    st.success("수정 완료!")
+                    st.success("수정 완료! (클라우드 동기화는 재저장 시 반영됩니다)")
                     st.rerun()
         else:
             st.markdown(f'# {item.get("title")}')
@@ -161,7 +182,17 @@ with tab1:
                     m = opts[sel]
                     st.session_state.api_data = {'title': m['title'], 'creator': m['creator'], 'date': m['date'], 'img': m['img'], 'venue': m['creator']}
                     st.rerun()
-        # ... (TMDB, KOPIS 생략 - 이전 코드와 동일) ...
+        elif category in ["MOVIES", "SERIES"]:
+            res = search_tmdb(search_query, category)
+            if res:
+                t_key = 'title' if category == 'MOVIES' else 'name'
+                d_key = 'release_date' if category == 'MOVIES' else 'first_air_date'
+                opts = {f"🎬 {r.get(t_key)} ({str(r.get(d_key))[:4]})": r for r in res}
+                sel = st.selectbox("결과 선택", list(opts.keys()))
+                if st.button("✨ 가져오기"):
+                    s = opts[sel]
+                    st.session_state.api_data = {'title': s.get(t_key), 'creator': get_tmdb_details(s['id'], category), 'date': s.get(d_key), 'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", 'summary': s.get('overview', '')}
+                    st.rerun()
 
     st.divider()
     data = st.session_state.get('api_data', {})
@@ -206,6 +237,12 @@ with tab1:
 
 # --- [6. 아카이브 뷰 - ARCHIVE 탭] ---
 with tab2:
+    # --- 상단 동기화 도구 ---
+    c_sync1, c_sync2 = st.columns([0.2, 0.8])
+    with c_sync1:
+        if st.button("📤 클라우드 전송", use_container_width=True, help="로컬 데이터를 Supabase로 보냅니다."):
+            migrate_to_supabase()
+
     st.markdown("""<style>
         .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1.4; overflow: hidden; border-radius: 8px; margin-bottom: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); transition: 0.3s; }
         .cal-img-box:hover { transform: scale(1.02); }
@@ -218,10 +255,9 @@ with tab2:
 
     if not all_df.empty:
         cat_list = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
-        # 메인 탭 생성 (전체 + 5개 카테고리)
         sub_tabs = st.tabs([f"📅 ALL ({len(all_df)})"] + [f"📂 {c}" for c in cat_list])
 
-        # 1. [전체 보기 탭] - 연도/월별 그룹화
+        # 1. [전체 보기 탭]
         with sub_tabs[0]:
             all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
             years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
@@ -243,14 +279,13 @@ with tab2:
                                         if st.button(row['title'][:8], key=f"all_{row['id']}", use_container_width=True): 
                                             show_details(row)
 
-        # 2. [카테고리별 탭] - 선택한 카테고리만 필터링
+        # 2. [카테고리별 탭]
         for idx, c_name in enumerate(cat_list):
-            with sub_tabs[idx + 1]: # sub_tabs[0]이 전체이므로 +1
+            with sub_tabs[idx + 1]:
                 c_data = all_df[all_df['category'] == c_name]
                 if c_data.empty:
-                    st.info(f"{c_name} 카테고리에 아직 기록된 데이터가 없습니다.")
+                    st.info(f"{c_name} 카테고리에 데이터가 없습니다.")
                 else:
-                    st.write(f"총 {len(c_data)}개의 기록이 있습니다.")
                     items = c_data.to_dict('records')
                     for i in range(0, len(items), 6):
                         cols = st.columns(6)
@@ -258,10 +293,8 @@ with tab2:
                             if i+j < len(items):
                                 row = items[i+j]
                                 with cols[j]:
-                                    # 카테고리 탭에서는 날짜 전체 표시
                                     st.markdown(f'<div class="cal-img-box"><div class="badge">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:8], key=f"cat_{c_name}_{row['id']}", use_container_width=True): 
                                         show_details(row)
-    else: 
-        st.warning("아직 기록된 데이터가 없습니다. WRITE 탭에서 첫 기록을 남겨보세요!")
-
+    else:
+        st.warning("아직 기록된 데이터가 없습니다.")
