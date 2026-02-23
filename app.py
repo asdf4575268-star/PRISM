@@ -12,7 +12,7 @@ from supabase import create_client, Client
 st.set_page_config(
     layout="wide", 
     page_title="PRISM", # 앱 설치 시 이름
-    page_icon="https://photos.fife.usercontent.google.com/pw/AP1GczOZfoJ6pK_tGxx46OgedvOpazg99L1RqPbg4O8JWdeOyROmGXjMj2yPIQ=w489-h489-s-no-gm?authuser=0",            # 앱 아이콘 (이모지 대신 이미지 URL 가능)
+    page_icon="🌈",            # 앱 아이콘 (이모지 대신 이미지 URL 가능)
     initial_sidebar_state="collapsed" # 좁은 모바일 화면에서 사이드바 자동 숨김
 )
 
@@ -401,6 +401,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
