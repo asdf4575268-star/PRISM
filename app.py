@@ -268,7 +268,7 @@ with tab_a:
         # --- [3. ALL 탭: 연도별로 모아보기] ---
         with sub_tabs[0]:
             years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
-            year_options = {y: f"{y}년 기록 ({len(all_df[all_df['v_dt'].dt.year == y])})" for y in years}
+            year_options = {y: f"{y} ({len(all_df[all_df['v_dt'].dt.year == y])})" for y in years}
             
             # 연도 선택 필터
             sel_y = st.selectbox("📅 연도 선택", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
@@ -309,3 +309,4 @@ with tab_a:
                                         show_details(row)
     else: 
         st.warning("아직 기록된 데이터가 없습니다. WRITE 탭에서 첫 기록을 시작해 보세요!")
+
