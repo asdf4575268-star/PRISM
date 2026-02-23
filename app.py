@@ -2,8 +2,10 @@ import streamlit as st
 import sqlite3
 import requests
 import pandas as pd
-from datetime import date, datetime # datetime 추가 확인
+from datetime import date, datetime
 import time
+import re 
+import xml.etree.ElementTree as ET
 from supabase import create_client, Client
 
 # --- [1. 설정 및 API] ---
@@ -12,7 +14,7 @@ st.title("🌈PRISM")
 
 TMDB_API_KEY = "6e7c55b6259b7731655033f783f3fc5b"
 DB_NAME = 'archive_prism_total_v5.db'
-
+KOPIS_KEY = "7a919bc272204f06bbca10e2af376dea"
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -243,6 +245,7 @@ if is_admin and tab_w:
                         st.rerun()
 
             # 2. MUSIC 검색
+            # 2. MUSIC 검색
             elif category == "MUSIC":
                 res = search_apple_music(search_query)
                 if res:
@@ -372,6 +375,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
