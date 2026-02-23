@@ -148,37 +148,40 @@ def search_tmdb(query, category):
     except: return []
 
 def get_tmdb_details(item_id, category):
-    """상세 정보를 가져오며, 특히 시리즈의 경우 작가 정보를 우선 탐색"""
+    """상세 정보를 가져오며, 제작사/플랫폼 정보까지 포함"""
     is_movie = "MOVIES" in category
     type_path = "movie" if is_movie else "tv"
     
-    # credits 정보를 포함하여 상세 데이터 호출
+    # 상세 정보 호출 (networks 정보 등을 포함)
     url = f"https://api.themoviedb.org/3/{type_path}/{item_id}?api_key={TMDB_API_KEY}&language=ko-KR&append_to_response=credits"
     
     try:
         res = requests.get(url).json()
         crew_list = res.get('credits', {}).get('crew', [])
         
+        # 1. 창작자 정보 구성 (이전과 동일)
         if is_movie:
-            # 영화는 기존처럼 'Director' 탐색
             director = next((m['name'] for m in crew_list if m.get('job') == 'Director'), "정보 없음")
             creator_info = f"감독: {director}"
+            # 영화는 제작사(Production Companies) 첫 번째꺼 가져오기
+            venue_info = res.get('production_companies', [{}])[0].get('name', '')
         else:
-            # 시리즈: 1순위 - 'created_by' 필드 확인
             creators = res.get('created_by', [])
-            if creators:
-                creator_names = ", ".join([c['name'] for c in creators])
-                creator_info = f"작가/제작: {creator_names}"
-            else:
-                # 2순위 - 제작진(crew) 중 Writer, Screenplay, Executive Producer 순으로 탐색
-                writer = next((m['name'] for m in crew_list if m.get('job') in ['Writer', 'Screenplay', 'Executive Producer']), "정보 없음")
-                creator_info = f"작가/제작: {writer}"
+            creator_names = ", ".join([c['name'] for c in creators]) if creators else \
+                            next((m['name'] for m in crew_list if m.get('job') in ['Writer', 'Executive Producer']), "정보 없음")
+            creator_info = f"작가/제작: {creator_names}"
+            # 시리즈는 방송사/플랫폼(Networks) 가져오기
+            venue_info = res.get('networks', [{}])[0].get('name', '')
 
-        # 출연진 상위 3명 추가
-        cast = ", ".join([c['name'] for c in res.get('credits', {}).get('cast', [])[:3]])
-        return f"{creator_info} / 출연: {cast}"
+        cast = ", ".join([c['name'] for c in res.get('credits', {}).get('cast', [])[:4]])
+        
+        # 리턴 값을 딕셔너리로 주어 제목 아래 여러 칸에 나눠 넣을 수 있게 합니다.
+        return {
+            "creator": f"{creator_info} / 출연: {cast}",
+            "venue": venue_info
+        }
     except:
-        return "정보 없음"
+        return {"creator": "정보 없음", "venue": ""}
 
 def search_kopis(query):
     year_match = re.search(r'\d{4}', query)
@@ -388,7 +391,7 @@ if is_admin and tab_w:
                     sel = st.selectbox("결과 선택", list(opts.keys()))
                     if st.button("✨ 가져오기"):
                         s = opts[sel]
-                        st.session_state.api_data = {'title': s.get(t_key), 'creator': get_tmdb_details(s['id'], category), 'date': s.get(d_key), 'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", 'summary': s.get('overview', '')}
+                        st.session_state.api_data = {'title': s.get(t_key), 'creator': get_tmdb_details(s['id'], category), 'date': s.get(d_key), 'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", 'venue': details['venue'],'summary': s.get('overview', '')}
                         st.rerun()
 
         st.divider(); data = st.session_state.get('api_data', {}); cl, cr = st.columns([0.4, 0.6])
@@ -466,6 +469,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
