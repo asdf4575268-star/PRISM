@@ -77,13 +77,34 @@ def restore_from_supabase():
         st.session_state.sync_msg = ("error", f"❌ 복구 실패: {e}")
 
 # --- [3. 로그인 시스템 & 사이드바] ---
+# --- [3. 로그인 시스템 & 사이드바] ---
+
+# 로그인 상태를 기억하기 위한 세션 스테이트 초기화
+if "is_logged_in" not in st.session_state:
+    st.session_state.is_logged_in = False
+
 with st.sidebar:
     st.markdown("### 🔐 Admin Access")
-    input_password = st.text_input("Password", type="password")
-    is_admin = (input_password == st.secrets["ADMIN_PASSWORD"])
     
-    if is_admin:
+    # 로그인 상태가 아닐 때만 비밀번호 입력창 표시
+    if not st.session_state.is_logged_in:
+        input_password = st.text_input("Password", type="password")
+        if input_password:
+            if input_password == st.secrets["ADMIN_PASSWORD"]:
+                st.session_state.is_logged_in = True
+                st.rerun() # 로그인 성공 시 화면 즉시 갱신
+            else:
+                st.error("Incorrect Password")
+    
+    # 로그인 성공 상태일 때 표시될 관리자 메뉴
+    if st.session_state.is_logged_in:
         st.success("Admin Mode Active")
+        
+        # 로그아웃 버튼 추가
+        if st.button("🔓 Logout", use_container_width=True):
+            st.session_state.is_logged_in = False
+            st.rerun()
+            
         st.divider()
         st.markdown("### 🔄 Data Sync")
         
@@ -94,12 +115,11 @@ with st.sidebar:
             else: st.error(m_txt)
             del st.session_state.sync_msg
         
-        # 이제 함수가 위에 정의되어 있으므로 에러가 나지 않습니다.
         st.button("📤 Cloud Backup", on_click=migrate_to_supabase, use_container_width=True)
         st.button("📥 Cloud Restore", on_click=restore_from_supabase, use_container_width=True)
-        
-    elif input_password:
-        st.error("Incorrect Password")
+
+# 하단 로직(Tab 노출 등)에서 사용할 변수
+is_admin = st.session_state.is_logged_in
 
 # --- [3. API 검색 함수들] ---
 def search_books(query):
@@ -423,5 +443,6 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
