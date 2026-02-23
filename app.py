@@ -1,8 +1,9 @@
+import streamlit as st
 import sqlite3
 from supabase import create_client, Client
 
-SUPABASE_URL = "여기에_URL"
-SUPABASE_KEY = "여기에_service_role_key"
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -37,3 +38,4 @@ for i in range(0, len(records), batch_size):
 
 print("🎉 마이그레이션 완료")
 conn.close()
+
