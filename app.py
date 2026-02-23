@@ -1,6 +1,7 @@
 import sqlite3
 from supabase import create_client, Client
 import sys
+import streamlit as st
 
 # ===========================
 # 🔐 Supabase 설정
@@ -89,4 +90,5 @@ print("🎉 마이그레이션 완료")
 print(f"✅ 성공: {success_count}")
 print(f"❌ 실패: {fail_count}")
 print("============================")
+
 
