@@ -128,6 +128,29 @@ def get_tmdb_details(item_id, category):
         cast = ", ".join([c['name'] for c in res.get('cast', [])[:3]])
         return f"감독: {director} / 출연: {cast}"
     except: return "정보 없음"
+def search_kopis(query):
+    year_match = re.search(r'\d{4}', query)
+    search_year = year_match.group() if year_match else None
+    clean_query = re.sub(r'\d{4}', '', query).strip()
+    url = f"http://www.kopis.or.kr/openApi/restful/pblprfr?service={KOPIS_KEY}&shprfnm={clean_query}&stdate=19500101&eddate=20261231&rows=100&cpage=1"
+    try:
+        res = requests.get(url)
+        root = ET.fromstring(res.content)
+        items = root.findall('db')
+        results = []
+        for d in items:
+            title = d.findtext('prfnm')
+            date_from = d.findtext('prfpdfrom')
+            if search_year and search_year not in date_from: continue
+            results.append({
+                'title': title, 
+                'id': d.findtext('mt20id'), 
+                'img': d.findtext('poster'), 
+                'date': date_from, 
+                'venue': d.findtext('fcltynm')
+            })
+        return results
+    except: return []
 
 # --- [4. 팝업 상세 보기] ---
 @st.dialog("📋 기록", width="large")
@@ -284,6 +307,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
