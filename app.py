@@ -7,62 +7,100 @@ from datetime import date, datetime
 import re
 import time
 
-# --- [1. 스타일 및 설정] ---
-st.set_page_config(layout="wide", page_title="PRISM")
-
-# 모바일 3열 고정 및 UI 최적화 CSS
+# --- [1. 스타일 및 설정 수정본] ---
 st.markdown("""
     <style>
-    h1 { font-size: 1.8rem !important; margin-bottom: 0px; }
-    .stTextInput label, .stTextArea label, .stSelectbox label { font-size: 0.9rem !important; font-weight: bold !important; }
-    
-    /* 가로 3열 강제 고정 컨테이너 */
-    .mobile-grid {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        justify-content: flex-start;
+    /* 1. 컬럼이 모바일에서도 가로로 배열되도록 강제 */
+    [data-testid="column"] {
+        width: 32% !important;
+        flex: 1 1 calc(33.333% - 10px) !important;
+        min-width: 30% !important;
     }
-    .grid-item {
-        width: calc(33.333% - 7px); /* 강제로 3등분 */
-        margin-bottom: 15px;
-        position: relative;
+    
+    /* 2. Streamlit의 모바일 자동 수직 정렬 해제 */
+    [data-testid="stHorizontalBlock"] {
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 5px !important;
     }
 
     .cal-img-box { 
         position: relative; width: 100%; aspect-ratio: 1/1.4; 
-        overflow: hidden; border-radius: 8px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        overflow: hidden; border-radius: 6px;
     }
     .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
+    
     .badge { 
-        position: absolute; top: 5px; right: 5px; 
+        position: absolute; top: 3px; right: 3px; 
         background: rgba(0, 0, 0, 0.7); color: white; 
-        padding: 2px 4px; border-radius: 4px; font-size: 9px; 
-        z-index: 10; font-weight: bold;
-    }
-    .item-title {
-        font-size: 0.75rem;
-        text-align: center;
-        margin-top: 5px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        font-weight: 500;
+        padding: 1px 4px; border-radius: 3px; font-size: 8px; 
+        z-index: 10;
     }
 
-    /* 버튼 투명화하여 이미지 전체를 클릭하게 만듦 */
-    .stButton button {
-        width: 100%;
-        padding: 0;
-        border: none;
-        background: transparent;
+    /* 제목 폰트 더 작게 조절 */
+    .item-title-small {
+        font-size: 0.7rem;
+        text-align: center;
+        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     
-    .stTabs [data-baseweb="tab-list"] { gap: 4px; }
-    .stTabs [data-baseweb="tab"] { padding: 8px 6px; font-size: 0.8rem; }
+    /* 버튼 내부 텍스트 크기 최소화 */
+    div.stButton > button p {
+        font-size: 0.65rem !important;
+    }
     </style>
 """, unsafe_allow_html=True)
+
+# --- [tab2: 아카이브 출력 로직 수정본] ---
+with tab2:
+    if st.button("🔄 구글 시트 복원", use_container_width=True):
+        restore_from_google()
+        st.rerun()
+
+    with sqlite3.connect(DB_NAME) as conn:
+        all_df = pd.read_sql_query("SELECT * FROM archive", conn)
+
+    if not all_df.empty:
+        cat_list = ["ALL", "YEARLY", "BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
+        sub_tabs = st.tabs(cat_list)
+        
+        for idx, c_name in enumerate(cat_list):
+            with sub_tabs[idx]:
+                # 필터링 로직 (기존과 동일)
+                df = all_df.copy() if c_name == "ALL" else all_df[all_df['category'] == c_name]
+                if c_name == "YEARLY":
+                    all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
+                    years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
+                    if years:
+                        sel_y = st.selectbox("연도", years, key=f"y_{idx}")
+                        df = all_df[all_df['v_dt'].dt.year == sel_y]
+                
+                df['s_dt'] = pd.to_datetime(df['view_date'], errors='coerce')
+                items = df.sort_values('s_dt', ascending=False).to_dict('records')
+
+                # 🚀 3열 강제 배치 핵심 구간
+                for i in range(0, len(items), 3):
+                    cols = st.columns(3) # 무조건 3열 생성
+                    for j in range(3):
+                        if i + j < len(items):
+                            item = items[i + j]
+                            with cols[j]:
+                                # 뱃지 및 이미지 출력
+                                b_txt = str(item['view_date'])[-5:]
+                                st.markdown(f'''
+                                    <div class="cal-img-box">
+                                        <div class="badge">{b_txt}</div>
+                                        <img src="{item["img_url"]}">
+                                    </div>
+                                ''', unsafe_allow_html=True)
+                                
+                                # 버튼 및 제목
+                                short_t = item['title'][:5] + ".." if len(item['title']) > 5 else item['title']
+                                if st.button(short_t, key=f"btn_{idx}_{item['id']}", use_container_width=True):
+                                    show_details(item)
 
 st.title("🌈 PRISM")
 
@@ -240,3 +278,4 @@ with tab2:
                         ''', unsafe_allow_html=True)
                         if st.button("🔎", key=f"v_{idx}_{item['id']}"): show_details(item)
                 st.markdown('</div>', unsafe_allow_html=True)
+
