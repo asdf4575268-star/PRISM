@@ -41,13 +41,19 @@ def migrate_to_supabase():
             st.session_state.sync_msg = ("warning", "로컬 데이터가 없습니다.")
             return
 
+        # 1. 전송할 데이터 리스트 생성
         upload_list = [dict(row) for row in local_data]
         for d in upload_list:
-            if 'id' in d: del d['id']
+            if 'id' in d: del d['id'] # DB 자동 생성을 위해 id 삭제
             
-        supabase.table("archive").upsert(new_record, on_conflict="title, view_date").execute() # insert 대신 upsert 권장
-        st.session_state.sync_msg = ("success", "✅ 클라우드 백업 완료!")
+        # 2. 전송 (new_record가 아니라 upload_list를 보내야 합니다)
+        # Supabase의 upsert는 리스트를 넣으면 알아서 중복을 체크합니다.
+        # (단, 테이블에 유니크 설정이 없을 경우 중복 입력될 수 있음)
+        supabase.table("archive").upsert(upload_list).execute() 
+        
+        st.session_state.sync_msg = ("success", f"✅ {len(upload_list)}개 데이터 클라우드 백업 완료!")
     except Exception as e:
+        # 에러 발생 시 구체적인 메시지 출력
         st.session_state.sync_msg = ("error", f"❌ 백업 실패: {e}")
 
 def restore_from_supabase():
@@ -532,6 +538,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
