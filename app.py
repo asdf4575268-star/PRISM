@@ -176,60 +176,86 @@ def get_kopis_detail(mt20id):
 # --- [4. 팝업 상세 보기] ---
 @st.dialog("📋 기록", width="large")
 def show_details(item):
+    if hasattr(item, 'to_dict'): item = item.to_dict()
+    
+    # 1. 상단 버튼 바 (삭제 및 수정 토글)
     t_col1, t_col2, t_col3 = st.columns([0.2, 0.6, 0.2])
-    if is_admin:
-        with t_col1:
-            if st.button("🗑️ 삭제", key=f"del_{item['id']}", use_container_width=True):
-                with sqlite3.connect(DB_NAME) as conn: conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
+    with t_col1:
+        if st.button("🗑️ 삭제", key=f"del_{item['id']}", use_container_width=True):
+            with sqlite3.connect(DB_NAME) as conn:
+                conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
+            # 클라우드에서도 삭제
+            try:
                 supabase.table("archive").delete().eq("title", item['title']).eq("view_date", item['view_date']).execute()
-                st.rerun()
-        with t_col3: edit_mode = st.toggle("✏️ 수정", key=f"tog_{item['id']}")
-    else: edit_mode = False
+            except: pass
+            st.rerun()
+    with t_col3:
+        edit_mode = st.toggle("✏️ 수정", key=f"tog_{item['id']}")
 
     st.divider()
     col_img, col_txt = st.columns([0.3, 0.7])
-    with col_img:
-        if item.get('img_url'): st.image(item['img_url'], use_container_width=True)
-    with col_txt:
-        if edit_mode and is_admin:
+
+    # 2. 본문 영역
+    if edit_mode:
+        # --- [수정 모드] ---
+        with col_img:
+            # 폼 외부에서 이미지 URL을 입력받아야 수정 즉시 이미지가 바뀝니다.
+            n_img = st.text_input("🖼️ 이미지 URL", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
+            if n_img: st.image(n_img, use_container_width=True)
+
+        with col_txt:
             with st.form(key=f"edit_form_{item['id']}"):
-                n_img = st.text_input("🖼️ 이미지 URL", value=item.get('img_url', ''))
-                n_title = st.text_input("📌 제목", value=item.get('title', ''))
-                n_creator = st.text_input("👤 창작자", value=item.get('creator', ''))
-                n_rel = st.text_input("📅 작품 날짜", value=item.get('rel_date', ''))
-                n_venue = st.text_input("📍 장소/플랫폼", value=item.get('venue', ''))
-                n_view_date = st.date_input("🍿 감상일", value=pd.to_datetime(item.get('view_date')).date())
-                n_brief = st.text_input("📝 요약", value=item.get('brief', ''))
-                n_sum = st.text_area("📖 줄거리", value=item.get('summary', ''), height=100)
-                n_high = st.text_area("✨ 인상 깊은 부분", value=item.get('highlights', ''), height=100)
-                n_note = st.text_area("💬 감상", value=item.get('note', ''), height=100)
+                n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
+                n_creator = st.text_input("👤 창작자", value=str(item.get('creator', '')))
+                
+                cat = item.get('category')
+                labels = {"BOOKS": "📖 출판사", "MUSIC": "💿 레이블", "MOVIES": "🎬 제작사", "SERIES": "📺 플랫폼", "STAGE": "📍 장소"}
+                v_label = labels.get(cat, "📍 장소")
+
+                c1, c2 = st.columns(2)
+                n_rel = c1.text_input("📅 작품 날짜", value=str(item.get('rel_date', '')))
+                n_venue = c2.text_input(v_label, value=str(item.get('venue', '')))
+                
+                try:
+                    curr_view = pd.to_datetime(item.get('view_date')).date()
+                except:
+                    curr_view = date.today()
+                n_view_date = st.date_input("🍿 감상일 수정", value=curr_view)
+                
+                n_brief = st.text_input("📝 요약", value=str(item.get('brief', '')))
+                n_sum = st.text_area("📖 줄거리", value=str(item.get('summary', '')), height=150)
+                n_high = st.text_area("✨ 인상 깊은 부분", value=str(item.get('highlights', '')), height=100)
+                n_note = st.text_area("💬 감상", value=str(item.get('note', '')), height=100)
+
                 if st.form_submit_button("💾 저장"):
-                    # 1. 로컬 SQLite 업데이트
-                    with sqlite3.connect(DB_NAME) as conn:
-                        conn.execute("""UPDATE archive SET title=?, creator=?, rel_date=?, venue=?, summary=?, brief=?, highlights=?, note=?, view_date=?, img_url=? WHERE id=?""", 
-                                     (n_title, n_creator, n_rel, n_venue, n_sum, n_brief, n_high, n_note, str(n_view_date), n_img, item['id']))
-                    
-                    # 2. 슈퍼베이스(Supabase) 업데이트 추가 👈 이 부분!
                     try:
+                        # 1. 로컬 SQLite 업데이트
+                        with sqlite3.connect(DB_NAME) as conn:
+                            conn.execute("""UPDATE archive SET 
+                                            title=?, creator=?, rel_date=?, venue=?, 
+                                            summary=?, brief=?, highlights=?, note=?, view_date=?, img_url=? 
+                                            WHERE id=?""", 
+                                         (n_title, n_creator, n_rel, n_venue, 
+                                          n_sum, n_brief, n_high, n_note, str(n_view_date), n_img, item['id']))
+                        
+                        # 2. 슈퍼베이스(Supabase) 업데이트
                         supabase.table("archive").update({
-                            "title": n_title,
-                            "creator": n_creator,
-                            "rel_date": n_rel,
-                            "venue": n_venue,
-                            "summary": n_sum,
-                            "brief": n_brief,
-                            "highlights": n_high,
-                            "note": n_note,
-                            "view_date": str(n_view_date),
-                            "img_url": n_img
+                            "title": n_title, "creator": n_creator, "rel_date": n_rel, "venue": n_venue,
+                            "summary": n_sum, "brief": n_brief, "highlights": n_high, "note": n_note,
+                            "view_date": str(n_view_date), "img_url": n_img
                         }).eq("title", item['title']).eq("view_date", item['view_date']).execute()
-                        st.success("로컬 & 클라우드 수정 완료!")
+
+                        st.success("✅ 로컬 & 클라우드 수정 완료!")
+                        time.sleep(0.5)
+                        st.rerun()
                     except Exception as e:
-                        st.warning(f"로컬은 수정되었으나 클라우드 동기화 실패: {e}")
-                    
-                    time.sleep(0.5)
-                    st.rerun()
-        else:
+                        st.error(f"❌ 저장 실패: {e}")
+    else:
+        # --- [조회 모드] ---
+        with col_img:
+            img_url = item.get('img_url')
+            if img_url: st.image(img_url, use_container_width=True)
+        with col_txt:
             st.markdown(f'# {item.get("title")}')
             st.write(f"**[{item.get('category')}]** {item.get('creator')}")
             st.write(f"**📅 {item.get('rel_date')} | 📍 {item.get('venue')}**")
@@ -239,7 +265,6 @@ def show_details(item):
             if item.get('summary'): st.write(f"**줄거리:**\n{item.get('summary')}")
             if item.get('highlights'): st.warning(f"**인상 깊은 부분:**\n{item.get('highlights')}")
             if item.get('note'): st.success(f"**나의 감상:**\n{item.get('note')}")
-
 # --- [5. 메인 화면] ---
 if is_admin: tab_w, tab_a = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 else: 
@@ -403,6 +428,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
