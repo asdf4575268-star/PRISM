@@ -224,9 +224,20 @@ with tab_a:
         y_df = all_df[all_df['v_dt'].dt.year == sel_y]
 
         if is_admin:
-            c1, c2, _ = st.columns([0.15, 0.15, 0.7])
-            with c1: st.button("📤 Backup", on_click=migrate_to_supabase, use_container_width=True)
-            with c2: st.button("📥 Restore", on_click=restore_from_supabase, use_container_width=True)
+        # 상태 메시지 표시 로직
+        if 'sync_msg' in st.session_state:
+            m_type, m_txt = st.session_state.sync_msg
+            if m_type == "success": st.success(m_txt)
+            elif m_type == "warning": st.warning(m_txt)
+            else: st.error(m_txt)
+            del st.session_state.sync_msg # 표시 후 삭제
+
+        c1, c2, _ = st.columns([0.15, 0.15, 0.7])
+        with c1:
+            # st.rerun() 없이 on_click만 사용
+            st.button("📤 Backup", on_click=migrate_to_supabase, use_container_width=True)
+        with c2:
+            st.button("📥 Restore", on_click=restore_from_supabase, use_container_width=True)
 
         # 카테고리별 탭 (숫자 포함)
         cat_order = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
@@ -263,5 +274,6 @@ with tab_a:
                                     st.markdown(f'<div class="cal-img-box"><div class="badge">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:8], key=f"cat_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else: st.warning("기록이 없습니다.")
+
 
 
