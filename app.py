@@ -262,4 +262,6 @@ with tab2:
                                     st.markdown(f'<div class="cal-img-box"><div class="badge">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:8], key=f"cat_{c_name}_{row['id']}", use_container_width=True): 
                                         show_details(row)
-    else:
+    else: 
+        st.warning("아직 기록된 데이터가 없습니다. WRITE 탭에서 첫 기록을 남겨보세요!")
+
