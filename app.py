@@ -198,9 +198,31 @@ def show_details(item):
                 n_high = st.text_area("✨ 인상 깊은 부분", value=item.get('highlights', ''), height=100)
                 n_note = st.text_area("💬 감상", value=item.get('note', ''), height=100)
                 if st.form_submit_button("💾 저장"):
+                    # 1. 로컬 SQLite 업데이트
                     with sqlite3.connect(DB_NAME) as conn:
-                        conn.execute("""UPDATE archive SET title=?, creator=?, rel_date=?, venue=?, summary=?, brief=?, highlights=?, note=?, view_date=?, img_url=? WHERE id=?""", (n_title, n_creator, n_rel, n_venue, n_sum, n_brief, n_high, n_note, str(n_view_date), n_img, item['id']))
-                    st.success("수정 완료!"); st.rerun()
+                        conn.execute("""UPDATE archive SET title=?, creator=?, rel_date=?, venue=?, summary=?, brief=?, highlights=?, note=?, view_date=?, img_url=? WHERE id=?""", 
+                                     (n_title, n_creator, n_rel, n_venue, n_sum, n_brief, n_high, n_note, str(n_view_date), n_img, item['id']))
+                    
+                    # 2. 슈퍼베이스(Supabase) 업데이트 추가 👈 이 부분!
+                    try:
+                        supabase.table("archive").update({
+                            "title": n_title,
+                            "creator": n_creator,
+                            "rel_date": n_rel,
+                            "venue": n_venue,
+                            "summary": n_sum,
+                            "brief": n_brief,
+                            "highlights": n_high,
+                            "note": n_note,
+                            "view_date": str(n_view_date),
+                            "img_url": n_img
+                        }).eq("title", item['title']).eq("view_date", item['view_date']).execute()
+                        st.success("로컬 & 클라우드 수정 완료!")
+                    except Exception as e:
+                        st.warning(f"로컬은 수정되었으나 클라우드 동기화 실패: {e}")
+                    
+                    time.sleep(0.5)
+                    st.rerun()
         else:
             st.markdown(f'# {item.get("title")}')
             st.write(f"**[{item.get('category')}]** {item.get('creator')}")
@@ -375,6 +397,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
