@@ -2,7 +2,7 @@ import streamlit as st
 import sqlite3
 import requests
 import pandas as pd
-from datetime import date
+from datetime import date, datetime # datetime 추가 확인
 import time
 from supabase import create_client, Client
 
@@ -13,12 +13,62 @@ st.title("🌈PRISM")
 TMDB_API_KEY = "6e7c55b6259b7731655033f783f3fc5b"
 DB_NAME = 'archive_prism_total_v5.db'
 
-# Supabase 연결
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# --- [로그인 시스템] ---
+# --- [2. DB 함수 및 동기화 로직] (사이드바보다 위에 있어야 함) ---
+def init_db():
+    with sqlite3.connect(DB_NAME) as conn:
+        conn.execute('''CREATE TABLE IF NOT EXISTS archive 
+                        (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
+                         rel_date TEXT, venue TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, img_url TEXT, save_date TEXT, view_date TEXT)''')
+init_db()
+
+def migrate_to_supabase():
+    try:
+        with sqlite3.connect(DB_NAME) as conn:
+            conn.row_factory = sqlite3.Row
+            local_data = conn.execute("SELECT * FROM archive").fetchall()
+        
+        if not local_data:
+            st.session_state.sync_msg = ("warning", "로컬 데이터가 없습니다.")
+            return
+
+        upload_list = [dict(row) for row in local_data]
+        for d in upload_list:
+            if 'id' in d: del d['id']
+            
+        supabase.table("archive").upsert(upload_list).execute() # insert 대신 upsert 권장
+        st.session_state.sync_msg = ("success", "✅ 클라우드 백업 완료!")
+    except Exception as e:
+        st.session_state.sync_msg = ("error", f"❌ 백업 실패: {e}")
+
+def restore_from_supabase():
+    try:
+        res = supabase.table("archive").select("*").execute()
+        cloud_data = res.data if hasattr(res, 'data') else res
+        
+        if not cloud_data:
+            st.session_state.sync_msg = ("warning", "클라우드가 비어있습니다.")
+            return
+
+        with sqlite3.connect(DB_NAME) as conn:
+            for row in cloud_data:
+                exists = conn.execute("SELECT id FROM archive WHERE title=? AND view_date=?", 
+                                     (row['title'], row['view_date'])).fetchone()
+                if not exists:
+                    conn.execute("""INSERT INTO archive 
+                        (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, save_date, view_date) 
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                        (row['category'], row['title'], row['creator'], row['rel_date'], 
+                         row['venue'], row['summary'], row['brief'], row['highlights'], 
+                         row['note'], row['img_url'], row['save_date'], row['view_date']))
+        st.session_state.sync_msg = ("success", "✅ 데이터 복구 완료!")
+    except Exception as e:
+        st.session_state.sync_msg = ("error", f"❌ 복구 실패: {e}")
+
+# --- [3. 로그인 시스템 & 사이드바] ---
 with st.sidebar:
     st.markdown("### 🔐 Admin Access")
     input_password = st.text_input("Password", type="password")
@@ -29,89 +79,19 @@ with st.sidebar:
         st.divider()
         st.markdown("### 🔄 Data Sync")
         
-        # 동기화 결과 메시지 표시
         if 'sync_msg' in st.session_state:
             m_type, m_txt = st.session_state.sync_msg
             if m_type == "success": st.success(m_txt)
             elif m_type == "warning": st.warning(m_txt)
-            elif m_type == "info": st.info(m_txt)
             else: st.error(m_txt)
             del st.session_state.sync_msg
         
-        # 사이드바에 배치된 버튼
+        # 이제 함수가 위에 정의되어 있으므로 에러가 나지 않습니다.
         st.button("📤 Cloud Backup", on_click=migrate_to_supabase, use_container_width=True)
         st.button("📥 Cloud Restore", on_click=restore_from_supabase, use_container_width=True)
-        st.caption("마지막 동기화 시점: " + datetime.now().strftime("%H:%M:%S"))
         
     elif input_password:
         st.error("Incorrect Password")
-# --- [2. DB 함수 및 동기화] ---
-def init_db():
-    with sqlite3.connect(DB_NAME) as conn:
-        conn.execute('''CREATE TABLE IF NOT EXISTS archive 
-                        (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
-                         rel_date TEXT, venue TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, img_url TEXT, save_date TEXT, view_date TEXT)''')
-init_db()
-
-def migrate_to_supabase():
-    with sqlite3.connect(DB_NAME) as conn:
-        conn.row_factory = sqlite3.Row
-        local_data = conn.execute("SELECT * FROM archive").fetchall()
-    if not local_data:
-        st.session_state.sync_msg = ("warning", "로컬 데이터가 없습니다.")
-        return
-    upload_list = [dict(row) for row in local_data]
-    for d in upload_list:
-        if 'id' in d: del d['id']
-    try:
-        supabase.table("archive").insert(upload_list).execute()
-        st.session_state.sync_msg = ("success", "✅ 클라우드 백업 완료!")
-    except Exception as e:
-        st.session_state.sync_msg = ("error", f"❌ 백업 실패: {e}")
-
-def restore_from_supabase():
-    try:
-        # 1. 슈퍼베이스 연결 테스트 및 데이터 호출
-        res = supabase.table("archive").select("*").execute()
-        
-        # [디버깅용] 데이터 구조가 어떻게 오는지 세션에 임시 저장
-        cloud_data = res.data if hasattr(res, 'data') else res
-        
-        # [체크] 데이터가 아예 없는 경우
-        if not cloud_data or len(cloud_data) == 0:
-            st.session_state.sync_msg = ("warning", "⚠️ 슈퍼베이스 'archive' 테이블에 데이터가 한 줄도 없습니다!")
-            return
-
-        with sqlite3.connect(DB_NAME) as conn:
-            cursor = conn.cursor()
-            
-            # 2. 로컬 DB에 테이블이 없는 경우를 대비해 생성
-            cursor.execute('''CREATE TABLE IF NOT EXISTS archive 
-                            (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
-                             rel_date TEXT, venue TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, img_url TEXT, save_date TEXT, view_date TEXT)''')
-            
-            added_count = 0
-            for row in cloud_data:
-                # 3. 중복 체크 없이 '일단 다 가져오기'를 원하시면 아래 exists 체크를 주석 처리해도 되지만, 
-                # 중복 방지를 위해 제목+날짜로 체크합니다.
-                exists = cursor.execute("SELECT id FROM archive WHERE title=? AND view_date=?", 
-                                     (row.get('title'), row.get('view_date'))).fetchone()
-                
-                if not exists:
-                    cursor.execute("""INSERT INTO archive 
-                        (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, save_date, view_date) 
-                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-                        (row.get('category'), row.get('title'), row.get('creator'), row.get('rel_date'), 
-                         row.get('venue'), row.get('summary'), row.get('brief'), row.get('highlights'), 
-                         row.get('note'), row.get('img_url'), row.get('save_date'), row.get('view_date')))
-                    added_count += 1
-            conn.commit()
-            
-        st.session_state.sync_msg = ("success", f"✅ 복구 완료! 새로운 데이터 {added_count}개를 가져왔습니다. (전체 {len(cloud_data)}개)")
-        
-    except Exception as e:
-        # 에러가 나면 정확히 어떤 에러인지 화면에 띄웁니다.
-        st.session_state.sync_msg = ("error", f"❌ 오류 발생: {str(e)}")
 
 # --- [3. API 검색 함수들] ---
 def search_books(query):
@@ -303,5 +283,6 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
