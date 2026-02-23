@@ -1,150 +1,91 @@
-import streamlit as st
-import pandas as pd
-import requests
-from datetime import date
+import sqlite3
 from supabase import create_client, Client
+import sys
 
-# -------------------------
-# 기본 설정
-# -------------------------
-st.set_page_config(layout="wide", page_title="PRISM")
-st.title("🌈 PRISM")
+# ===========================
+# 🔐 Supabase 설정
+# ===========================
 
-# -------------------------
-# 🔑 Supabase 연결
-# -------------------------
-SUPABASE_URL = st.secrets["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+SUPABASE_URL = "여기에_프로젝트_URL"
+SUPABASE_KEY = "여기에_service_role_key"
 
-# -------------------------
-# 📌 데이터 함수
-# -------------------------
+# ===========================
+# ⚙️ 옵션
+# ===========================
 
-def insert_data(data):
-    return supabase.table("archive").insert(data).execute()
+SQLITE_DB_NAME = "archive_prism_total_v5.db"
+TABLE_NAME = "archive"
 
-def get_all_data():
-    res = supabase.table("archive").select("*").order("id", desc=True).execute()
-    return pd.DataFrame(res.data)
+CLEAR_SUPABASE_FIRST = False  # True로 바꾸면 Supabase 테이블 비우고 시작
 
-def delete_item(item_id):
-    return supabase.table("archive").delete().eq("id", item_id).execute()
+# ===========================
+# 🚀 시작
+# ===========================
 
-def update_item(item_id, new_data):
-    return supabase.table("archive").update(new_data).eq("id", item_id).execute()
+print("=== PRISM SQLite → Supabase Migration ===")
 
+# 1️⃣ Supabase 연결
+try:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    print("✅ Supabase 연결 성공")
+except Exception as e:
+    print("❌ Supabase 연결 실패:", e)
+    sys.exit()
 
-# -------------------------
-# 🖋 WRITE 탭
-# -------------------------
-tab1, tab2 = st.tabs(["🖋 WRITE", "📂 ARCHIVE"])
+# 2️⃣ SQLite 연결
+try:
+    conn = sqlite3.connect(SQLITE_DB_NAME)
+    cursor = conn.cursor()
+    print("✅ SQLite 연결 성공")
+except Exception as e:
+    print("❌ SQLite 연결 실패:", e)
+    sys.exit()
 
-with tab1:
+# 3️⃣ 데이터 읽기
+cursor.execute(f"SELECT * FROM {TABLE_NAME}")
+rows = cursor.fetchall()
 
-    category = st.selectbox("카테고리", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"])
-    title = st.text_input("제목")
-    creator = st.text_input("창작자")
-    rel_date = st.text_input("작품 날짜")
-    venue = st.text_input("장소 / 출판사 / 플랫폼")
-    summary = st.text_area("줄거리")
-    brief = st.text_input("요약")
-    highlights = st.text_area("인상 깊은 부분")
-    note = st.text_area("감상")
-    img_url = st.text_input("이미지 URL")
-    view_date = st.date_input("감상일", value=date.today())
+columns = [description[0] for description in cursor.description]
 
-    if st.button("저장", use_container_width=True):
-        try:
-            data = {
-                "category": category,
-                "title": title,
-                "creator": creator,
-                "rel_date": rel_date,
-                "venue": venue,
-                "summary": summary,
-                "brief": brief,
-                "highlights": highlights,
-                "note": note,
-                "img_url": img_url,
-                "save_date": str(date.today()),
-                "view_date": str(view_date),
-            }
+print(f"📦 SQLite 데이터 수: {len(rows)}개")
 
-            insert_data(data)
-            st.success("✅ 저장 완료")
-            st.rerun()
+if len(rows) == 0:
+    print("⚠️ SQLite에 데이터가 없습니다.")
+    sys.exit()
 
-        except Exception as e:
-            st.error(f"❌ 저장 실패: {e}")
+# 4️⃣ Supabase 초기화 옵션
+if CLEAR_SUPABASE_FIRST:
+    print("🧹 Supabase 기존 데이터 삭제 중...")
+    try:
+        supabase.table(TABLE_NAME).delete().neq("id", 0).execute()
+        print("✅ Supabase 초기화 완료")
+    except Exception as e:
+        print("❌ Supabase 초기화 실패:", e)
+        sys.exit()
 
+# 5️⃣ 마이그레이션
+success_count = 0
+fail_count = 0
 
-# -------------------------
-# 📂 ARCHIVE 탭
-# -------------------------
-with tab2:
+for row in rows:
+    record = dict(zip(columns, row))
+
+    # SQLite id 제거 (Supabase는 자동 생성)
+    record.pop("id", None)
 
     try:
-        df = get_all_data()
+        supabase.table(TABLE_NAME).insert(record).execute()
+        success_count += 1
+        print(f"⬆️ 업로드 성공 ({success_count}) : {record.get('title')}")
     except Exception as e:
-        st.error(f"❌ 데이터 로드 실패: {e}")
-        st.stop()
+        fail_count += 1
+        print(f"❌ 실패 : {record.get('title')} → {e}")
 
-    if df.empty:
-        st.info("저장된 데이터가 없습니다.")
-    else:
-        categories = ["ALL"] + sorted(df["category"].unique().tolist())
-        selected_cat = st.selectbox("카테고리 선택", categories)
+# 6️⃣ 종료
+conn.close()
 
-        if selected_cat != "ALL":
-            df = df[df["category"] == selected_cat]
-
-        for _, row in df.iterrows():
-            with st.container():
-                col1, col2 = st.columns([1, 4])
-
-                with col1:
-                    if row["img_url"]:
-                        st.image(row["img_url"], use_container_width=True)
-
-                with col2:
-                    st.subheader(row["title"])
-                    st.write(f"**{row['category']}** | {row['creator']}")
-                    st.write(f"📅 {row['rel_date']} | 🍿 {row['view_date']}")
-                    st.write(row["brief"])
-
-                    c1, c2 = st.columns(2)
-
-                    if c1.button("삭제", key=f"del_{row['id']}"):
-                        delete_item(row["id"])
-                        st.rerun()
-
-                    if c2.button("수정", key=f"edit_{row['id']}"):
-                        st.session_state["edit_id"] = row["id"]
-
-        # -------------------------
-        # 수정 모드
-        # -------------------------
-        if "edit_id" in st.session_state:
-            edit_row = df[df["id"] == st.session_state["edit_id"]].iloc[0]
-
-            st.divider()
-            st.subheader("✏️ 수정")
-
-            n_title = st.text_input("제목", edit_row["title"])
-            n_creator = st.text_input("창작자", edit_row["creator"])
-            n_note = st.text_area("감상", edit_row["note"])
-
-            if st.button("수정 저장"):
-                update_item(
-                    edit_row["id"],
-                    {
-                        "title": n_title,
-                        "creator": n_creator,
-                        "note": n_note,
-                    },
-                )
-                del st.session_state["edit_id"]
-                st.success("수정 완료")
-                st.rerun()
-
+print("\n============================")
+print("🎉 마이그레이션 완료")
+print(f"✅ 성공: {success_count}")
+print(f"❌ 실패: {fail_count}")
+print("============================")
