@@ -151,6 +151,19 @@ def search_kopis(query):
             })
         return results
     except: return []
+def get_kopis_detail(mt20id):
+    url = f"http://www.kopis.or.kr/openApi/restful/pblprfr/{mt20id}?service={KOPIS_KEY}"
+    try:
+        res = requests.get(url)
+        root = ET.fromstring(res.content)
+        d = root.find('db')
+        if d is not None:
+            crew = d.findtext('prfcrew').strip() if d.findtext('prfcrew') else ""
+            cast = d.findtext('prfcast').strip() if d.findtext('prfcast') else ""
+            if not crew and not cast: return "정보 없음"
+            return f"{crew} / {cast}".strip(" / ")
+    except: return "상세정보 로드 실패"
+    return "정보 없음"
 
 # --- [4. 팝업 상세 보기] ---
 @st.dialog("📋 기록", width="large")
@@ -307,6 +320,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
