@@ -317,6 +317,148 @@ def show_details(item):
             if item.get('highlights'): st.warning(f"**인상 깊은 부분:**\n{item.get('highlights')}")
             if item.get('note'): st.success(f"**나의 감상:**\n{item.get('note')}")
 
+# --- [5. 메인 화면: 탭 설정] ---
+# 로그인 상태(is_admin)에 따라 탭 구성을 다르게 합니다.
+if is_admin:
+    tab_w, tab_a = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
+else:
+    # 관리자가 아닐 때는 ARCHIVE 탭만 생성
+    tabs = st.tabs(["📂 ARCHIVE"])
+    tab_a = tabs[0]
+    tab_w = None
+
+# --- [WRITE 탭 로직] ---
+if is_admin and tab_w:
+    with tab_w:
+        category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"], horizontal=True)
+        search_query = st.text_input(f"🔍 {category} 검색")
+        
+        if search_query:
+            # 1. BOOKS 검색
+            if category == "BOOKS":
+                res = search_books(search_query)
+                if res:
+                    opts = {f"📚 {b['title']}": b for b in res}
+                    sel = st.selectbox("결과 선택", list(opts.keys()))
+                    if st.button("✨ 가져오기"):
+                        b = opts[sel]
+                        st.session_state.api_data = {
+                            'title': b['title'], 
+                            'creator': ", ".join(b['authors']), 
+                            'date': b['datetime'][:10], 
+                            'img': b.get('thumbnail', '').replace("R120x174", "R400x0"), 
+                            'venue': b.get('publisher', ''), 
+                            'summary': b.get('contents', '')
+                        }
+                        st.rerun()
+
+            # 2. MUSIC 검색
+            elif category == "MUSIC":
+                res = search_apple_music(search_query)
+                if res:
+                    opts = {m['display_name']: m for m in res}
+                    sel = st.selectbox("결과 선택", list(opts.keys()))
+                    if st.button("✨ 가져오기"):
+                        m = opts[sel]
+                        st.session_state.api_data = {
+                            'title': m['title'], 
+                            'creator': m['creator'], 
+                            'date': m['date'], 
+                            'img': m['img'], 
+                            'summary': f"{m.get('url', '')}\n\n"
+                        }
+                        st.rerun()
+
+            # 3. STAGE 검색
+            elif category == "STAGE":
+                res = search_kopis(search_query)
+                if res:
+                    opts = {f"🎭 {s['title']} [{s['date']}~] ({s['venue']})": s for s in res}
+                    sel = st.selectbox("결과 선택", list(opts.keys()))
+                    if st.button("✨ 가져오기"):
+                        s = opts[sel]
+                        combined_creator = get_kopis_detail(s['id'])
+                        st.session_state.api_data = {
+                            'title': s['title'], 
+                            'creator': combined_creator, 
+                            'date': s['date'], 
+                            'venue': s['venue'], 
+                            'img': s['img'], 
+                            'summary': f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id={s['id']}"
+                        }
+                        st.rerun()
+
+            # 4. MOVIES / SERIES 검색
+            else: 
+                res = search_tmdb(search_query, category)
+                if res:
+                    t_key = 'title' if category == 'MOVIES' else 'name'
+                    d_key = 'release_date' if category == 'MOVIES' else 'first_air_date'
+                    opts = {f"🎬 {r.get(t_key)} ({str(r.get(d_key))[:4]})": r for r in res}
+                    sel = st.selectbox("결과 선택", list(opts.keys()))
+                    if st.button("✨ 가져오기"):
+                        s = opts[sel]
+                        details = get_tmdb_details(s['id'], category)
+                        st.session_state.api_data = {
+                            'title': s.get(t_key), 
+                            'creator': details['creator'], 
+                            'date': s.get(d_key), 
+                            'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", 
+                            'venue': details['venue'],
+                            'summary': s.get('overview', '')
+                        }
+                        st.rerun()
+
+        st.divider()
+        data = st.session_state.get('api_data', {})
+        cl, cr = st.columns([0.4, 0.6])
+        with cl:
+            img_url_val = st.text_input("🖼️ 이미지 URL", value=data.get('img', ''))
+            if img_url_val: st.image(img_url_val, use_container_width=True)
+            title = st.text_input("제목", value=data.get('title', ''))
+            creator = st.text_input("창작자 정보", value=data.get('creator', ''))
+            rel_date = st.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
+            venue = st.text_input("📍 장소/플랫폼", value=data.get('venue', ''))
+        with cr:
+            summary = st.text_area("📖 줄거리", value=data.get('summary', ''), height=100)
+            brief = st.text_input("📝 요약 (한 줄 평)")
+            highlights = st.text_area("✨ 인상 깊은 부분", height=100)
+            note = st.text_area("💬 나의 감상", height=100)
+            view_date = st.date_input("🍿 감상일", value=date.today())
+            
+            if st.button("✅ 기록 저장", use_container_width=True):
+                new_record = {
+                    "category": category, "title": title, "creator": creator, 
+                    "rel_date": rel_date, "venue": venue, "summary": summary, 
+                    "brief": brief, "highlights": highlights, "note": note, 
+                    "img_url": img_url_val, "save_date": str(date.today()), "view_date": str(view_date)
+                }
+                try:
+                    with sqlite3.connect(DB_NAME) as conn:
+                        conn.execute("""INSERT INTO archive 
+                                        (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, save_date, view_date) 
+                                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", 
+                                     (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url_val, str(date.today()), str(view_date)))
+                    supabase.table("archive").insert(new_record).execute()
+                    st.success("✅ 저장 완료!")
+                    st.session_state.api_data = {}
+                    time.sleep(0.5)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ 오류: {e}")
+
+# --- [ARCHIVE 탭 로직] ---
+# tab_a는 is_admin 여부와 상관없이 항상 존재하므로 안전하게 실행됩니다.
+with tab_a:
+    # (이미 작성하신 ARCHIVE 탭 스타일 및 출력 로직 그대로 유지)
+    st.markdown("""<style>
+        .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1.4; overflow: hidden; border-radius: 8px; margin-bottom: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); transition: 0.3s; }
+        .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
+        .badge { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+    </style>""", unsafe_allow_html=True)
+    
+    # ... (이후의 데이터 로드 및 sub_tabs 출력 코드들)
+
 # --- [ARCHIVE 탭] ---
 with tab_a:
     # --- [스타일 정의] ---
@@ -377,6 +519,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
