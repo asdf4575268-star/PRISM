@@ -13,9 +13,8 @@ st.title("🌈 PRISM")
 # -------------------------
 # 🔑 Supabase 연결
 # -------------------------
-SUPABASE_URL = "여기에_프로젝트_URL"
-SUPABASE_KEY = "여기에_service_role_key"
-
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # -------------------------
@@ -148,3 +147,4 @@ with tab2:
                 del st.session_state["edit_id"]
                 st.success("수정 완료")
                 st.rerun()
+
