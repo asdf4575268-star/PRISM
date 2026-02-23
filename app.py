@@ -13,7 +13,7 @@ from PIL import Image
 st.set_page_config(
     layout="wide", 
     page_title="PRISM",
-    page_icon="https://github.com/asdf4575268-star/PRISM/blob/main/LOGO1.jpg",  # 여기에 이미지 URL을 직접 넣으면 됩니다.
+    page_icon="🌈",  # 여기에 이미지 URL을 직접 넣으면 됩니다.
     initial_sidebar_state="collapsed"
 )
 
@@ -402,6 +402,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
