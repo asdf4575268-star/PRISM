@@ -45,7 +45,7 @@ def migrate_to_supabase():
         for d in upload_list:
             if 'id' in d: del d['id']
             
-        supabase.table("archive").upsert(upload_list).execute() # insert 대신 upsert 권장
+        supabase.table("archive").upsert(new_record, on_conflict="title, view_date").execute() # insert 대신 upsert 권장
         st.session_state.sync_msg = ("success", "✅ 클라우드 백업 완료!")
     except Exception as e:
         st.session_state.sync_msg = ("error", f"❌ 백업 실패: {e}")
@@ -505,6 +505,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
