@@ -7,13 +7,15 @@ import time
 import re 
 import xml.etree.ElementTree as ET
 from supabase import create_client, Client
+from PIL import Image
 
 # --- [1. 설정 및 API] ---
+img = Image.open(r"C:\run_app\PRISM\LOGO1.jpg")
 st.set_page_config(
     layout="wide", 
-    page_title="PRISM", # 앱 설치 시 이름
-    page_icon="🌈",            # 앱 아이콘 (이모지 대신 이미지 URL 가능)
-    initial_sidebar_state="collapsed" # 좁은 모바일 화면에서 사이드바 자동 숨김
+    page_title="PRISM",
+    page_icon=img,  # 이모지 "🌈" 대신 불러온 이미지 객체(img)를 넣습니다.
+    initial_sidebar_state="collapsed"
 )
 
 TMDB_API_KEY = "6e7c55b6259b7731655033f783f3fc5b"
@@ -401,6 +403,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
