@@ -166,7 +166,7 @@ def show_details(item):
         else:
             st.markdown(f'# {item.get("title")}')
             st.write(f"**[{item.get('category')}]** {item.get('creator')}")
-            st.write(f"**[📅{item.get('rel_date')} | 📍{item.get('venue')}")
+            st.write(f"**[📅{item.get('rel_date')} | 📍{item.get('venue')}**")
             st.markdown(f'<p style="color: #FF4B4B; font-weight: bold; font-size: 1.2em;">🍿 {item.get("view_date")}</p>', unsafe_allow_html=True)
             st.divider()
             if item.get('brief'): st.info(f"**요약:** {item.get('brief')}")
@@ -284,6 +284,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
