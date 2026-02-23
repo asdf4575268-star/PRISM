@@ -122,8 +122,8 @@ def search_apple_music(query):
     except: return []
 
 def get_tmdb(query, category):
-    """TMDB에서 영화 또는 TV 시리즈 목록을 검색 (Line 349 호출명에 맞춤)"""
-    # 카테고리명에 'MOVIES'가 포함되어 있는지 확인 (이모지 대응)
+    """TMDB에서 영화/TV 목록을 검색합니다."""
+    # 카테고리명에 'MOVIES'가 포함되어 있으면 movie, 아니면 tv
     type_path = "movie" if "MOVIES" in category else "tv"
     url = f"https://api.themoviedb.org/3/search/{type_path}?api_key={TMDB_API_KEY}&query={query}&language=ko-KR"
     try:
@@ -134,14 +134,16 @@ def get_tmdb(query, category):
     except:
         return []
 
+# 2. 상세 정보 가져오기 함수 (가져오기 버튼 클릭 시 실행)
 def get_tmdb_details(item_id, category):
-    """선택한 항목의 상세 정보(감독, 출연진) 가져오기"""
+    """선택한 작품의 감독과 출연진 정보를 가져옵니다."""
     type_path = "movie" if "MOVIES" in category else "tv"
     url = f"https://api.themoviedb.org/3/{type_path}/{item_id}/credits?api_key={TMDB_API_KEY}&language=ko-KR"
     try:
         res = requests.get(url).json()
-        # 영화는 Director, TV는 일반적으로 첫 번째 제작진 혹은 정보 없음 처리
+        # 감독(Director) 찾기, 없으면 정보 없음
         director = next((m['name'] for m in res.get('crew', []) if m.get('job') == 'Director'), "정보 없음")
+        # 출연진 상위 3명
         cast = ", ".join([c['name'] for c in res.get('cast', [])[:3]])
         return f"감독: {director} / 출연: {cast}"
     except:
@@ -432,6 +434,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
