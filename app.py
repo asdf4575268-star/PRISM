@@ -12,8 +12,8 @@ import xml.etree.ElementTree as ET
 st.set_page_config(layout="centered", page_title="PRISM")
 st.title("🌈 PRISM")
 
-SUPABASE_URL = st.secrets["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+SUPABASE_URL = st.secrets["https://zfdmzpzcbpwtphvmmybi.supabase.co"]
+SUPABASE_KEY = st.secrets["sb_publishable_x87qx0j8INpFH353qhtuYA_XdSst2mp"]
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 TMDB_API_KEY = "YOUR_TMDB_KEY"
@@ -208,3 +208,4 @@ with tab2:
                                 if st.button("삭제"):
                                     delete_content(show["id"])
                                     st.rerun()
+
