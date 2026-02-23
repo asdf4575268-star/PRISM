@@ -1,4 +1,4 @@
 streamlit
-pandas
+supabase
 requests
-ytmusicapi
+pandas
