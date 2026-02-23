@@ -425,25 +425,52 @@ if is_admin and tab_w:
             view_date = st.date_input("🍿 감상일", value=date.today())
             
             if st.button("✅ 기록 저장", use_container_width=True):
+                # 1. 데이터 정리 (None 값이나 공백 처리)
                 new_record = {
-                    "category": category, "title": title, "creator": creator, 
-                    "rel_date": rel_date, "venue": venue, "summary": summary, 
-                    "brief": brief, "highlights": highlights, "note": note, 
-                    "img_url": img_url_val, "save_date": str(date.today()), "view_date": str(view_date)
+                    "category": str(category),
+                    "title": str(title).strip(),
+                    "creator": str(creator).strip(),
+                    "rel_date": str(rel_date),
+                    "venue": str(venue).strip(),
+                    "summary": str(summary).strip(),
+                    "brief": str(brief).strip(),
+                    "highlights": str(highlights).strip(),
+                    "note": str(note).strip(),
+                    "img_url": str(img_url_val).strip(),
+                    "save_date": str(date.today()),
+                    "view_date": str(view_date)
                 }
+                
                 try:
+                    # 2. 로컬 SQLite 저장
                     with sqlite3.connect(DB_NAME) as conn:
                         conn.execute("""INSERT INTO archive 
                                         (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, save_date, view_date) 
                                         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", 
-                                     (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url_val, str(date.today()), str(view_date)))
-                    supabase.table("archive").insert(new_record).execute()
-                    st.success("✅ 저장 완료!")
+                                     (new_record["category"], new_record["title"], new_record["creator"], 
+                                      new_record["rel_date"], new_record["venue"], new_record["summary"], 
+                                      new_record["brief"], new_record["highlights"], new_record["note"], 
+                                      new_record["img_url"], new_record["save_date"], new_record["view_date"]))
+                    
+                    # 3. Supabase 저장 (upsert 사용으로 중복 방지)
+                    # title과 view_date가 같으면 덮어씌우도록 설정 (on_conflict 설정이 안 되어 있다면 기본 insert로 동작)
+                    res = supabase.table("archive").upsert(new_record).execute()
+                    
+                    # 4. 결과 확인용 (잠시 추가)
+                    if hasattr(res, 'data'):
+                        st.success("✅ 로컬 & 클라우드 저장 완료!")
+                    else:
+                        st.warning("⚠️ 로컬은 저장되었으나 클라우드 응답이 이상합니다.")
+                    
                     st.session_state.api_data = {}
-                    time.sleep(0.5)
+                    time.sleep(0.8)
                     st.rerun()
+                    
                 except Exception as e:
-                    st.error(f"❌ 오류: {e}")
+                    # 모든 종류의 에러를 잡아서 출력
+                    st.error(f"❌ 저장 중 오류 발생: {str(e)}")
+                    # 콘솔에도 출력 (터미널 확인용)
+                    print(f"DEBUG ERROR: {e}")
 
 # --- [ARCHIVE 탭] ---
 with tab_a:
@@ -505,6 +532,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
