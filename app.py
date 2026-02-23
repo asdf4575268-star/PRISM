@@ -122,8 +122,8 @@ def search_apple_music(query):
     except: return []
 
 def get_tmdb(query, category):
-    """TMDB에서 영화 또는 TV 시리즈 목록을 검색 (Line 349의 호출명과 일치시킴)"""
-    # 이모지가 포함된 카테고리명에서도 판별 가능하도록 처리
+    """TMDB에서 영화 또는 TV 시리즈 목록을 검색 (Line 349 호출명에 맞춤)"""
+    # 카테고리명에 'MOVIES'가 포함되어 있는지 확인 (이모지 대응)
     type_path = "movie" if "MOVIES" in category else "tv"
     url = f"https://api.themoviedb.org/3/search/{type_path}?api_key={TMDB_API_KEY}&query={query}&language=ko-KR"
     try:
@@ -140,6 +140,7 @@ def get_tmdb_details(item_id, category):
     url = f"https://api.themoviedb.org/3/{type_path}/{item_id}/credits?api_key={TMDB_API_KEY}&language=ko-KR"
     try:
         res = requests.get(url).json()
+        # 영화는 Director, TV는 일반적으로 첫 번째 제작진 혹은 정보 없음 처리
         director = next((m['name'] for m in res.get('crew', []) if m.get('job') == 'Director'), "정보 없음")
         cast = ", ".join([c['name'] for c in res.get('cast', [])[:3]])
         return f"감독: {director} / 출연: {cast}"
@@ -431,6 +432,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
