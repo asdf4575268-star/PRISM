@@ -23,11 +23,28 @@ with st.sidebar:
     st.markdown("### 🔐 Admin Access")
     input_password = st.text_input("Password", type="password")
     is_admin = (input_password == st.secrets["ADMIN_PASSWORD"])
-    if is_admin: st.success("Admin Mode Active")
-    elif input_password: st.error("Incorrect Password")
-
-if 'api_data' not in st.session_state: st.session_state.api_data = {}
-
+    
+    if is_admin:
+        st.success("Admin Mode Active")
+        st.divider()
+        st.markdown("### 🔄 Data Sync")
+        
+        # 동기화 결과 메시지 표시
+        if 'sync_msg' in st.session_state:
+            m_type, m_txt = st.session_state.sync_msg
+            if m_type == "success": st.success(m_txt)
+            elif m_type == "warning": st.warning(m_txt)
+            elif m_type == "info": st.info(m_txt)
+            else: st.error(m_txt)
+            del st.session_state.sync_msg
+        
+        # 사이드바에 배치된 버튼
+        st.button("📤 Cloud Backup", on_click=migrate_to_supabase, use_container_width=True)
+        st.button("📥 Cloud Restore", on_click=restore_from_supabase, use_container_width=True)
+        st.caption("마지막 동기화 시점: " + datetime.now().strftime("%H:%M:%S"))
+        
+    elif input_password:
+        st.error("Incorrect Password")
 # --- [2. DB 함수 및 동기화] ---
 def init_db():
     with sqlite3.connect(DB_NAME) as conn:
@@ -236,42 +253,23 @@ with tab_a:
         .badge { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
     </style>""", unsafe_allow_html=True)
 
-    # --- [데이터 불러오기] ---
     with sqlite3.connect(DB_NAME) as conn:
         all_df = pd.read_sql_query("SELECT * FROM archive ORDER BY view_date DESC", conn)
 
     if not all_df.empty:
         all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
         
-        # --- [1. 관리자 전용 동기화 영역] ---
-        if is_admin:
-            # 동기화 결과 메시지 출력
-            if 'sync_msg' in st.session_state:
-                m_type, m_txt = st.session_state.sync_msg
-                if m_type == "success": st.success(m_txt)
-                elif m_type == "warning": st.warning(m_txt)
-                elif m_type == "info": st.info(m_txt)
-                else: st.error(m_txt)
-                del st.session_state.sync_msg # 출력 후 삭제
-            
-            c1, c2, _ = st.columns([0.15, 0.15, 0.7])
-            with c1: 
-                st.button("📤 Backup", on_click=migrate_to_supabase, use_container_width=True, help="로컬 데이터를 클라우드로 복사")
-            with c2: 
-                st.button("📥 Restore", on_click=restore_from_supabase, use_container_width=True, help="클라우드 데이터를 로컬로 가져오기")
-
-        # --- [2. 탭 구성 (숫자는 전체 기준)] ---
+        # --- [탭 구성] ---
         cat_order = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
         tab_titles = [f"📅 ALL ({len(all_df)})"] + [f"📂 {c} ({len(all_df[all_df['category'] == c])})" for c in cat_order]
         sub_tabs = st.tabs(tab_titles)
 
-        # --- [3. ALL 탭: 연도별로 모아보기] ---
+        # --- [ALL 탭: 연도별 필터] ---
         with sub_tabs[0]:
             years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
-            year_options = {y: f"{y} ({len(all_df[all_df['v_dt'].dt.year == y])})" for y in years}
-            
-            # 연도 선택 필터
+            year_options = {y: f"{y}년 기록 ({len(all_df[all_df['v_dt'].dt.year == y])})" for y in years}
             sel_y = st.selectbox("📅 연도 선택", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
+            
             y_df = all_df[all_df['v_dt'].dt.year == sel_y]
             
             for m in range(12, 0, -1):
@@ -286,15 +284,13 @@ with tab_a:
                                 row = items[i+j]
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box"><div class="badge">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
-                                    if st.button(row['title'][:8], key=f"all_btn_{row['id']}", use_container_width=True): 
-                                        show_details(row)
+                                    if st.button(row['title'][:8], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
 
-        # --- [4. 카테고리 탭: 연도 무시하고 전체 최신순] ---
+        # --- [카테고리 탭: 전체 기록] ---
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
                 c_data = all_df[all_df['category'] == c_name]
-                if c_data.empty: 
-                    st.info(f"{c_name} 카테고리에 아직 기록이 없습니다.")
+                if c_data.empty: st.info(f"{c_name} 데이터 없음")
                 else:
                     items = c_data.to_dict('records')
                     for i in range(0, len(items), 6):
@@ -303,10 +299,9 @@ with tab_a:
                             if i+j < len(items):
                                 row = items[i+j]
                                 with cols[j]:
-                                    # 카테고리 탭은 여러 연도가 섞이므로 배지에 전체 날짜 표시
                                     st.markdown(f'<div class="cal-img-box"><div class="badge">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
-                                    if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): 
-                                        show_details(row)
-    else: 
-        st.warning("아직 기록된 데이터가 없습니다. WRITE 탭에서 첫 기록을 시작해 보세요!")
+                                    if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+    else:
+        st.warning("기록이 없습니다.")
+
 
