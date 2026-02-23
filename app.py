@@ -8,8 +8,15 @@ import re
 import xml.etree.ElementTree as ET
 from supabase import create_client, Client
 from PIL import Image
+import streamlit.components.v1 as components
 
 # --- [1. 설정 및 API] ---
+st.markdown(f"""
+    <head>
+        <meta name="apple-mobile-web-app-title" content="TITAN BOY">
+        <meta name="application-name" content="TITAN BOY">
+    </head>
+""", unsafe_allow_globals=True)
 st.set_page_config(
     layout="wide", 
     page_title="PRISM",
@@ -402,6 +409,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
