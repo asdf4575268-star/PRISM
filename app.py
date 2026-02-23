@@ -13,7 +13,7 @@ st.set_page_config(layout="centered", page_title="PRISM")
 st.title("🌈 PRISM")
 
 SUPABASE_URL = st.secrets["https://zfdmzpzcbpwtphvmmybi.supabase.co"]
-SUPABASE_KEY = st.secrets["sb_publishable_x87qx0j8INpFH353qhtuYA_XdSst2mp"]
+SUPABASE_KEY = st.secrets["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpmZG16cHpjYnB3dHBodm1teWJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4MTc2MDQsImV4cCI6MjA4NzM5MzYwNH0.LYF5Ly15Y5NiWuitcdgv-A34y3_fCH4shM2otDiFOhY"]
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 TMDB_API_KEY = "YOUR_TMDB_KEY"
@@ -208,4 +208,5 @@ with tab2:
                                 if st.button("삭제"):
                                     delete_content(show["id"])
                                     st.rerun()
+
 
