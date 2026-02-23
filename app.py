@@ -11,7 +11,7 @@ st.set_page_config(layout="wide", page_title="PRISM")
 st.title("🌈PRISM")
 
 TMDB_API_KEY = "6e7c55b6259b7731655033f783f3fc5b"
-DB_NAME = 'archive_prism_total_v5.db'
+DB_NAME = 'archive_prism_total_v6.db'
 
 # Supabase 연결
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
@@ -294,4 +294,5 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else: 
         st.warning("기록이 없습니다.")
+
 
