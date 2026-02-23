@@ -6,8 +6,8 @@ import sys
 # 🔐 Supabase 설정
 # ===========================
 
-SUPABASE_URL = "여기에_프로젝트_URL"
-SUPABASE_KEY = "여기에_service_role_key"
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
 # ===========================
 # ⚙️ 옵션
@@ -89,3 +89,4 @@ print("🎉 마이그레이션 완료")
 print(f"✅ 성공: {success_count}")
 print(f"❌ 실패: {fail_count}")
 print("============================")
+
