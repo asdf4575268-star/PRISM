@@ -218,13 +218,15 @@ with tab2:
 
     if not all_df.empty:
         cat_list = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
-        sub_tabs = st.tabs([f"📅 ALL ({len(all_df)})"] + cat_list)
+        # 메인 탭 생성 (전체 + 5개 카테고리)
+        sub_tabs = st.tabs([f"📅 ALL ({len(all_df)})"] + [f"📂 {c}" for c in cat_list])
 
-        with sub_tabs[0]: # 연도별 보기
+        # 1. [전체 보기 탭] - 연도/월별 그룹화
+        with sub_tabs[0]:
             all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
             years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
             if years:
-                sel_y = st.selectbox("연도", years)
+                sel_y = st.selectbox("연도 선택", years, key="year_sel")
                 y_data = all_df[all_df['v_dt'].dt.year == sel_y]
                 for m in range(12, 0, -1):
                     m_data = y_data[y_data['v_dt'].dt.month == m]
@@ -238,4 +240,26 @@ with tab2:
                                     row = items[i+j]
                                     with cols[j]:
                                         st.markdown(f'<div class="cal-img-box"><div class="badge">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
-                                        if st.button(row['title'][:8], key=f"all_{row['id']}", use_container_width=True): show_details(row)
+                                        if st.button(row['title'][:8], key=f"all_{row['id']}", use_container_width=True): 
+                                            show_details(row)
+
+        # 2. [카테고리별 탭] - 선택한 카테고리만 필터링
+        for idx, c_name in enumerate(cat_list):
+            with sub_tabs[idx + 1]: # sub_tabs[0]이 전체이므로 +1
+                c_data = all_df[all_df['category'] == c_name]
+                if c_data.empty:
+                    st.info(f"{c_name} 카테고리에 아직 기록된 데이터가 없습니다.")
+                else:
+                    st.write(f"총 {len(c_data)}개의 기록이 있습니다.")
+                    items = c_data.to_dict('records')
+                    for i in range(0, len(items), 6):
+                        cols = st.columns(6)
+                        for j in range(6):
+                            if i+j < len(items):
+                                row = items[i+j]
+                                with cols[j]:
+                                    # 카테고리 탭에서는 날짜 전체 표시
+                                    st.markdown(f'<div class="cal-img-box"><div class="badge">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
+                                    if st.button(row['title'][:8], key=f"cat_{c_name}_{row['id']}", use_container_width=True): 
+                                        show_details(row)
+    else:
