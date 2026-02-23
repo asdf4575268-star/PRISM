@@ -152,30 +152,32 @@ def get_tmdb_details(item_id, category):
     is_movie = "MOVIES" in category
     type_path = "movie" if is_movie else "tv"
     
-    # 상세 정보 호출 (networks 정보 등을 포함)
+    # 상세 정보 호출
     url = f"https://api.themoviedb.org/3/{type_path}/{item_id}?api_key={TMDB_API_KEY}&language=ko-KR&append_to_response=credits"
     
     try:
         res = requests.get(url).json()
         crew_list = res.get('credits', {}).get('crew', [])
         
-        # 1. 창작자 정보 구성 (이전과 동일)
+        # [창작자 정보 구성]
         if is_movie:
             director = next((m['name'] for m in crew_list if m.get('job') == 'Director'), "정보 없음")
             creator_info = f"감독: {director}"
-            # 영화는 제작사(Production Companies) 첫 번째꺼 가져오기
-            venue_info = res.get('production_companies', [{}])[0].get('name', '')
+            # 영화는 제작사(Production Companies) 정보 가져오기
+            companies = res.get('production_companies', [])
+            venue_info = companies[0].get('name', '') if companies else ""
         else:
             creators = res.get('created_by', [])
             creator_names = ", ".join([c['name'] for c in creators]) if creators else \
                             next((m['name'] for m in crew_list if m.get('job') in ['Writer', 'Executive Producer']), "정보 없음")
             creator_info = f"작가/제작: {creator_names}"
-            # 시리즈는 방송사/플랫폼(Networks) 가져오기
-            venue_info = res.get('networks', [{}])[0].get('name', '')
+            # 시리즈는 방송사/네트워크(Networks) 정보 가져오기
+            networks = res.get('networks', [])
+            venue_info = networks[0].get('name', '') if networks else ""
 
-        cast = ", ".join([c['name'] for c in res.get('credits', {}).get('cast', [])[:4]])
+        # 출연진 정보 추가
+        cast = ", ".join([c['name'] for c in res.get('credits', {}).get('cast', [])[:3]])
         
-        # 리턴 값을 딕셔너리로 주어 제목 아래 여러 칸에 나눠 넣을 수 있게 합니다.
         return {
             "creator": f"{creator_info} / 출연: {cast}",
             "venue": venue_info
@@ -470,6 +472,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
