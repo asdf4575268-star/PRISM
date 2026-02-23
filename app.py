@@ -222,23 +222,44 @@ if is_admin and tab_w:
     with tab_w:
         category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"], horizontal=True)
         search_query = st.text_input(f"🔍 {category} 검색")
+        
         if search_query:
+            # 1. BOOKS 검색
             if category == "BOOKS":
                 res = search_books(search_query)
                 if res:
-                    opts = {f"📚 {b['title']}": b for b in res}; sel = st.selectbox("결과 선택", list(opts.keys()))
+                    opts = {f"📚 {b['title']}": b for b in res}
+                    sel = st.selectbox("결과 선택", list(opts.keys()))
                     if st.button("✨ 가져오기"):
-                        b = opts[sel]; st.session_state.api_data = {'title': b['title'], 'creator': ", ".join(b['authors']), 'date': b['datetime'][:10], 'img': b.get('thumbnail', '').replace("R120x174", "R400x0"), 'venue': b.get('publisher', ''), 'summary': b.get('contents', '')}
+                        b = opts[sel]
+                        st.session_state.api_data = {
+                            'title': b['title'], 
+                            'creator': ", ".join(b['authors']), 
+                            'date': b['datetime'][:10], 
+                            'img': b.get('thumbnail', '').replace("R120x174", "R400x0"), 
+                            'venue': b.get('publisher', ''), 
+                            'summary': b.get('contents', '')
+                        }
                         st.rerun()
+
+            # 2. MUSIC 검색
             elif category == "MUSIC":
-            res = search_apple_music(search_query)
-            if res:
-                opts = {m['display_name']: m for m in res}
-                sel = st.selectbox("결과 선택", list(opts.keys()))
-                if st.button("✨ 가져오기"):
-                    m = opts[sel]
-                    st.session_state.api_data = {'title': m['title'], 'creator': m['creator'], 'date': m['date'], 'img': m['img'], 'summary': f"{m['url']}\n\n"}
-                    st.rerun()
+                res = search_apple_music(search_query)
+                if res:
+                    opts = {m['display_name']: m for m in res}
+                    sel = st.selectbox("결과 선택", list(opts.keys()))
+                    if st.button("✨ 가져오기"):
+                        m = opts[sel]
+                        st.session_state.api_data = {
+                            'title': m['title'], 
+                            'creator': m['creator'], 
+                            'date': m['date'], 
+                            'img': m['img'], 
+                            'summary': f"{m.get('url', '')}\n\n"
+                        }
+                        st.rerun()
+
+            # 3. STAGE 검색
             elif category == "STAGE":
                 res = search_kopis(search_query)
                 if res:
@@ -247,9 +268,18 @@ if is_admin and tab_w:
                     if st.button("✨ 가져오기"):
                         s = opts[sel]
                         combined_creator = get_kopis_detail(s['id'])
-                        st.session_state.api_data = {'title': s['title'], 'creator': combined_creator, 'date': s['date'], 'venue': s['venue'], 'img': s['img'], 'summary': f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id={s['id']}"}
+                        st.session_state.api_data = {
+                            'title': s['title'], 
+                            'creator': combined_creator, 
+                            'date': s['date'], 
+                            'venue': s['venue'], 
+                            'img': s['img'], 
+                            'summary': f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id={s['id']}"
+                        }
                         st.rerun()
-            else: # MOVIES, SERIES
+
+            # 4. MOVIES / SERIES 검색
+            else: 
                 res = search_tmdb(search_query, category)
                 if res:
                     t_key = 'title' if category == 'MOVIES' else 'name'
@@ -258,7 +288,13 @@ if is_admin and tab_w:
                     sel = st.selectbox("결과 선택", list(opts.keys()))
                     if st.button("✨ 가져오기"):
                         s = opts[sel]
-                        st.session_state.api_data = {'title': s.get(t_key), 'creator': get_tmdb_details(s['id'], category), 'date': s.get(d_key), 'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", 'summary': s.get('overview', '')}
+                        st.session_state.api_data = {
+                            'title': s.get(t_key), 
+                            'creator': get_tmdb_details(s['id'], category), 
+                            'date': s.get(d_key), 
+                            'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", 
+                            'summary': s.get('overview', '')
+                        }
                         st.rerun()
 
 
@@ -336,6 +372,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
