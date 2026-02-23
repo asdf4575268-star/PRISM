@@ -122,14 +122,23 @@ def search_apple_music(query):
     except: return []
 
 def get_tmdb_details(item_id, category):
-    type_path = "movie" if category == "MOVIES" else "tv"
+    type_path = "movie" if "MOVIES" in category else "tv"
     url = f"https://api.themoviedb.org/3/{type_path}/{item_id}/credits?api_key={TMDB_API_KEY}&language=ko-KR"
     try:
         res = requests.get(url).json()
         director = next((m['name'] for m in res.get('crew', []) if m.get('job') == 'Director'), "정보 없음")
         cast = ", ".join([c['name'] for c in res.get('cast', [])[:3]])
         return f"감독: {director} / 출연: {cast}"
-    except: return "정보 없음"
+    except:
+        return "정보 없음"
+def get_tmdb(query, category):
+    type_path = "movie" if "MOVIES" in category else "tv"
+    url = f"https://api.themoviedb.org/3/search/{type_path}?api_key={TMDB_API_KEY}&query={query}&language=ko-KR"
+    try:
+        res = requests.get(url).json()
+        return res.get("results", [])
+    except:
+        return []
 
 def search_kopis(query):
     year_match = re.search(r'\d{4}', query)
@@ -416,6 +425,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
