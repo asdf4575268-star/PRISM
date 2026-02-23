@@ -386,7 +386,8 @@ with tab_a:
         
         # --- [탭 구성] ---
         cat_order = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
-        tab_titles = [f"📅 ALL ({len(all_df)})"] + [f"📂 {c} ({len(all_df[all_df['category'] == c])})" for c in cat_order]
+        cat_emojis = {"BOOKS": "📚", "MUSIC": "🎧", "MOVIES": "🎞️", "SERIES": "📽️", "STAGE": "🎟️"}
+        tab_titles = [f"📅 ALL ({len(all_df)})"] + [f"{cat_emojis[c]}{c} ({len(all_df[all_df['category'] == c])})" for c in cat_order]
         sub_tabs = st.tabs(tab_titles)
 
         # --- [ALL 탭: 연도별 필터] ---
@@ -428,6 +429,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
