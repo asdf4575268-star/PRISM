@@ -10,11 +10,10 @@ from supabase import create_client, Client
 from PIL import Image
 
 # --- [1. 설정 및 API] ---
-img = Image.open(r"C:\run_app\PRISM\LOGO1.jpg")
 st.set_page_config(
     layout="wide", 
     page_title="PRISM",
-    page_icon=img,  # 이모지 "🌈" 대신 불러온 이미지 객체(img)를 넣습니다.
+    page_icon="https://github.com/asdf4575268-star/PRISM/blob/main/LOGO1.jpg",  # 여기에 이미지 URL을 직접 넣으면 됩니다.
     initial_sidebar_state="collapsed"
 )
 
@@ -403,6 +402,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
