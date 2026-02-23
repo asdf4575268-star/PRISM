@@ -10,9 +10,10 @@ import time
 # --- [1. 스타일 및 설정] ---
 st.set_page_config(layout="wide", page_title="PRISM")
 
+# 모바일 UI 최적화 CSS
 st.markdown("""
     <style>
-    h1 { font-size: 1.8rem !important; }
+    h1 { font-size: 1.8rem !important; margin-bottom: 0px; }
     .stTextInput label, .stTextArea label, .stSelectbox label { font-size: 0.9rem !important; font-weight: bold !important; }
     .cal-img-box { 
         position: relative; width: 100%; aspect-ratio: 1/1.4; 
@@ -32,11 +33,14 @@ st.markdown("""
 
 st.title("🌈 PRISM")
 
-# --- [2. 데이터베이스 및 전역 설정] ---
+# --- [2. 전역 변수 및 DB 초기화] ---
 DB_NAME = 'archive_prism_total_v5.db'
 TMDB_API_KEY = "6e7c55b6259b7731655033f783f3fc5b"
 KOPIS_KEY = "7a919bc272204f06bbca10e2af376dea"
 GOOGLE_SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQDDV1yl-cDAjFN8B0SIpnkGzfGB5gRJvRDjE6AJXqOgWnhJ0hy9tNmW4tkL3SUMBkuX-Uw3um_pdjT/pub?gid=1160662254&single=true&output=csv"
+BACKUP_URL = "https://docs.google.com/forms/d/e/1FAIpQLScrhM-MqmoMlF5ud5da8m9jmRXkUkjB8BIcZwv9JOq7WmYGsQ/formResponse"
+
+if 'api_data' not in st.session_state: st.session_state.api_data = {}
 
 def init_db():
     with sqlite3.connect(DB_NAME) as conn:
@@ -48,21 +52,28 @@ init_db()
 def restore_from_google():
     try:
         df = pd.read_csv(GOOGLE_SHEET_CSV).fillna("")
-        if df.empty: return
+        if df.empty:
+            st.warning("복원할 데이터가 시트에 없습니다.")
+            return
         with sqlite3.connect(DB_NAME) as conn:
             conn.execute("DELETE FROM archive")
             for _, row in df.iterrows():
                 vals = row.tolist()
                 while len(vals) < 12: vals.append("")
                 raw_v = str(vals[11]).strip()
-                try: v_date = pd.to_datetime(raw_v.replace("오전", "AM").replace("오후", "PM")).strftime('%Y-%m-%d')
-                except: v_date = raw_v
-                conn.execute("INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                if raw_v:
+                    try:
+                        clean_v = raw_v.replace("오전", "AM").replace("오후", "PM")
+                        v_date = pd.to_datetime(clean_v).strftime('%Y-%m-%d')
+                    except: v_date = raw_v
+                else: v_date = ""
+                conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, save_date, view_date) 
+                                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
                              (str(vals[1]), str(vals[2]), str(vals[3]), str(vals[4]), str(vals[5]), str(vals[6]), str(vals[7]), str(vals[8]), str(vals[9]), str(vals[10]), str(vals[0]), v_date))
         st.success("✅ 복원 완료!")
     except Exception as e: st.error(f"❌ 복원 실패: {e}")
 
-# --- [3. API 함수들 (원본 로직 전체 포함)] ---
+# --- [3. API 검색 함수들] ---
 def search_books(query):
     headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
     try:
@@ -80,8 +91,11 @@ def search_apple_music(query):
             title = m.get('collectionName' if is_album else 'trackName', 'Unknown')
             formatted_res.append({
                 'display_name': f"{'📀' if is_album else '🎵'} {title} - {m.get('artistName', '')}",
-                'title': title, 'creator': m.get('artistName', ''), 'date': m.get('releaseDate', '')[:10],
-                'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'), 'url': m.get('collectionViewUrl' if is_album else 'trackViewUrl', ''), 'venue': m.get('artistName', '')
+                'title': title, 'creator': m.get('artistName', ''),
+                'date': m.get('releaseDate', '')[:10],
+                'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'),
+                'url': m.get('collectionViewUrl' if is_album else 'trackViewUrl', ''),
+                'venue': m.get('artistName', '')
             })
         return formatted_res
     except: return []
@@ -124,7 +138,7 @@ def get_kopis_detail(mt20id):
     except: return "정보 없음"
     return "정보 없음"
 
-# --- [4. 팝업 함수 (상세보기 및 수정)] ---
+# --- [4. 상세보기 팝업 (다이얼로그)] ---
 @st.dialog("📋 기록 상세", width="large")
 def show_details(item):
     if hasattr(item, 'to_dict'): item = item.to_dict()
@@ -137,16 +151,16 @@ def show_details(item):
 
     st.divider()
     if edit_mode:
-        with st.form(key=f"edit_form_{item['id']}"):
+        with st.form(key=f"edit_f_{item['id']}"):
             n_img = st.text_input("🖼️ 이미지 URL", value=str(item.get('img_url', '')))
             n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
             n_creator = st.text_input("👤 창작자", value=str(item.get('creator', '')))
             c1, c2 = st.columns(2)
-            n_rel = c1.text_input("📅 작품 날짜", value=str(item.get('rel_date', '')))
-            n_venue = c2.text_input("📍 장소/플랫폼", value=str(item.get('venue', '')))
+            n_rel = c1.text_input("📅 작품일", value=str(item.get('rel_date', '')))
+            n_venue = c2.text_input("📍 장소", value=str(item.get('venue', '')))
             n_view = st.date_input("🍿 감상일", value=pd.to_datetime(item.get('view_date')).date())
             n_note = st.text_area("💬 감상", value=str(item.get('note', '')), height=150)
-            if st.form_submit_button("💾 저장", use_container_width=True):
+            if st.form_submit_button("💾 업데이트", use_container_width=True):
                 with sqlite3.connect(DB_NAME) as conn:
                     conn.execute("UPDATE archive SET title=?, creator=?, rel_date=?, venue=?, note=?, view_date=?, img_url=? WHERE id=?", 
                                  (n_title, n_creator, n_rel, n_venue, n_note, str(n_view), n_img, item['id']))
@@ -160,7 +174,7 @@ def show_details(item):
         st.markdown(f"#### 🍿 {item.get('view_date')}")
         if item.get('note'): st.success(f"**나의 감상**\n\n{item.get('note')}")
 
-# --- [5. 메인 화면 로직] ---
+# --- [5. 메인 레이아웃] ---
 tab1, tab2 = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 
 with tab1:
@@ -168,6 +182,7 @@ with tab1:
     search_query = st.text_input(f"🔍 {category} 검색")
     
     if search_query:
+        # 각 카테고리별 검색 및 가져오기 로직 (원본 동일)
         if category == "BOOKS":
             res = search_books(search_query)
             if res:
@@ -209,25 +224,45 @@ with tab1:
 
     st.divider()
     data = st.session_state.get('api_data', {})
+    
+    # 입력 폼 수직 배치 (모바일 최적화)
     img_url_val = st.text_input("🖼️ 이미지 URL", value=data.get('img', ''))
     if img_url_val: st.image(img_url_val, width=150)
     
     title = st.text_input("제목", value=data.get('title', ''))
     creator = st.text_input("창작자", value=data.get('creator', ''))
+    
     c_rel, c_ven = st.columns(2)
     rel_date = c_rel.text_input("📅 작품일", value=data.get('date', str(date.today())))
     venue = c_ven.text_input("📍 장소", value=data.get('venue', ''))
     
     view_date = st.date_input("🍿 감상일", value=date.today())
-    note = st.text_area("💬 감상", height=100)
+    note = st.text_area("💬 감상", height=150)
     
-    if st.button("✅ 저장하기", use_container_width=True, type="primary"):
-        with sqlite3.connect(DB_NAME) as conn:
-            conn.execute("INSERT INTO archive (category, title, creator, rel_date, venue, note, img_url, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?)",
-                         (category, title, creator, str(rel_date), venue, note, img_url_val, str(date.today()), str(view_date)))
-        st.success("저장 완료!")
-        st.session_state.api_data = {}
-        time.sleep(0.5); st.rerun()
+    if st.button("✅ 저장 및 백업", use_container_width=True, type="primary"):
+        try:
+            # 1. 구글 폼 백업 로직
+            r_dt = pd.to_datetime(rel_date)
+            v_dt = pd.to_datetime(view_date)
+            payload = {
+                "entry.574529989": category, "entry.898076783": title, "entry.345368346": creator,
+                "entry.543246487": data.get('summary', ''), "entry.1816924330": "", "entry.270693677": "",
+                "entry.891180756": note, "entry.2056153041": img_url_val,
+                "entry.780422311_year": str(r_dt.year), "entry.780422311_month": f"{r_dt.month:02d}", "entry.780422311_day": f"{r_dt.day:02d}",
+                "entry.1446643193_year": str(v_dt.year), "entry.1446643193_month": f"{v_dt.month:02d}", "entry.1446643193_day": f"{v_dt.day:02d}",
+                "entry.250402237": venue
+            }
+            requests.post(BACKUP_URL, data=payload, timeout=5)
+            
+            # 2. 로컬 SQLite 저장
+            with sqlite3.connect(DB_NAME) as conn:
+                conn.execute("INSERT INTO archive (category, title, creator, rel_date, venue, note, img_url, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?)",
+                             (category, title, creator, str(rel_date), venue, note, img_url_val, str(date.today()), str(view_date)))
+            
+            st.success("✅ 저장 및 백업 성공!")
+            st.session_state.api_data = {}
+            time.sleep(0.5); st.rerun()
+        except Exception as e: st.error(f"오류 발생: {e}")
 
 with tab2:
     col_ref, col_empty = st.columns([1, 4])
@@ -248,12 +283,12 @@ with tab2:
                     all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
                     years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
                     if not years: st.info("데이터가 없습니다."); continue
-                    sel_y = st.selectbox("연도", years)
+                    sel_y = st.selectbox("연도 선택", years, key=f"y_sel_{idx}")
                     display_df = all_df[all_df['v_dt'].dt.year == sel_y]
                 else:
                     display_df = all_df[all_df['category'] == c_name]
 
-                # 정렬 및 그리드 출력
+                # 최신순 정렬 및 3열 그리드 출력
                 display_df['sort_dt'] = pd.to_datetime(display_df['view_date'], errors='coerce')
                 items = display_df.sort_values('sort_dt', ascending=False).to_dict('records')
                 
@@ -264,7 +299,15 @@ with tab2:
                         if i + j < len(items):
                             row = items[i + j]
                             with cols[j]:
-                                badge_txt = row['view_date'][-5:] if row['view_date'] else "미상"
-                                st.markdown(f'<div class="cal-img-box"><div class="badge">{badge_txt}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
-                                if st.button(row['title'][:6]+".." if len(row['title'])>6 else row['title'], key=f"btn_{idx}_{row['id']}", use_container_width=True):
+                                v_date_str = str(row['view_date'])
+                                badge_txt = v_date_str[-5:] if len(v_date_str) > 5 else "미상"
+                                st.markdown(f'''
+                                    <div class="cal-img-box">
+                                        <div class="badge">{badge_txt}</div>
+                                        <img src="{row["img_url"]}">
+                                    </div>
+                                ''', unsafe_allow_html=True)
+                                
+                                short_title = row['title'][:6]+".." if len(row['title'])>6 else row['title']
+                                if st.button(short_title, key=f"btn_{idx}_{row['id']}", use_container_width=True):
                                     show_details(row)
