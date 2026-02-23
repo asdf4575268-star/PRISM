@@ -42,63 +42,44 @@ def migrate_to_supabase():
     with sqlite3.connect(DB_NAME) as conn:
         conn.row_factory = sqlite3.Row
         local_data = conn.execute("SELECT * FROM archive").fetchall()
-    if not local_data: st.warning("데이터가 없습니다."); return
+    
+    if not local_data:
+        st.session_state.sync_msg = ("warning", "로컬 데이터가 없습니다.")
+        return
+
     upload_list = [dict(row) for row in local_data]
     for d in upload_list:
         if 'id' in d: del d['id']
+        
     try:
         supabase.table("archive").insert(upload_list).execute()
-        st.success("✅ 클라우드 백업 완료!"); time.sleep(1); st.rerun()
-    except Exception as e: st.error(f"❌ 실패: {e}")
+        st.session_state.sync_msg = ("success", "클라우드 백업 완료!")
+    except Exception as e:
+        st.session_state.sync_msg = ("error", f"백업 실패: {e}")
 
 def restore_from_supabase():
     try:
-        # 1. 슈퍼베이스에서 데이터 가져오기
-        # .select("*") 뒤에 .execute()를 호출하여 결과 데이터만 추출합니다.
         res = supabase.table("archive").select("*").execute()
-        
-        # 슈퍼베이스 클라이언트에 따라 res.data 혹은 res 자체가 리스트일 수 있습니다.
         cloud_data = res.data if hasattr(res, 'data') else res
         
         if not cloud_data:
-            st.warning("⚠️ 클라우드에 저장된 데이터가 없습니다.")
+            st.session_state.sync_msg = ("warning", "클라우드가 비어있습니다.")
             return
 
         with sqlite3.connect(DB_NAME) as conn:
-            cursor = conn.cursor()
-            new_count = 0
-            
             for row in cloud_data:
-                # 2. 중복 체크 (제목과 감상일이 모두 같으면 이미 있는 것으로 간주)
-                cursor.execute("SELECT id FROM archive WHERE title=? AND view_date=?", 
-                               (row.get('title'), row.get('view_date')))
-                exists = cursor.fetchone()
-                
+                exists = conn.execute("SELECT id FROM archive WHERE title=? AND view_date=?", 
+                                     (row['title'], row['view_date'])).fetchone()
                 if not exists:
-                    # 3. 데이터 삽입 (id는 자동 생성되므로 제외하고 삽입)
-                    # 각 필드명은 슈퍼베이스 테이블의 컬럼명과 정확히 일치해야 합니다.
-                    cursor.execute("""
-                        INSERT INTO archive 
+                    conn.execute("""INSERT INTO archive 
                         (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, save_date, view_date) 
                         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-                        (row.get('category'), row.get('title'), row.get('creator'), row.get('rel_date'), 
-                         row.get('venue'), row.get('summary'), row.get('brief'), row.get('highlights'), 
-                         row.get('note'), row.get('img_url'), row.get('save_date'), row.get('view_date')))
-                    new_count += 1
-            
-            conn.commit()
-            
-        if new_count > 0:
-            st.success(f"✅ 총 {new_count}개의 새로운 데이터를 성공적으로 복구했습니다!")
-        else:
-            st.info("ℹ️ 모든 데이터가 이미 최신 상태입니다.")
-            
-        time.sleep(1)
-        st.rerun()
-        
+                        (row['category'], row['title'], row['creator'], row['rel_date'], 
+                         row['venue'], row['summary'], row['brief'], row['highlights'], 
+                         row['note'], row['img_url'], row['save_date'], row['view_date']))
+        st.session_state.sync_msg = ("success", "데이터 복구 완료!")
     except Exception as e:
-        # 오류 발생 시 구체적인 메시지를 출력하여 원인 파악을 돕습니다.
-        st.error(f"❌ 복구 중 오류가 발생했습니다: {str(e)}")
+        st.session_state.sync_msg = ("error", f"복구 실패: {e}")
 
 # --- [3. API 검색 함수 (생략)] ---
 def search_books(query):
@@ -282,4 +263,5 @@ with tab_a:
                                     st.markdown(f'<div class="cal-img-box"><div class="badge">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:8], key=f"cat_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else: st.warning("기록이 없습니다.")
+
 
