@@ -340,7 +340,7 @@ if is_admin and tab_w:
 
             # 4. MOVIES / SERIES 검색
             else: # MOVIES, SERIES
-                res = search_tmdb(search_query, category)
+                res = get_tmdb(search_query, category)
                 if res:
                     t_key = 'title' if category == 'MOVIES' else 'name'
                     d_key = 'release_date' if category == 'MOVIES' else 'first_air_date'
@@ -425,6 +425,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
