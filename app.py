@@ -276,7 +276,7 @@ else:
 # --- [WRITE 탭] ---
 if is_admin and tab_w:
     with tab_w:
-        category = st.radio("📂 CATEGORY", ["📖BOOKS", "💿MUSIC", "🎬MOVIES", "📺SERIES", "🎭STAGE"], horizontal=True)
+        category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"], horizontal=True)
         search_query = st.text_input(f"🔍 {category} 검색")
         
         if search_query:
@@ -422,41 +422,3 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
