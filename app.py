@@ -7,8 +7,6 @@ import time
 import re 
 import xml.etree.ElementTree as ET
 from supabase import create_client, Client
-from PIL import Image
-import streamlit.components.v1 as components
 
 # --- [1. 설정 및 API] ---
 st.set_page_config(
@@ -447,18 +445,6 @@ if is_admin and tab_w:
                 except Exception as e:
                     st.error(f"❌ 오류: {e}")
 
-# --- [ARCHIVE 탭 로직] ---
-# tab_a는 is_admin 여부와 상관없이 항상 존재하므로 안전하게 실행됩니다.
-with tab_a:
-    # (이미 작성하신 ARCHIVE 탭 스타일 및 출력 로직 그대로 유지)
-    st.markdown("""<style>
-        .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1.4; overflow: hidden; border-radius: 8px; margin-bottom: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); transition: 0.3s; }
-        .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
-        .badge { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
-    </style>""", unsafe_allow_html=True)
-    
-    # ... (이후의 데이터 로드 및 sub_tabs 출력 코드들)
-
 # --- [ARCHIVE 탭] ---
 with tab_a:
     # --- [스타일 정의] ---
@@ -519,6 +505,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
