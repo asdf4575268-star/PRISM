@@ -231,20 +231,35 @@ if is_admin and tab_w:
                         b = opts[sel]; st.session_state.api_data = {'title': b['title'], 'creator': ", ".join(b['authors']), 'date': b['datetime'][:10], 'img': b.get('thumbnail', '').replace("R120x174", "R400x0"), 'venue': b.get('publisher', ''), 'summary': b.get('contents', '')}
                         st.rerun()
             elif category == "MUSIC":
-                res = search_apple_music(search_query)
-                if res:
-                    opts = {m['display_name']: m for m in res}; sel = st.selectbox("결과 선택", list(opts.keys()))
-                    if st.button("✨ 가져오기"):
-                        m = opts[sel]; st.session_state.api_data = {'title': m['title'], 'creator': m['creator'], 'date': m['date'], 'img': m['img'], 'venue': m['creator']}
-                        st.rerun()
-            elif category in ["MOVIES", "SERIES"]:
-                res = search_tmdb(search_query, category)
-                if res:
-                    t_key = 'title' if category == 'MOVIES' else 'name'; d_key = 'release_date' if category == 'MOVIES' else 'first_air_date'
-                    opts = {f"🎬 {r.get(t_key)} ({str(r.get(d_key))[:4]})": r for r in res}; sel = st.selectbox("결과 선택", list(opts.keys()))
-                    if st.button("✨ 가져오기"):
-                        s = opts[sel]; st.session_state.api_data = {'title': s.get(t_key), 'creator': get_tmdb_details(s['id'], category), 'date': s.get(d_key), 'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", 'summary': s.get('overview', '')}
-                        st.rerun()
+            res = search_apple_music(search_query)
+            if res:
+                opts = {m['display_name']: m for m in res}
+                sel = st.selectbox("결과 선택", list(opts.keys()))
+                if st.button("✨ 가져오기"):
+                    m = opts[sel]
+                    st.session_state.api_data = {'title': m['title'], 'creator': m['creator'], 'date': m['date'], 'img': m['img'], 'summary': f"{m['url']}\n\n"}
+                    st.rerun()
+        elif category == "STAGE":
+            res = search_kopis(search_query)
+            if res:
+                opts = {f"🎭 {s['title']} [{s['date']}~] ({s['venue']})": s for s in res}
+                sel = st.selectbox("결과 선택", list(opts.keys()))
+                if st.button("✨ 가져오기"):
+                    s = opts[sel]
+                    combined_creator = get_kopis_detail(s['id'])
+                    st.session_state.api_data = {'title': s['title'], 'creator': combined_creator, 'date': s['date'], 'venue': s['venue'], 'img': s['img'], 'summary': f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id={s['id']}"}
+                    st.rerun()
+        else: # MOVIES, SERIES
+            res = search_tmdb(search_query, category)
+            if res:
+                t_key = 'title' if category == 'MOVIES' else 'name'
+                d_key = 'release_date' if category == 'MOVIES' else 'first_air_date'
+                opts = {f"🎬 {r.get(t_key)} ({str(r.get(d_key))[:4]})": r for r in res}
+                sel = st.selectbox("결과 선택", list(opts.keys()))
+                if st.button("✨ 가져오기"):
+                    s = opts[sel]
+                    st.session_state.api_data = {'title': s.get(t_key), 'creator': get_tmdb_details(s['id'], category), 'date': s.get(d_key), 'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", 'summary': s.get('overview', '')}
+                    st.rerun()
 
         st.divider(); data = st.session_state.get('api_data', {}); cl, cr = st.columns([0.4, 0.6])
         with cl:
@@ -320,6 +335,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
 
 
