@@ -54,29 +54,33 @@ def migrate_to_supabase():
 
 def restore_from_supabase():
     try:
-        # 1. 슈퍼베이스에서 전체 데이터 긁어오기
+        # 1. 슈퍼베이스 연결 테스트 및 데이터 호출
         res = supabase.table("archive").select("*").execute()
+        
+        # [디버깅용] 데이터 구조가 어떻게 오는지 세션에 임시 저장
         cloud_data = res.data if hasattr(res, 'data') else res
         
-        if not cloud_data:
-            st.session_state.sync_msg = ("warning", "⚠️ 클라우드(Supabase)가 비어있습니다. 백업된 데이터가 없습니다.")
+        # [체크] 데이터가 아예 없는 경우
+        if not cloud_data or len(cloud_data) == 0:
+            st.session_state.sync_msg = ("warning", "⚠️ 슈퍼베이스 'archive' 테이블에 데이터가 한 줄도 없습니다!")
             return
 
         with sqlite3.connect(DB_NAME) as conn:
             cursor = conn.cursor()
             
-            # 2. 로컬 테이블이 비어있을 수도 있으니 초기화 확인
+            # 2. 로컬 DB에 테이블이 없는 경우를 대비해 생성
             cursor.execute('''CREATE TABLE IF NOT EXISTS archive 
                             (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
                              rel_date TEXT, venue TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, img_url TEXT, save_date TEXT, view_date TEXT)''')
             
             added_count = 0
             for row in cloud_data:
-                # 3. 중복 체크를 '제목'과 '감상일'로 수행 (가장 확실한 기준)
-                cursor.execute("SELECT id FROM archive WHERE title=? AND view_date=?", 
-                               (row.get('title'), row.get('view_date')))
-                if not cursor.fetchone():
-                    # 로컬에 없는 데이터만 삽입
+                # 3. 중복 체크 없이 '일단 다 가져오기'를 원하시면 아래 exists 체크를 주석 처리해도 되지만, 
+                # 중복 방지를 위해 제목+날짜로 체크합니다.
+                exists = cursor.execute("SELECT id FROM archive WHERE title=? AND view_date=?", 
+                                     (row.get('title'), row.get('view_date'))).fetchone()
+                
+                if not exists:
                     cursor.execute("""INSERT INTO archive 
                         (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, save_date, view_date) 
                         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
@@ -84,13 +88,13 @@ def restore_from_supabase():
                          row.get('venue'), row.get('summary'), row.get('brief'), row.get('highlights'), 
                          row.get('note'), row.get('img_url'), row.get('save_date'), row.get('view_date')))
                     added_count += 1
-            
             conn.commit()
             
-        st.session_state.sync_msg = ("success", f"✅ 복구 완료! 클라우드로부터 {added_count}개의 새로운 데이터를 가져왔습니다.")
+        st.session_state.sync_msg = ("success", f"✅ 복구 완료! 새로운 데이터 {added_count}개를 가져왔습니다. (전체 {len(cloud_data)}개)")
         
     except Exception as e:
-        st.session_state.sync_msg = ("error", f"❌ 복구 중 오류 발생: {str(e)}")
+        # 에러가 나면 정확히 어떤 에러인지 화면에 띄웁니다.
+        st.session_state.sync_msg = ("error", f"❌ 오류 발생: {str(e)}")
 
 # --- [3. API 검색 함수들] ---
 def search_books(query):
@@ -294,6 +298,7 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else: 
         st.warning("기록이 없습니다.")
+
 
 
 
