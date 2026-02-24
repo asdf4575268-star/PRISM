@@ -511,4 +511,51 @@ with tab_a:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
 
+def smart_cleanup():
+    with sqlite3.connect(DB_NAME) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT id, creator, category FROM archive").fetchall()
+        
+        count = 0
+        for row in rows:
+            old_c = str(row['creator'])
+            cat = row['category']
+            
+            # 이미 [ ] 태그가 있다면 건너뜁니다
+            if "[" in old_c and "]" in old_c:
+                continue
+                
+            parts = [p.strip() for p in old_c.split("/")]
+            new_parts = []
+            
+            # 영화(MOVIES)나 시리즈(SERIES)인 경우의 로직
+            if cat in ["MOVIES", "SERIES"]:
+                if len(parts) >= 1:
+                    # 첫 번째 요소 처리 (감독/제작)
+                    name = parts[0].replace("감독:", "").replace("작가/제작:", "").strip()
+                    label = "[작가/제작]" if cat == "SERIES" else "[감독]"
+                    new_parts.append(f"{label} {name}")
+                
+                if len(parts) >= 2:
+                    # 두 번째 요소 처리 (출연)
+                    name = parts[1].replace("출연:", "").strip()
+                    new_parts.append(f"[출연] {name}")
+            
+            # 공연(STAGE)인 경우
+            elif cat == "STAGE":
+                if len(parts) >= 1:
+                    name = parts[0].replace("제작:", "").strip()
+                    new_parts.append(f"[제작] {name}")
+                if len(parts) >= 2:
+                    name = parts[1].replace("출연:", "").strip()
+                    new_parts.append(f"[출연] {name}")
+
+            # 변경된 내용이 있다면 업데이트
+            if new_parts:
+                new_creator = " / ".join(new_parts)
+                conn.execute("UPDATE archive SET creator=? WHERE id=?", (new_creator, row['id']))
+                count += 1
+        
+        conn.commit()
+        st.success(f"🧼 {count}개의 데이터를 똑똑하게 정리했습니다!")
 
