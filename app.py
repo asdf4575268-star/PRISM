@@ -75,7 +75,7 @@ def restore_from_supabase():
         st.session_state.sync_msg = ("error", f"❌ 복구 실패: {e}")
 
 
-# --- [3. 로그인 시스템 & 사이드바 (모바일/PC 모드 선택 추가)] ---
+# --- [3. 로그인 시스템 & 사이드바] ---
 if "is_logged_in" not in st.session_state:
     st.session_state.is_logged_in = False
 if "view_mode" not in st.session_state:
@@ -83,7 +83,6 @@ if "view_mode" not in st.session_state:
 
 with st.sidebar:
     st.markdown("### 📱 화면 모드")
-    # 기기 모드 선택 (화면 분할 기준)
     st.session_state.view_mode = st.radio("보기 옵션", ["PC", "Mobile"], horizontal=True, label_visibility="collapsed")
     st.divider()
 
@@ -119,7 +118,7 @@ is_admin = st.session_state.is_logged_in
 is_mobile = st.session_state.view_mode == "Mobile"
 
 
-# --- [3. API 검색 함수들] ---
+# --- [API 검색 함수들] --- (기존과 동일하므로 생략하지 않고 유지)
 def search_books(query):
     headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
     try:
@@ -206,7 +205,7 @@ def get_kopis_detail(mt20id):
     return "정보 없음"
 
 
-# --- [4. 팝업 상세 보기 (모바일 대응)] ---
+# --- [4. 팝업 상세 보기] ---
 @st.dialog("📋 기록", width="large")
 def show_details(item):
     if hasattr(item, 'to_dict'): item = item.to_dict()
@@ -225,7 +224,6 @@ def show_details(item):
             edit_mode = st.toggle("✏️ 수정", key=f"tog_{item['id']}")
         st.divider()
 
-    # 기기별 레이아웃 설정
     if is_mobile:
         col_img = st.container()
         col_txt = st.container()
@@ -241,7 +239,6 @@ def show_details(item):
             with st.form(key=f"edit_form_{item['id']}"):
                 n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
                 n_creator = st.text_input("👤 창작자", value=str(item.get('creator', '')))
-                
                 cat = item.get('category')
                 labels = {"BOOKS": "📖 출판사", "MUSIC": "💿 레이블", "MOVIES": "🎬 제작사", "SERIES": "📺 플랫폼", "STAGE": "📍 장소"}
                 v_label = labels.get(cat, "📍 장소")
@@ -296,7 +293,7 @@ def show_details(item):
             if item.get('note'): st.success(f"**나의 감상:**\n{item.get('note')}")
 
 
-# --- [5. 메인 화면: 탭 설정] ---
+# --- [5. 메인 화면] ---
 if is_admin:
     tab_w, tab_a = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 else:
@@ -304,7 +301,7 @@ else:
     tab_a = tabs[0]
     tab_w = None
 
-# --- [WRITE 탭 로직] ---
+# WRITE 로직 (생략 - 기존과 동일)
 if is_admin and tab_w:
     with tab_w:
         category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"], horizontal=True)
@@ -318,13 +315,8 @@ if is_admin and tab_w:
                     sel = st.selectbox("결과 선택", list(opts.keys()))
                     if st.button("✨ 가져오기"):
                         b = opts[sel]
-                        st.session_state.api_data = {
-                            'title': b['title'], 'creator': ", ".join(b['authors']), 
-                            'date': b['datetime'][:10], 'img': b.get('thumbnail', '').replace("R120x174", "R400x0"), 
-                            'venue': b.get('publisher', ''), 'summary': b.get('contents', '')
-                        }
+                        st.session_state.api_data = {'title': b['title'], 'creator': ", ".join(b['authors']), 'date': b['datetime'][:10], 'img': b.get('thumbnail', '').replace("R120x174", "R400x0"), 'venue': b.get('publisher', ''), 'summary': b.get('contents', '')}
                         st.rerun()
-
             elif category == "MUSIC":
                 res = search_apple_music(search_query)
                 if res:
@@ -332,12 +324,8 @@ if is_admin and tab_w:
                     sel = st.selectbox("결과 선택", list(opts.keys()))
                     if st.button("✨ 가져오기"):
                         m = opts[sel]
-                        st.session_state.api_data = {
-                            'title': m['title'], 'creator': m['creator'], 
-                            'date': m['date'], 'img': m['img'], 'summary': f"{m.get('url', '')}\n\n"
-                        }
+                        st.session_state.api_data = {'title': m['title'], 'creator': m['creator'], 'date': m['date'], 'img': m['img'], 'summary': f"{m.get('url', '')}\n\n"}
                         st.rerun()
-
             elif category == "STAGE":
                 res = search_kopis(search_query)
                 if res:
@@ -346,13 +334,8 @@ if is_admin and tab_w:
                     if st.button("✨ 가져오기"):
                         s = opts[sel]
                         combined_creator = get_kopis_detail(s['id'])
-                        st.session_state.api_data = {
-                            'title': s['title'], 'creator': combined_creator, 
-                            'date': s['date'], 'venue': s['venue'], 'img': s['img'], 
-                            'summary': f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id={s['id']}"
-                        }
+                        st.session_state.api_data = {'title': s['title'], 'creator': combined_creator, 'date': s['date'], 'venue': s['venue'], 'img': s['img'], 'summary': f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id={s['id']}"}
                         st.rerun()
-
             else: 
                 res = search_tmdb(search_query, category)
                 if res:
@@ -363,20 +346,13 @@ if is_admin and tab_w:
                     if st.button("✨ 가져오기"):
                         s = opts[sel]
                         details = get_tmdb_details(s['id'], category)
-                        st.session_state.api_data = {
-                            'title': s.get(t_key), 'creator': details['creator'], 
-                            'date': s.get(d_key), 'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", 
-                            'venue': details['venue'], 'summary': s.get('overview', '')
-                        }
+                        st.session_state.api_data = {'title': s.get(t_key), 'creator': details['creator'], 'date': s.get(d_key), 'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", 'venue': details['venue'], 'summary': s.get('overview', '')}
                         st.rerun()
 
         st.divider()
         data = st.session_state.get('api_data', {})
-        
-        # 기기별 입력 레이아웃 분기
         if is_mobile:
-            cl = st.container()
-            cr = st.container()
+            cl, cr = st.container(), st.container()
         else:
             cl, cr = st.columns([0.4, 0.6])
             
@@ -395,36 +371,21 @@ if is_admin and tab_w:
             view_date = st.date_input("🍿 감상일", value=date.today())
             
             if st.button("✅ 기록 저장", use_container_width=True):
-                new_record = {
-                    "category": str(category), "title": str(title).strip(), "creator": str(creator).strip(),
-                    "rel_date": str(rel_date), "venue": str(venue).strip(), "summary": str(summary).strip(),
-                    "brief": str(brief).strip(), "highlights": str(highlights).strip(), "note": str(note).strip(),
-                    "img_url": str(img_url_val).strip(), "save_date": str(date.today()), "view_date": str(view_date)
-                }
-                
+                new_record = {"category": str(category), "title": str(title).strip(), "creator": str(creator).strip(), "rel_date": str(rel_date), "venue": str(venue).strip(), "summary": str(summary).strip(), "brief": str(brief).strip(), "highlights": str(highlights).strip(), "note": str(note).strip(), "img_url": str(img_url_val).strip(), "save_date": str(date.today()), "view_date": str(view_date)}
                 try:
                     with sqlite3.connect(DB_NAME) as conn:
-                        conn.execute("""INSERT INTO archive 
-                                        (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, save_date, view_date) 
-                                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", 
-                                     (new_record["category"], new_record["title"], new_record["creator"], 
-                                      new_record["rel_date"], new_record["venue"], new_record["summary"], 
-                                      new_record["brief"], new_record["highlights"], new_record["note"], 
-                                      new_record["img_url"], new_record["save_date"], new_record["view_date"]))
-                    
-                    res = supabase.table("archive").upsert(new_record).execute()
-                    if hasattr(res, 'data'): st.success("✅ 로컬 & 클라우드 저장 완료!")
-                    else: st.warning("⚠️ 로컬은 저장되었으나 클라우드 응답이 이상합니다.")
-                    
+                        conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], new_record["note"], new_record["img_url"], new_record["save_date"], new_record["view_date"]))
+                    supabase.table("archive").upsert(new_record).execute()
+                    st.success("✅ 저장 완료!")
                     st.session_state.api_data = {}
                     time.sleep(0.8)
                     st.rerun()
-                except Exception as e:
-                    st.error(f"❌ 저장 중 오류 발생: {str(e)}")
+                except Exception as e: st.error(f"❌ 오류: {e}")
 
 # --- [ARCHIVE 탭] ---
 with tab_a:
     st.markdown("""<style>
+        /* 기본 비율은 1:1.4 */
         .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1.4; overflow: hidden; border-radius: 8px; margin-bottom: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); transition: 0.3s; }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
         .badge { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
@@ -435,13 +396,10 @@ with tab_a:
 
     if not all_df.empty:
         all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
-        
         cat_order = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
         cat_emojis = {"BOOKS": "📚", "MUSIC": "🎧", "MOVIES": "🎞️", "SERIES": "📽️", "STAGE": "🎭"}
         tab_titles = [f"📅 ALL ({len(all_df)})"] + [f"{cat_emojis[c]}{c} ({len(all_df[all_df['category'] == c])})" for c in cat_order]
         sub_tabs = st.tabs(tab_titles)
-
-        # 모바일/PC 모드에 따른 컬럼 갯수 설정
         grid_cols = 2 if is_mobile else 6
 
         # --- [ALL 탭] ---
@@ -449,7 +407,6 @@ with tab_a:
             years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
             year_options = {y: f"{y}({len(all_df[all_df['v_dt'].dt.year == y])})" for y in years}
             sel_y = st.selectbox("📅 연도 선택", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
-            
             y_df = all_df[all_df['v_dt'].dt.year == sel_y]
             
             for m in range(12, 0, -1):
@@ -462,8 +419,15 @@ with tab_a:
                         for j in range(grid_cols):
                             if i+j < len(items):
                                 row = items[i+j]
+                                # 카테고리가 MUSIC이면 1:1, 아니면 1:1.4
+                                current_ratio = "1/1" if row["category"] == "MUSIC" else "1/1.4"
                                 with cols[j]:
-                                    st.markdown(f'<div class="cal-img-box"><div class="badge">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
+                                    st.markdown(f'''
+                                        <div class="cal-img-box" style="aspect-ratio: {current_ratio};">
+                                            <div class="badge">{pd.to_datetime(row["view_date"]).day}일</div>
+                                            <img src="{row["img_url"]}">
+                                        </div>
+                                    ''', unsafe_allow_html=True)
                                     if st.button(row['title'][:8], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
 
         # --- [카테고리 탭] ---
@@ -473,13 +437,20 @@ with tab_a:
                 if c_data.empty: st.info(f"{c_name} 데이터 없음")
                 else:
                     items = c_data.to_dict('records')
+                    # 카테고리 탭은 이미 카테고리가 고정되어 있으므로 한 번만 비율 설정
+                    current_ratio = "1/1" if c_name == "MUSIC" else "1/1.4"
                     for i in range(0, len(items), grid_cols):
                         cols = st.columns(grid_cols)
                         for j in range(grid_cols):
                             if i+j < len(items):
                                 row = items[i+j]
                                 with cols[j]:
-                                    st.markdown(f'<div class="cal-img-box"><div class="badge">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
+                                    st.markdown(f'''
+                                        <div class="cal-img-box" style="aspect-ratio: {current_ratio};">
+                                            <div class="badge">{row["view_date"]}</div>
+                                            <img src="{row["img_url"]}">
+                                        </div>
+                                    ''', unsafe_allow_html=True)
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
