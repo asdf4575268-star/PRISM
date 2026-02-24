@@ -426,7 +426,7 @@ if is_admin and tab_w:
             summary = st.text_area("📖 줄거리/작품소개", value=data.get('summary', ''), height=100)
             brief = st.text_input("📝 요약 (한 줄 평)")
             highlights = st.text_area("✨ 인상 깊은 부분", height=100)
-            note = st.text_area("💬 🌈PRISM", height=100)
+            note = st.text_area("🌈 PRISM", height=100)
             view_date = st.date_input("🍿 감상일", value=date.today())
             
             if st.button("✅ 기록 저장", use_container_width=True):
@@ -535,6 +535,7 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
