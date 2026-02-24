@@ -406,50 +406,114 @@ if is_admin and tab_w:
                 except Exception as e: st.error(f"❌ 오류: {e}")
 
 # --- [ARCHIVE 탭] ---
+# --- [ARCHIVE 탭] ---
 with tab_a:
+    # 1. 고정형 그리드 전용 스타일
     st.markdown("""<style>
-        /* [강화형] 모바일 강제 2열 배치 */
-        @media (max-width: 640px) {
-            /* 탭 내부의 컬럼 컨테이너를 강제로 가로 배치 */
-            div[data-testid="stHorizontalBlock"] {
-                display: flex !important;
-                flex-direction: row !important;
-                flex-wrap: wrap !important;
-                gap: 10px !important;
-            }
-            /* 각 컬럼의 너비를 50% 미만으로 강제 고정 */
-            div[data-testid="column"] {
-                width: calc(50% - 10px) !important;
-                flex: 1 1 calc(50% - 10px) !important;
-                min-width: calc(50% - 10px) !important;
+        /* 그리드 컨테이너 */
+        .archive-grid {
+            display: grid;
+            gap: 15px;
+            width: 100%;
+            /* 기본(PC): 6열 */
+            grid-template-columns: repeat(6, 1fr);
+        }
+
+        /* 모바일/태블릿 (세로): 무조건 2열 고정 */
+        @media (max-width: 1024px) {
+            .archive-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
             }
         }
 
-        /* 기본 틀: 포스터 비율 (1:1.4) */
+        /* 카드 스타일 */
+        .archive-card {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 이미지 박스 */
         .cal-img-box { 
             position: relative; 
             width: 100%; 
             aspect-ratio: 1/1.4; 
             overflow: hidden; 
             border-radius: 8px; 
-            margin-top: 5px; 
             box-shadow: 0 4px 8px rgba(0,0,0,0.2); 
             background: #1e1e1e;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
-        .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
         
-        /* 음악 카테고리 1:1 비율 */
-        .music-tab-style {
+        /* 음악은 1:1 비율 */
+        .music-card .cal-img-box {
             aspect-ratio: 1/1 !important;
         }
 
-        .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
-        .badge-date { position: absolute; top: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
+        .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
+        .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 5; }
+        .badge-date { position: absolute; top: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 5; }
     </style>""", unsafe_allow_html=True)
 
+    with sqlite3.connect(DB_NAME) as conn:
+        all_df = pd.read_sql_query("SELECT * FROM archive ORDER BY view_date DESC", conn)
+
+    if not all_df.empty:
+        all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
+        cat_order = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
+        cat_emojis = {"BOOKS": "📚", "MUSIC": "🎧", "MOVIES": "🎞️", "SERIES": "📽️", "STAGE": "🎭"}
+        tab_titles = [f"📅 ALL ({len(all_df)})"] + [f"{cat_emojis[c]}{c} ({len(all_df[all_df['category'] == c])})" for c in cat_order]
+        sub_tabs = st.tabs(tab_titles)
+
+        # 각 탭별 데이터 출력 로직
+        for t_idx, c_name in enumerate(["ALL"] + cat_order):
+            with sub_tabs[t_idx]:
+                display_df = all_df if c_name == "ALL" else all_df[all_df['category'] == c_name]
+                
+                if display_df.empty:
+                    st.info("데이터가 없습니다.")
+                    continue
+                
+                # 연도 선택 (ALL 탭일 때만 표시하거나 전체 적용)
+                if c_name == "ALL":
+                    years = sorted(display_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
+                    sel_y = st.selectbox("📅 연도 선택", options=years, key=f"y_sel_{c_name}")
+                    display_df = display_df[display_df['v_dt'].dt.year == sel_y]
+
+                items = display_df.to_dict('records')
+                
+                # --- 핵심: HTML 그리드로 버튼과 이미지 배치 ---
+                # 스트림릿 버튼은 위젯이므로 HTML 내부에 직접 넣을 수 없습니다. 
+                # 따라서 전체를 렌더링하되 버튼만 st.button으로 하단에 배치합니다.
+                
+                # 그리드 시작
+                st.markdown('<div class="archive-grid">', unsafe_allow_html=True)
+                
+                # 한 줄에 grid_cols만큼씩 st.columns를 생성하여 '위젯' 배치
+                # (CSS에서 columns의 반응형을 강제 해제했으므로 이제 2열이 유지됩니다)
+                g_cols = 2 if is_mobile else 6
+                for i in range(0, len(items), g_cols):
+                    cols = st.columns(g_cols)
+                    for j in range(g_cols):
+                        if i + j < len(items):
+                            row = items[i + j]
+                            with cols[j]:
+                                # 1. 포스터 이미지 및 배지 (HTML)
+                                m_cls = "music-card" if row["category"] == "MUSIC" else ""
+                                st.markdown(f'''
+                                    <div class="archive-card {m_cls}">
+                                        <div class="cal-img-box">
+                                            <div class="badge-cat">{row["category"]}</div>
+                                            <div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div>
+                                            <img src="{row["img_url"]}">
+                                        </div>
+                                    </div>
+                                ''', unsafe_allow_html=True)
+                                
+                                # 2. 상세 보기 버튼 (Streamlit 위젯)
+                                if st.button(row['title'][:10], key=f"btn_{c_name}_{row['id']}", use_container_width=True):
+                                    show_details(row)
+                
+                st.markdown('</div>', unsafe_allow_html=True)
     with sqlite3.connect(DB_NAME) as conn:
         all_df = pd.read_sql_query("SELECT * FROM archive ORDER BY view_date DESC", conn)
 
@@ -507,6 +571,7 @@ with tab_a:
                                         </div>
                                     ''', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
