@@ -444,8 +444,6 @@ with tab_a:
                                 img_style = 'style="height: auto; aspect-ratio: 1/1;"' if row["category"] == "MUSIC" else ""
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}" {img_style}></div>', unsafe_allow_html=True)
-                                        </div>
-                                    ''', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
 
         # --- [카테고리 탭] ---
@@ -472,6 +470,7 @@ with tab_a:
                                         </div>
                                     ''', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
