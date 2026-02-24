@@ -264,6 +264,7 @@ def show_details(item):
     else:
         col_img, col_txt = st.columns([0.3, 0.7])
 
+    # --- [1] 수정 모드 (Admin 전용) ---
     if is_admin and edit_mode:
         with col_img:
             n_img = st.text_input("🖼️ 이미지 URL", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
@@ -272,7 +273,9 @@ def show_details(item):
         with col_txt:
             with st.form(key=f"edit_form_{item['id']}"):
                 n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
+                # 창작자 정보는 길어질 수 있으므로 text_area 권장
                 n_creator = st.text_area("👤 창작자", value=str(item.get('creator', '')), height=100)
+                
                 cat = item.get('category')
                 labels = {"BOOKS": "📖 출판사", "MUSIC": "💿 레이블", "MOVIES": "🎬 제작사", "SERIES": "📺 플랫폼", "STAGE": "📍 장소"}
                 v_label = labels.get(cat, "📍 장소")
@@ -311,214 +314,50 @@ def show_details(item):
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ 오류: {e}")
-    else:
+
+    # --- [2] 조회 모드 ---
+    else: 
         with col_img:
             img_url = item.get('img_url')
-            if img_url: st.image(img_url, use_container_width=True)
+            if img_url: 
+                st.image(img_url, use_container_width=True)
+            
         with col_txt:
-            # 제목 출력
+            # 제목
             st.markdown(f'# {item.get("title")}')
             
-            # [수정] 카테고리와 창작자 정보를 줄바꿈하여 시각적으로 분리
+            # 카테고리와 창작자 분리 출력 (요청하신 가독성 개선)
             st.markdown(f"#### **[{item.get('category')}]**")
             st.markdown(f"**{item.get('creator')}**")
             
-            # 날짜, 장소 및 감상일
+            # 날짜 및 장소
             st.write(f"📅 {item.get('rel_date')} | 📍 {item.get('venue')}")
             st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿 감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
-            
             st.divider()
-            
-            # 상세 내용 출력
-            if item.get('summary'): st.write(f"**줄거리/작품소개:**\n\n{item.get('summary')}")
-            if item.get('brief'): st.info(f"**요약:** \n\n{item.get('brief')}")
-            if item.get('highlights'): st.warning(f"**인상 깊은 부분:**\n\n{item.get('highlights')}")
-            if item.get('note'): st.success(f"**나의 감상:**\n\n{item.get('note')}")
 
+            # 배지 스타일 섹션 로직
+            sections = [
+                ("📖 줄거리/작품소개", "summary", "#444"),
+                ("📝 요약", "brief", "#0E6245"),
+                ("✨ 인상 깊은 부분", "highlights", "#7D5600"),
+                ("💬 나의 감상", "note", "#1E425E")
+            ]
 
-# --- [5. 메인 화면] ---
-if is_admin:
-    tab_w, tab_a = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
-else:
-    tabs = st.tabs(["📂 ARCHIVE"])
-    tab_a = tabs[0]
-    tab_w = None
-
-# WRITE 로직 (생략 - 기존과 동일)
-if is_admin and tab_w:
-    with tab_w:
-        category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"], horizontal=True)
-        search_query = st.text_input(f"🔍 {category} 검색")
-        
-        if search_query:
-            if category == "BOOKS":
-                res = search_books(search_query)
-                if res:
-                    opts = {f"📚 {b['title']}": b for b in res}
-                    sel = st.selectbox("결과 선택", list(opts.keys()))
-                    if st.button("✨ 가져오기"):
-                        b = opts[sel]
-                        st.session_state.api_data = {'title': b['title'], 'creator': ", ".join(b['authors']), 'date': b['datetime'][:10], 'img': b.get('thumbnail', '').replace("R120x174", "R400x0"), 'venue': b.get('publisher', ''), 'summary': b.get('contents', '')}
-                        st.rerun()
-            elif category == "MUSIC":
-                res = search_apple_music(search_query)
-                if res:
-                    opts = {m['display_name']: m for m in res}
-                    sel = st.selectbox("결과 선택", list(opts.keys()))
-                    if st.button("✨ 가져오기"):
-                        m = opts[sel]
-                        st.session_state.api_data = {'title': m['title'], 'creator': m['creator'], 'date': m['date'], 'img': m['img'], 'summary': f"{m.get('url', '')}\n\n"}
-                        st.rerun()
-            elif category == "STAGE":
-                res = search_kopis(search_query)
-                if res:
-                    opts = {f"🎭 {s['title']} [{s['date']}~] ({s['venue']})": s for s in res}
-                    sel = st.selectbox("결과 선택", list(opts.keys()))
-                    if st.button("✨ 가져오기"):
-                        s = opts[sel]
-                        combined_creator = get_kopis_detail(s['id'])
-                        st.session_state.api_data = {'title': s['title'], 'creator': combined_creator, 'date': s['date'], 'venue': s['venue'], 'img': s['img'], 'summary': f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id={s['id']}"}
-                        st.rerun()
-            else: 
-                res = search_tmdb(search_query, category)
-                if res:
-                    t_key = 'title' if category == 'MOVIES' else 'name'
-                    d_key = 'release_date' if category == 'MOVIES' else 'first_air_date'
-                    opts = {f"🎬 {r.get(t_key)} ({str(r.get(d_key))[:4]})": r for r in res}
-                    sel = st.selectbox("결과 선택", list(opts.keys()))
-                    if st.button("✨ 가져오기"):
-                        s = opts[sel]
-                        details = get_tmdb_details(s['id'], category)
-                        st.session_state.api_data = {'title': s.get(t_key), 'creator': details['creator'], 'date': s.get(d_key), 'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", 'venue': details['venue'], 'summary': s.get('overview', '')}
-                        st.rerun()
-
-        st.divider()
-        data = st.session_state.get('api_data', {})
-        if is_mobile:
-            cl, cr = st.container(), st.container()
-        else:
-            cl, cr = st.columns([0.4, 0.6])
-            
-        with cl:
-            img_url_val = st.text_input("🖼️ 이미지 URL", value=data.get('img', ''))
-            if img_url_val: st.image(img_url_val, use_container_width=True)
-            title = st.text_input("제목", value=data.get('title', ''))
-            creator = st.text_input("창작자 정보", value=data.get('creator', ''))
-            rel_date = st.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
-            venue = st.text_input("📍 장소/플랫폼", value=data.get('venue', ''))
-        with cr:
-            summary = st.text_area("📖 줄거리/작품소개", value=data.get('summary', ''), height=100)
-            brief = st.text_input("📝 요약 (한 줄 평)")
-            highlights = st.text_area("✨ 인상 깊은 부분", height=100)
-            note = st.text_area("💬 나의 감상", height=100)
-            view_date = st.date_input("🍿 감상일", value=date.today())
-            
-            if st.button("✅ 기록 저장", use_container_width=True):
-                new_record = {"category": str(category), "title": str(title).strip(), "creator": str(creator).strip(), "rel_date": str(rel_date), "venue": str(venue).strip(), "summary": str(summary).strip(), "brief": str(brief).strip(), "highlights": str(highlights).strip(), "note": str(note).strip(), "img_url": str(img_url_val).strip(), "save_date": str(date.today()), "view_date": str(view_date)}
-                try:
-                    with sqlite3.connect(DB_NAME) as conn:
-                        conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], new_record["note"], new_record["img_url"], new_record["save_date"], new_record["view_date"]))
-                    supabase.table("archive").upsert(new_record).execute()
-                    st.success("✅ 저장 완료!")
-                    st.session_state.api_data = {}
-                    time.sleep(0.8)
-                    st.rerun()
-                except Exception as e: st.error(f"❌ 오류: {e}")
-
-# --- [ARCHIVE 탭] ---
-with tab_a:
-    st.markdown("""<style>
-        /* 기본 틀: 포스터 비율 (1:1.4) */
-        .cal-img-box { 
-            position: relative; 
-            width: 100%; 
-            aspect-ratio: 1/1.4; 
-            overflow: hidden; 
-            border-radius: 8px; 
-            margin-top: 5px; 
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2); 
-            background: #1e1e1e;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
-        
-        /* 음악 카테고리 전용 스타일 */
-        .music-tab-style {
-            aspect-ratio: 1/1 !important;
-        }
-
-        .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
-        .badge-date { position: absolute; top: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
-
-        /* [핵심] 가로 모드 및 넓은 화면 대응 CSS */
-        @media (min-width: 600px) {
-            [data-testid="stHorizontalBlock"] {
-                display: flex !important;
-                flex-wrap: nowrap !important;
-                gap: 10px !important;
-            }
-            [data-testid="column"] {
-                flex: 1 1 0% !important;
-                min-width: 0 !important;
-            }
-        }
-    </style>""", unsafe_allow_html=True)
-
-    with sqlite3.connect(DB_NAME) as conn:
-        all_df = pd.read_sql_query("SELECT * FROM archive ORDER BY view_date DESC", conn)
-
-    if not all_df.empty:
-        all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
-        cat_order = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
-        cat_emojis = {"BOOKS": "📚", "MUSIC": "🎧", "MOVIES": "🎞️", "SERIES": "📽️", "STAGE": "🎭"}
-        tab_titles = [f"📅 ALL ({len(all_df)})"] + [f"{cat_emojis[c]}{c} ({len(all_df[all_df['category'] == c])})" for c in cat_order]
-        sub_tabs = st.tabs(tab_titles)
-        
-        # 기본적으로 6열 구조로 생성합니다. 
-        # 세로 화면에서는 스트림릿이 알아서 1줄로 쌓고, 
-        # 가로 화면(600px 이상)에서는 위의 CSS가 강제로 6열을 유지시킵니다.
-        grid_cols = 6 
-
-        # --- [ALL 탭] ---
-        with sub_tabs[0]:
-            years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
-            year_options = {y: f"{y}({len(all_df[all_df['v_dt'].dt.year == y])})" for y in years}
-            sel_y = st.selectbox("📅 연도 선택", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
-            y_df = all_df[all_df['v_dt'].dt.year == sel_y]
-            
-            for m in range(12, 0, -1):
-                m_data = y_df[y_df['v_dt'].dt.month == m]
-                if not m_data.empty:
-                    st.subheader(f"🗓️ {m}월")
-                    items = m_data.to_dict('records')
-                    for i in range(0, len(items), grid_cols):
-                        cols = st.columns(grid_cols)
-                        for j in range(grid_cols):
-                            if i+j < len(items):
-                                row = items[i+j]
-                                img_style = 'style="height: auto; aspect-ratio: 1/1;"' if row["category"] == "MUSIC" else ""
-                                with cols[j]:
-                                    st.markdown(f'<div class="cal-img-box"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}" {img_style}></div>', unsafe_allow_html=True)
-                                    if st.button(row['title'][:10], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
-
-        # --- [카테고리 탭] ---
-        for idx, c_name in enumerate(cat_order):
-            with sub_tabs[idx + 1]:
-                c_data = all_df[all_df['category'] == c_name]
-                if c_data.empty: st.info(f"{c_name} 데이터 없음")
-                else:
-                    items = c_data.to_dict('records')
-                    tab_cls = "music-tab-style" if c_name == "MUSIC" else ""
-                    for i in range(0, len(items), grid_cols):
-                        cols = st.columns(grid_cols)
-                        for j in range(grid_cols):
-                            if i+j < len(items):
-                                row = items[i+j]
-                                with cols[j]:
-                                    st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
-                                    if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+            for label, key, color in sections:
+                content = item.get(key)
+                if content and str(content).strip():
+                    # 배지 형태의 라벨
+                    st.markdown(f"""
+                        <div style="display: inline-block; background-color: {color}; color: white; 
+                        padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px; font-weight: bold;">
+                            {label}
+                        </div>""", unsafe_allow_html=True)
+                    
+                    # 본문 (줄바꿈 유지)
+                    st.markdown(str(content).replace('\n', '  \n'))
+                    
+                    # 섹션 구분선
+                    st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
 
 
 
