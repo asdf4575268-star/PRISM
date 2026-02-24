@@ -350,7 +350,7 @@ def show_details(item):
                 if content:
                     # 제목을 작은 배지 형태로 출력
                     st.markdown(f"""
-                        <div style="display: inline-block; background-color: {color}; color: yellow; 
+                        <div style="display: inline-block; background-color: {color}; color: white; 
                         padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px;">
                             {label}
                         </div>""", unsafe_allow_html=True)
@@ -475,7 +475,7 @@ with tab_a:
             aspect-ratio: 1/1 !important;
         }
 
-        .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
+        .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: gray; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
         .badge-date { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
 
         /* [핵심] 가로 모드 및 넓은 화면 대응 CSS */
@@ -545,6 +545,7 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
