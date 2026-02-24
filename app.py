@@ -558,4 +558,10 @@ def smart_cleanup():
         
         conn.commit()
         st.success(f"🧼 {count}개의 데이터를 똑똑하게 정리했습니다!")
+if is_admin:
+            st.divider()
+            with st.expander("🛠️ 데이터 관리 도구 (임시)"):
+                st.warning("주의: 기존 '감독: 이름' 형태를 '[감독] 이름' 형태로 일괄 변경합니다.")
+                if st.button("🧼 기존 데이터 포맷 일괄 정리", use_container_width=True):
+                    smart_cleanup() # 위에서 정의한 함수를 여기서 호출!
 
