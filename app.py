@@ -440,13 +440,11 @@ with tab_a:
                         for j in range(grid_cols):
                             if i+j < len(items):
                                 row = items[i+j]
-                                # ALL 탭에서는 이미지만 정사각형으로 보이게 함 (틀은 1:1.4 고정)
                                 img_style = 'style="height: auto; aspect-ratio: 1/1;"' if row["category"] == "MUSIC" else ""
                                 with cols[j]:
-                                    st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}" {img_style}></div>', unsafe_allow_html=True)
+                                    st.markdown(f'<div class="cal-img-box"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}" {img_style}></div>', unsafe_allow_html=True)
+                                    # 버튼과 함수 실행을 한 줄로 정리하여 들여쓰기 에러 방지
                                     if st.button(row['title'][:10], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
-                                        show_details(row)
-
         # --- [카테고리 탭] ---
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
@@ -471,6 +469,7 @@ with tab_a:
                                         </div>
                                     ''', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
