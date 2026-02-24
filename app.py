@@ -61,17 +61,26 @@ def restore_from_supabase():
             return
 
         with sqlite3.connect(DB_NAME) as conn:
+            cursor = conn.cursor()
+            added_count = 0
             for row in cloud_data:
-                exists = conn.execute("SELECT id FROM archive WHERE title=? AND view_date=?", 
+                # 제목과 감상일 기준으로 중복 체크
+                exists = cursor.execute("SELECT id FROM archive WHERE title=? AND view_date=?", 
                                      (row['title'], row['view_date'])).fetchone()
                 if not exists:
-                    conn.execute("""INSERT INTO archive 
+                    cursor.execute("""INSERT INTO archive 
                         (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, save_date, view_date) 
                         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
                         (row['category'], row['title'], row['creator'], row['rel_date'], 
                          row['venue'], row['summary'], row['brief'], row['highlights'], 
                          row['note'], row['img_url'], row['save_date'], row['view_date']))
-        st.session_state.sync_msg = ("success", "✅ 데이터 복구 완료!")
+                    added_count += 1
+            
+            # [핵심] 변경사항을 확정(Commit)해야 로컬 DB에 물리적으로 저장됩니다.
+            conn.commit()
+            
+        st.session_state.sync_msg = ("success", f"✅ {added_count}개의 새로운 데이터를 복구했습니다!")
+        # 콜백 내 rerun()은 필요 없으므로 제거
     except Exception as e:
         st.session_state.sync_msg = ("error", f"❌ 복구 실패: {e}")
 
@@ -536,3 +545,4 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
