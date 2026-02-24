@@ -350,7 +350,7 @@ def show_details(item):
                 if content:
                     # 제목을 작은 배지 형태로 출력
                     st.markdown(f"""
-                        <div style="display: inline-block; background-color: {color}; color: white; 
+                        <div style="display: inline-block; background-color: {color}; color: yellow; 
                         padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px;">
                             {label}
                         </div>""", unsafe_allow_html=True)
@@ -545,5 +545,6 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
