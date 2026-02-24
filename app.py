@@ -53,36 +53,30 @@ def migrate_to_supabase():
 
 def restore_from_supabase():
     try:
-        # [1] 데이터 호출 시도
         res = supabase.table("archive").select("*").execute()
-        
-        # [2] 슈퍼베이스 라이브러리 버전에 따른 데이터 추출
         cloud_data = res.data if hasattr(res, 'data') else res
         
-        # [3] 데이터가 비어있을 경우 (RLS로 인해 차단된 경우 포함)
         if not cloud_data:
-            st.session_state.sync_msg = ("warning", "⚠️ 클라우드 응답은 성공했으나 데이터가 비어있습니다. (RLS SELECT 정책을 확인하세요)")
+            st.session_state.sync_msg = ("warning", "⚠️ 클라우드 데이터가 비어있습니다.")
             return
 
         with sqlite3.connect(DB_NAME) as conn:
             for row in cloud_data:
-                # 제목과 감상일 기준으로 중복 체크
                 exists = conn.execute("SELECT id FROM archive WHERE title=? AND view_date=?", 
                                      (row.get('title'), row.get('view_date'))).fetchone()
                 if not exists:
-                    conn.execute("""INSERT INTO archive 
-                        (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, save_date, view_date) 
-                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-                        (row.get('category'), row.get('title'), row.get('creator'), row.get('rel_date'), 
-                         row.get('venue'), row.get('summary'), row.get('brief'), row.get('highlights'), 
-                         row.get('note'), row.get('img_url'), row.get('save_date'), row.get('view_date')))
+                    conn.execute("""INSERT INTO archive (...) VALUES (...)""", (...))
         
+        # 성공 메시지만 세션 상태에 저장
         st.session_state.sync_msg = ("success", f"✅ {len(cloud_data)}개 데이터 복구 완료!")
-        st.rerun()
         
+        # [삭제됨] st.rerun() <- 콜백 내에서는 필요 없습니다.
+
     except Exception as e:
-        # 여기서 구체적인 에러 메시지(예: 403 Forbidden 등)가 출력됩니다.
-        st.session_state.sync_msg = ("error", f"❌ 복구 실패 상세: {str(e)}")
+        st.session_state.sync_msg = ("error", f"❌ 복구 실패: {str(e)}")
+
+# 버튼 호출 부분
+st.sidebar.button("☁️ Cloud Restore", on_click=restore_from_supabase)
 
 
 # --- [3. 로그인 시스템 & 사이드바] ---
@@ -587,6 +581,7 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
