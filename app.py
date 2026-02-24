@@ -298,7 +298,7 @@ def show_details(item):
                 ("📖 줄거리/작품소개", "summary", "#444"),
                 ("📝 요약", "brief", "#0E6245"),
                 ("✨ 인상 깊은 부분", "highlights", "#7D5600"),
-                ("💬 나의 감상", "note", "#1E425E")
+                ("💬 PRISM 감상", "note", "#1E425E")
             ]
 
             for label, key, color in sections:
@@ -490,6 +490,7 @@ with tab_a:
                                         </div>
                                     ''', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
