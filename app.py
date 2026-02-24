@@ -82,10 +82,6 @@ if "view_mode" not in st.session_state:
     st.session_state.view_mode = "PC"
 
 with st.sidebar:
-    st.markdown("### 📱 화면 모드")
-    st.session_state.view_mode = st.radio("보기 옵션", ["PC", "Mobile"], horizontal=True, label_visibility="collapsed")
-    st.divider()
-
     st.markdown("### 🔐 Admin Access")
     if not st.session_state.is_logged_in:
         input_password = st.text_input("Password", type="password")
@@ -95,6 +91,11 @@ with st.sidebar:
                 st.rerun()
             else:
                 st.error("Incorrect Password")
+    
+    st.divider()
+    st.markdown("### 📱 화면 모드")
+    st.session_state.view_mode = st.radio("보기 옵션", ["PC", "Mobile"], horizontal=True, label_visibility="collapsed")
+    
     
     if st.session_state.is_logged_in:
         st.success("Admin Mode Active")
@@ -472,6 +473,7 @@ with tab_a:
                                         </div>
                                     ''', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
