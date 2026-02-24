@@ -408,17 +408,20 @@ if is_admin and tab_w:
 # --- [ARCHIVE 탭] ---
 with tab_a:
     st.markdown("""<style>
-        /* [추가] 모바일 강제 2열 배치 스타일 */
+        /* [강화형] 모바일 강제 2열 배치 */
         @media (max-width: 640px) {
-            [data-testid="stHorizontalBlock"] {
+            /* 탭 내부의 컬럼 컨테이너를 강제로 가로 배치 */
+            div[data-testid="stHorizontalBlock"] {
                 display: flex !important;
                 flex-direction: row !important;
                 flex-wrap: wrap !important;
+                gap: 10px !important;
             }
-            [data-testid="column"] {
-                width: 48% !important;  /* 간격을 고려해 50%보다 살짝 작게 설정 */
-                flex: 1 1 48% !important;
-                min-width: 48% !important;
+            /* 각 컬럼의 너비를 50% 미만으로 강제 고정 */
+            div[data-testid="column"] {
+                width: calc(50% - 10px) !important;
+                flex: 1 1 calc(50% - 10px) !important;
+                min-width: calc(50% - 10px) !important;
             }
         }
 
@@ -438,7 +441,7 @@ with tab_a:
         }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
         
-        /* [중요] 음악 카테고리 전용 스타일: 1:1 정사각형 비율로 강제 변경 */
+        /* 음악 카테고리 1:1 비율 */
         .music-tab-style {
             aspect-ratio: 1/1 !important;
         }
@@ -504,6 +507,7 @@ with tab_a:
                                         </div>
                                     ''', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
