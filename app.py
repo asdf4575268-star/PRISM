@@ -267,7 +267,7 @@ def show_details(item):
     # --- 수정 모드 (Admin 전용) ---
     if is_admin and edit_mode:
         with col_img:
-            n_img = st.text_input("🖼️ 이미지 URL", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
+            n_img = st.text_input("🖼️ 이미지", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
             if n_img: st.image(n_img, use_container_width=True)
 
         with col_txt:
@@ -535,6 +535,7 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
