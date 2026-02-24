@@ -406,52 +406,48 @@ if is_admin and tab_w:
                 except Exception as e: st.error(f"❌ 오류: {e}")
 
 # --- [ARCHIVE 탭] ---
-# --- [ARCHIVE 탭] ---
 with tab_a:
-    # 1. 고정형 그리드 전용 스타일
     st.markdown("""<style>
-        /* 그리드 컨테이너 */
-        .archive-grid {
-            display: grid;
-            gap: 15px;
-            width: 100%;
-            /* 기본(PC): 6열 */
-            grid-template-columns: repeat(6, 1fr);
-        }
-
-        /* 모바일/태블릿 (세로): 무조건 2열 고정 */
-        @media (max-width: 1024px) {
-            .archive-grid {
-                grid-template-columns: repeat(2, 1fr) !important;
+        /* [강화형] 모바일 강제 2열 배치 */
+        @media (max-width: 640px) {
+            /* 탭 내부의 컬럼 컨테이너를 강제로 가로 배치 */
+            div[data-testid="stHorizontalBlock"] {
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: wrap !important;
+                gap: 10px !important;
+            }
+            /* 각 컬럼의 너비를 50% 미만으로 강제 고정 */
+            div[data-testid="column"] {
+                width: calc(50% - 10px) !important;
+                flex: 1 1 calc(50% - 10px) !important;
+                min-width: calc(50% - 10px) !important;
             }
         }
 
-        /* 카드 스타일 */
-        .archive-card {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* 이미지 박스 */
+        /* 기본 틀: 포스터 비율 (1:1.4) */
         .cal-img-box { 
             position: relative; 
             width: 100%; 
             aspect-ratio: 1/1.4; 
             overflow: hidden; 
             border-radius: 8px; 
+            margin-top: 5px; 
             box-shadow: 0 4px 8px rgba(0,0,0,0.2); 
             background: #1e1e1e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
+        .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
         
-        /* 음악은 1:1 비율 */
-        .music-card .cal-img-box {
+        /* 음악 카테고리 1:1 비율 */
+        .music-tab-style {
             aspect-ratio: 1/1 !important;
         }
 
-        .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
-        .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 5; }
-        .badge-date { position: absolute; top: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 5; }
+        .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
+        .badge-date { position: absolute; top: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
     </style>""", unsafe_allow_html=True)
 
     with sqlite3.connect(DB_NAME) as conn:
@@ -571,6 +567,7 @@ with tab_a:
                                         </div>
                                     ''', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
