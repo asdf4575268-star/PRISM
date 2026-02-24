@@ -278,28 +278,48 @@ def show_details(item):
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ 오류: {e}")
-    else:
+    else: # 조회 모드
         with col_img:
             img_url = item.get('img_url')
             if img_url: st.image(img_url, use_container_width=True)
+            
         with col_txt:
             st.markdown(f'# {item.get("title")}')
             st.write(f"**[{item.get('category')}]** {item.get('creator')}")
             st.write(f"**📅 {item.get('rel_date')} | 📍 {item.get('venue')}**")
-            st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1em1.1;">🍿감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
+            # 폰트 사이즈 오타(1em1.1) 수정함
+            st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
             st.divider()
-            if item.get('summary'): 
-                st.write("**줄거리/작품소개:**")
-                st.markdown(item.get('summary').replace('\n', '  \n'))
-            if item.get('brief'): 
-                st.info("**요약:**")
-                st.markdown(item.get('brief').replace('\n', '  \n'))
-            if item.get('highlights'): 
-                st.warning("**인상 깊은 부분:**")
-                st.markdown(item.get('highlights').replace('\n', '  \n'))
-            if item.get('note'): 
-                st.success("**나의 감상:**")
-                st.markdown(item.get('note').replace('\n', '  \n'))
+
+            # 배지 스타일과 데이터를 매핑 (라벨, 데이터 키, 색상)
+            sections = [
+                ("📖 줄거리/작품소개", "summary", "#444"),      # 다크 그레이
+                ("📝 요약", "brief", "#0E6245"),              # 그린
+                ("✨ 인상 깊은 부분", "highlights", "#7D5600"), # 골드
+                ("💬 나의 감상", "note", "#1E425E")           # 네이비
+            ]
+
+            for label, key, color in sections:
+                content = item.get(key)
+                if content:
+                    # 제목을 작은 버튼(배지) 형태로 출력
+                    st.markdown(f"""
+                        <div style="
+                            display: inline-block; 
+                            background-color: {color}; 
+                            color: white; 
+                            padding: 2px 12px; 
+                            border-radius: 12px; 
+                            font-size: 0.8em; 
+                            margin-bottom: 10px;
+                        ">
+                            {label}
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # 본문: 특수 공백 문제를 방지하기 위해 일반 스페이스 2개 사용
+                    st.markdown(content.replace('\n', '  \n'))
+                    st.write("") # 섹션 간 여백
 
 
 # --- [5. 메인 화면] ---
@@ -476,6 +496,7 @@ with tab_a:
                                         </div>
                                     ''', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
