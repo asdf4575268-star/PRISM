@@ -385,10 +385,32 @@ if is_admin and tab_w:
 # --- [ARCHIVE 탭] ---
 with tab_a:
     st.markdown("""<style>
-        /* 기본 비율은 1:1.4 */
-        .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1.4; overflow: hidden; border-radius: 8px; margin-bottom: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); transition: 0.3s; }
+        /* 모든 카테고리의 기본 틀은 1:1.4로 고정하여 균형 유지 */
+        .cal-img-box { 
+            position: relative; 
+            width: 100%; 
+            aspect-ratio: 1/1.4; 
+            overflow: hidden; 
+            border-radius: 8px; 
+            margin-bottom: 5px; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2); 
+            background: #1e1e1e; /* 이미지 여백 발생 시 배경색 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        /* 기본 이미지 설정 */
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
-        .badge { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+        
+        /* 음악 전용: 틀은 유지하되 이미지만 정사각형으로 */
+        .cal-img-box.music-style img {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 1/1;
+            object-fit: cover;
+        }
+
+        .badge { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
     </style>""", unsafe_allow_html=True)
 
     with sqlite3.connect(DB_NAME) as conn:
@@ -419,11 +441,11 @@ with tab_a:
                         for j in range(grid_cols):
                             if i+j < len(items):
                                 row = items[i+j]
-                                # 카테고리가 MUSIC이면 1:1, 아니면 1:1.4
-                                current_ratio = "1/1" if row["category"] == "MUSIC" else "1/1.4"
+                                # 음악 카테고리용 클래스 분기
+                                music_cls = "music-style" if row["category"] == "MUSIC" else ""
                                 with cols[j]:
                                     st.markdown(f'''
-                                        <div class="cal-img-box" style="aspect-ratio: {current_ratio};">
+                                        <div class="cal-img-box {music_cls}">
                                             <div class="badge">{pd.to_datetime(row["view_date"]).day}일</div>
                                             <img src="{row["img_url"]}">
                                         </div>
@@ -437,8 +459,7 @@ with tab_a:
                 if c_data.empty: st.info(f"{c_name} 데이터 없음")
                 else:
                     items = c_data.to_dict('records')
-                    # 카테고리 탭은 이미 카테고리가 고정되어 있으므로 한 번만 비율 설정
-                    current_ratio = "1/1" if c_name == "MUSIC" else "1/1.4"
+                    music_cls = "music-style" if c_name == "MUSIC" else ""
                     for i in range(0, len(items), grid_cols):
                         cols = st.columns(grid_cols)
                         for j in range(grid_cols):
@@ -446,11 +467,10 @@ with tab_a:
                                 row = items[i+j]
                                 with cols[j]:
                                     st.markdown(f'''
-                                        <div class="cal-img-box" style="aspect-ratio: {current_ratio};">
+                                        <div class="cal-img-box {music_cls}">
                                             <div class="badge">{row["view_date"]}</div>
                                             <img src="{row["img_url"]}">
                                         </div>
                                     ''', unsafe_allow_html=True)
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
-    else:
-        st.warning("기록이 없습니다.")
+
