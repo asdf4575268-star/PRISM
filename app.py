@@ -287,8 +287,8 @@ def show_details(item):
             st.write(f"**📅 {item.get('rel_date')} | 📍 {item.get('venue')}**")
             st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1em1.1;">🍿감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
             st.divider()
-            if item.get('brief'): st.info(f"**요약:** {item.get('brief')}")
             if item.get('summary'): st.write(f"**줄거리:**\n{item.get('summary')}")
+            if item.get('brief'): st.info(f"**요약:** {item.get('brief')}")
             if item.get('highlights'): st.warning(f"**인상 깊은 부분:**\n{item.get('highlights')}")
             if item.get('note'): st.success(f"**나의 감상:**\n{item.get('note')}")
 
@@ -472,6 +472,7 @@ with tab_a:
                                         </div>
                                     ''', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
