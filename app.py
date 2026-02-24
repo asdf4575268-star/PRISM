@@ -231,7 +231,6 @@ def show_details(item):
     else:
         col_img, col_txt = st.columns([0.3, 0.7])
 
-    # --- 수정 모드 (Admin 전용) ---
     if is_admin and edit_mode:
         with col_img:
             n_img = st.text_input("🖼️ 이미지 URL", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
@@ -279,43 +278,22 @@ def show_details(item):
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ 오류: {e}")
-
-    # --- 조회 모드 (이 else 문이 위 if와 줄이 맞아야 합니다) ---
-    else: 
+    else:
         with col_img:
             img_url = item.get('img_url')
             if img_url: st.image(img_url, use_container_width=True)
-            
         with col_txt:
             st.markdown(f'# {item.get("title")}')
             st.write(f"**[{item.get('category')}]** {item.get('creator')}")
             st.write(f"**📅 {item.get('rel_date')} | 📍 {item.get('venue')}**")
-            st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
+            st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1em1.1;">🍿감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
             st.divider()
+            if item.get('summary'): st.write(f"**줄거리/작품소개:**\n\n{item.get('summary')}")
+            if item.get('brief'): st.info(f"**요약:** \n\n{item.get('brief')}")
+            if item.get('highlights'): st.warning(f"**인상 깊은 부분:**\n\n{item.get('highlights')}")
+            if item.get('note'): st.success(f"**나의 감상:**\n\n{item.get('note')}")
 
-            # 섹션 설정 (배지 스타일)
-            sections = [
-                ("📖 줄거리/작품소개", "summary", "#444"),
-                ("📝 요약", "brief", "#0E6245"),
-                ("✨ 인상 깊은 부분", "highlights", "#7D5600"),
-                ("💬 PRISM 감상", "note", "#1E425E")
-            ]
 
-            for label, key, color in sections:
-                content = item.get(key)
-                if content:
-                    # 제목을 작은 배지 형태로 출력
-                    st.markdown(f"""
-                        <div style="display: inline-block; background-color: {color}; color: white; 
-                        padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px;">
-                            {label}
-                        </div>""", unsafe_allow_html=True)
-                    
-                    # 본문 출력 (스페이스 2개로 줄바꿈 유지 & 자동 줄바꿈 보장)
-                    st.markdown(content.replace('\n', '  \n'))
-                    
-                    # 섹션 구분을 위한 얇은 선
-                    st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
 # --- [5. 메인 화면] ---
 if is_admin:
     tab_w, tab_a = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
@@ -407,73 +385,31 @@ if is_admin and tab_w:
 
 # --- [ARCHIVE 탭] ---
 with tab_a:
-    # 1. 완벽한 그리드 레이아웃 스타일
     st.markdown("""<style>
-        .custom-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr); /* 모바일: 2열 */
-            gap: 12px;
-            width: 100%;
-        }
-
-        @media (min-width: 1024px) {
-            .custom-grid {
-                grid-template-columns: repeat(6, 1fr); /* PC: 6열 */
-            }
-        }
-
-        .card-container {
-            width: 100%;
-            background: #262730;
-            border-radius: 10px;
-            overflow: hidden;
-            border: 1px solid #444;
-            transition: transform 0.2s;
-        }
-
-        .card-container:hover { transform: translateY(-3px); }
-
-        .img-box {
-            position: relative;
-            width: 100%;
-            aspect-ratio: 1 / 1.4;
+        /* 기본 틀: 포스터 비율 (1:1.4) */
+        .cal-img-box { 
+            position: relative; 
+            width: 100%; 
+            aspect-ratio: 1/1.4; 
+            overflow: hidden; 
+            border-radius: 8px; 
+            margin-TOP: 5px; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2); 
             background: #1e1e1e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* [중요] 음악 카테고리 전용 스타일: 1:1 정사각형 비율로 강제 변경 */
+        .music-tab-style {
+            aspect-ratio: 1/1 !important;
         }
 
-        .music-card .img-box { aspect-ratio: 1 / 1 !important; }
-
-        .img-box img { width: 100%; height: 100%; object-fit: cover; }
-
-        .badge {
-            position: absolute;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 2px 6px;
-            font-size: 10px;
-            border-radius: 4px;
-        }
-        .b-cat { top: 5px; left: 5px; }
-        .b-day { top: 5px; right: 5px; }
-
-        .title-area {
-            padding: 8px;
-            text-align: center;
-        }
-
-        /* 스트림릿 버튼 스타일 흉내내기 */
-        .detail-link {
-            display: block;
-            width: 90%;
-            margin: 0 auto 8px auto;
-            background: #ff4b4b;
-            color: white !important;
-            text-decoration: none !important;
-            font-size: 12px;
-            padding: 6px 0;
-            border-radius: 5px;
-            font-weight: bold;
-        }
-    </style>""", unsafe_allow_html=True)
+        .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
+        .badge-date { position: absolute; top: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
+</style>""", unsafe_allow_html=True)
 
     with sqlite3.connect(DB_NAME) as conn:
         all_df = pd.read_sql_query("SELECT * FROM archive ORDER BY view_date DESC", conn)
@@ -484,53 +420,52 @@ with tab_a:
         cat_emojis = {"BOOKS": "📚", "MUSIC": "🎧", "MOVIES": "🎞️", "SERIES": "📽️", "STAGE": "🎭"}
         tab_titles = [f"📅 ALL ({len(all_df)})"] + [f"{cat_emojis[c]}{c} ({len(all_df[all_df['category'] == c])})" for c in cat_order]
         sub_tabs = st.tabs(tab_titles)
+        grid_cols = 2 if is_mobile else 6
 
-        # 쿼리 파라미터를 이용한 클릭 감지
-        query_params = st.query_params
-        if "detail_id" in query_params:
-            target_id = int(query_params["detail_id"])
-            item_to_show = all_df[all_df['id'] == target_id].to_dict('records')
-            if item_to_show:
-                show_details(item_to_show[0])
-                # 팝업을 띄운 후 파라미터 초기화 (다시 클릭 가능하게)
-                st.query_params.clear()
-
-        for t_idx, c_name in enumerate(["ALL"] + cat_order):
-            with sub_tabs[t_idx]:
-                d_df = all_df if c_name == "ALL" else all_df[all_df['category'] == c_name]
-                if d_df.empty:
-                    st.info("데이터 없음")
-                    continue
-
-                if c_name == "ALL":
-                    years = sorted(d_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
-                    sel_y = st.selectbox("📅 연도", options=years, key=f"y_v_{c_name}")
-                    d_df = d_df[d_df['v_dt'].dt.year == sel_y]
-
-                items = d_df.to_dict('records')
-
-                # --- HTML 그리드 직접 시작 ---
-                grid_html = '<div class="custom-grid">'
-                for row in items:
-                    m_cls = "music-card" if row["category"] == "MUSIC" else ""
-                    # 클릭 시 URL 뒤에 ?detail_id=숫자 가 붙도록 하여 st.rerun 유도
-                    detail_url = f"?detail_id={row['id']}"
+        # --- [ALL 탭] ---
+        # 전체 보기에서는 균형을 위해 1:1.4 틀을 유지하고 내부 이미지만 음악일 때 정사각형 처리
+        with sub_tabs[0]:
+            years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
+            year_options = {y: f"{y}({len(all_df[all_df['v_dt'].dt.year == y])})" for y in years}
+            sel_y = st.selectbox("📅 연도 선택", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
+            y_df = all_df[all_df['v_dt'].dt.year == sel_y]
+            
+            for m in range(12, 0, -1):
+                m_data = y_df[y_df['v_dt'].dt.month == m]
+                if not m_data.empty:
+                    st.subheader(f"🗓️ {m}월")
+                    items = m_data.to_dict('records')
+                    for i in range(0, len(items), grid_cols):
+                        cols = st.columns(grid_cols)
+                        for j in range(grid_cols):
+                            if i+j < len(items):
+                                row = items[i+j]
+                                img_style = 'style="height: auto; aspect-ratio: 1/1;"' if row["category"] == "MUSIC" else ""
+                                with cols[j]:
+                                    st.markdown(f'<div class="cal-img-box"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}" {img_style}></div>', unsafe_allow_html=True)
+                                    # 버튼과 함수 실행을 한 줄로 정리하여 들여쓰기 에러 방지
+                                    if st.button(row['title'][:10], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
+        # --- [카테고리 탭] ---
+        for idx, c_name in enumerate(cat_order):
+            with sub_tabs[idx + 1]:
+                c_data = all_df[all_df['category'] == c_name]
+                if c_data.empty: st.info(f"{c_name} 데이터 없음")
+                else:
+                    items = c_data.to_dict('records')
+                    # MUSIC 카테고리 탭일 때만 틀 자체를 1:1로 변경하는 클래스 추가
+                    tab_cls = "music-tab-style" if c_name == "MUSIC" else ""
                     
-                    grid_html += f'''
-                        <div class="card-container {m_cls}">
-                            <div class="img-box">
-                                <div class="badge b-cat">{row["category"]}</div>
-                                <div class="badge b-day">{pd.to_datetime(row["view_date"]).day}일</div>
-                                <img src="{row["img_url"]}">
-                            </div>
-                            <div class="title-area">
-                                <div style="font-size: 11px; margin-bottom: 5px; color: #ddd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                    {row['title']}
-                                </div>
-                                <a href="{detail_url}" target="_self" class="detail-link">상세보기</a>
-                            </div>
-                        </div>
-                    '''
-                grid_html += '</div>'
-                st.markdown(grid_html, unsafe_allow_html=True)
-
+                    for i in range(0, len(items), grid_cols):
+                        cols = st.columns(grid_cols)
+                        for j in range(grid_cols):
+                            if i+j < len(items):
+                                row = items[i+j]
+                                with cols[j]:
+                                    st.markdown(f'''
+                                        <div class="cal-img-box {tab_cls}">
+                                            <div class="badge-cat">{row["category"]}</div>
+                                            <div class="badge-date">{row["view_date"]}</div>
+                                            <img src="{row["img_url"]}">
+                                        </div>
+                                    ''', unsafe_allow_html=True)
+                                    if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
