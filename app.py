@@ -441,7 +441,7 @@ with tab_a:
         sub_tabs = st.tabs(tab_titles)
 
         # 모바일/PC 모드에 따른 컬럼 갯수 설정
-        grid_cols = 2 if is_mobile else 6
+        grid_cols = 6 if is_mobile else 2
 
         # --- [ALL 탭] ---
         with sub_tabs[0]:
@@ -482,4 +482,5 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
 
