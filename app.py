@@ -264,6 +264,7 @@ def show_details(item):
     else:
         col_img, col_txt = st.columns([0.3, 0.7])
 
+    # --- 수정 모드 (Admin 전용) ---
     if is_admin and edit_mode:
         with col_img:
             n_img = st.text_input("🖼️ 이미지 URL", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
@@ -272,7 +273,7 @@ def show_details(item):
         with col_txt:
             with st.form(key=f"edit_form_{item['id']}"):
                 n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
-                n_creator = st.text_area("👤 창작자", value=str(item.get('creator', '')), height=100)
+                n_creator = st.text_input("👤 창작자", value=str(item.get('creator', '')))
                 cat = item.get('category')
                 labels = {"BOOKS": "📖 출판사", "MUSIC": "💿 레이블", "MOVIES": "🎬 제작사", "SERIES": "📺 플랫폼", "STAGE": "📍 장소"}
                 v_label = labels.get(cat, "📍 장소")
@@ -311,29 +312,43 @@ def show_details(item):
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ 오류: {e}")
-    else:
+
+    # --- 조회 모드 (이 else 문이 위 if와 줄이 맞아야 합니다) ---
+    else: 
         with col_img:
             img_url = item.get('img_url')
             if img_url: st.image(img_url, use_container_width=True)
+            
         with col_txt:
-            # 제목 출력
             st.markdown(f'# {item.get("title")}')
-            
-            # [수정] 카테고리와 창작자 정보를 줄바꿈하여 시각적으로 분리
-            st.markdown(f"#### **[{item.get('category')}]**")
-            st.markdown(f"**{item.get('creator')}**")
-            
-            # 날짜, 장소 및 감상일
-            st.write(f"📅 {item.get('rel_date')} | 📍 {item.get('venue')}")
-            st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿 감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
-            
+            st.write(f"**[{item.get('category')}]** {item.get('creator')}")
+            st.write(f"**📅 {item.get('rel_date')} | 📍 {item.get('venue')}**")
+            st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
             st.divider()
-            
-            # 상세 내용 출력
-            if item.get('summary'): st.write(f"**줄거리/작품소개:**\n\n{item.get('summary')}")
-            if item.get('brief'): st.info(f"**요약:** \n\n{item.get('brief')}")
-            if item.get('highlights'): st.warning(f"**인상 깊은 부분:**\n\n{item.get('highlights')}")
-            if item.get('note'): st.success(f"**나의 감상:**\n\n{item.get('note')}")
+
+            # 섹션 설정 (배지 스타일)
+            sections = [
+                ("📖 줄거리/작품소개", "summary", "#444"),
+                ("📝 요약", "brief", "#0E6245"),
+                ("✨ 인상 깊은 부분", "highlights", "#7D5600"),
+                ("💬 나의 감상", "note", "#1E425E")
+            ]
+
+            for label, key, color in sections:
+                content = item.get(key)
+                if content:
+                    # 제목을 작은 배지 형태로 출력
+                    st.markdown(f"""
+                        <div style="display: inline-block; background-color: {color}; color: white; 
+                        padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px;">
+                            {label}
+                        </div>""", unsafe_allow_html=True)
+                    
+                    # 본문 출력 (스페이스 2개로 줄바꿈 유지 & 자동 줄바꿈 보장)
+                    st.markdown(content.replace('\n', '  \n'))
+                    
+                    # 섹션 구분을 위한 얇은 선
+                    st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
 
 
 # --- [5. 메인 화면] ---
@@ -519,4 +534,5 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
