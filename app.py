@@ -231,6 +231,7 @@ def show_details(item):
     else:
         col_img, col_txt = st.columns([0.3, 0.7])
 
+    # --- 수정 모드 (Admin 전용) ---
     if is_admin and edit_mode:
         with col_img:
             n_img = st.text_input("🖼️ 이미지 URL", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
@@ -278,7 +279,9 @@ def show_details(item):
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ 오류: {e}")
-  else: # 조회모드
+
+    # --- 조회 모드 (이 else 문이 위 if와 줄이 맞아야 합니다) ---
+    else: 
         with col_img:
             img_url = item.get('img_url')
             if img_url: st.image(img_url, use_container_width=True)
@@ -290,7 +293,7 @@ def show_details(item):
             st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
             st.divider()
 
-            # 섹션 설정
+            # 섹션 설정 (배지 스타일)
             sections = [
                 ("📖 줄거리/작품소개", "summary", "#444"),
                 ("📝 요약", "brief", "#0E6245"),
@@ -301,28 +304,18 @@ def show_details(item):
             for label, key, color in sections:
                 content = item.get(key)
                 if content:
-                    # 배지 스타일 출력
+                    # 제목을 작은 배지 형태로 출력
                     st.markdown(f"""
-                        <div style="
-                            display: inline-block; 
-                            background-color: {color}; 
-                            color: white; 
-                            padding: 2px 12px; 
-                            border-radius: 12px; 
-                            font-size: 0.8em; 
-                            margin-bottom: 10px;
-                        ">
+                        <div style="display: inline-block; background-color: {color}; color: white; 
+                        padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px;">
                             {label}
-                        </div>
-                    """, unsafe_allow_html=True)
+                        </div>""", unsafe_allow_html=True)
                     
-                    # 본문 출력: 특수 공백 방지를 위해 일반 스페이스 2개('  \n') 적용
+                    # 본문 출력 (스페이스 2개로 줄바꿈 유지 & 자동 줄바꿈 보장)
                     st.markdown(content.replace('\n', '  \n'))
                     
-                    # 섹션 구분을 위한 얇은 선 추가
-                    st.markdown("<hr style='margin: 1.5em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
-
-
+                    # 섹션 구분을 위한 얇은 선
+                    st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
 # --- [5. 메인 화면] ---
 if is_admin:
     tab_w, tab_a = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
@@ -497,6 +490,7 @@ with tab_a:
                                         </div>
                                     ''', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
