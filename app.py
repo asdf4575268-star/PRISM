@@ -53,27 +53,35 @@ def migrate_to_supabase():
 
 def restore_from_supabase():
     try:
-        res = supabase.table("archive").select("*").execute()
-        cloud_data = res.data if hasattr(res, 'data') else res
+        # 데이터 호출
+        response = supabase.table("archive").select("*").execute()
+        
+        # response 구조 확인 (버전마다 다를 수 있음)
+        cloud_data = response.data if hasattr(response, 'data') else response
         
         if not cloud_data:
-            st.session_state.sync_msg = ("warning", "클라우드가 비어있습니다.")
+            st.session_state.sync_msg = ("warning", "⚠️ 클라우드에 데이터가 없습니다.")
             return
 
         with sqlite3.connect(DB_NAME) as conn:
             for row in cloud_data:
+                # 제목(title)과 감상일(view_date) 기준으로 중복 체크
                 exists = conn.execute("SELECT id FROM archive WHERE title=? AND view_date=?", 
-                                     (row['title'], row['view_date'])).fetchone()
+                                     (row.get('title'), row.get('view_date'))).fetchone()
                 if not exists:
                     conn.execute("""INSERT INTO archive 
                         (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, save_date, view_date) 
                         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-                        (row['category'], row['title'], row['creator'], row['rel_date'], 
-                         row['venue'], row['summary'], row['brief'], row['highlights'], 
-                         row['note'], row['img_url'], row['save_date'], row['view_date']))
-        st.session_state.sync_msg = ("success", "✅ 데이터 복구 완료!")
+                        (row.get('category'), row.get('title'), row.get('creator'), row.get('rel_date'), 
+                         row.get('venue'), row.get('summary'), row.get('brief'), row.get('highlights'), 
+                         row.get('note'), row.get('img_url'), row.get('save_date'), row.get('view_date')))
+        
+        st.session_state.sync_msg = ("success", f"✅ {len(cloud_data)}개 기록 복구 완료!")
+        st.rerun() # 화면 새로고침해서 불러온 데이터 바로 보여주기
+        
     except Exception as e:
-        st.session_state.sync_msg = ("error", f"❌ 복구 실패: {e}")
+        # 에러 발생 시 상세 메시지 출력
+        st.session_state.sync_msg = ("error", f"❌ 조회 실패: {str(e)}")
 
 
 # --- [3. 로그인 시스템 & 사이드바] ---
@@ -578,6 +586,7 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
