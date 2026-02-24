@@ -385,7 +385,7 @@ if is_admin and tab_w:
 # --- [ARCHIVE 탭] ---
 with tab_a:
     st.markdown("""<style>
-        /* 모든 카테고리의 기본 틀은 1:1.4로 고정하여 균형 유지 */
+        /* 기본 틀: 포스터 비율 (1:1.4) */
         .cal-img-box { 
             position: relative; 
             width: 100%; 
@@ -394,20 +394,16 @@ with tab_a:
             border-radius: 8px; 
             margin-bottom: 5px; 
             box-shadow: 0 4px 8px rgba(0,0,0,0.2); 
-            background: #1e1e1e; /* 이미지 여백 발생 시 배경색 */
+            background: #1e1e1e;
             display: flex;
             align-items: center;
             justify-content: center;
         }
-        /* 기본 이미지 설정 */
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
         
-        /* 음악 전용: 틀은 유지하되 이미지만 정사각형으로 */
-        .cal-img-box.music-style img {
-            width: 100%;
-            height: auto;
-            aspect-ratio: 1/1;
-            object-fit: cover;
+        /* [중요] 음악 카테고리 전용 스타일: 1:1 정사각형 비율로 강제 변경 */
+        .music-tab-style {
+            aspect-ratio: 1/1 !important;
         }
 
         .badge { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
@@ -425,6 +421,7 @@ with tab_a:
         grid_cols = 2 if is_mobile else 6
 
         # --- [ALL 탭] ---
+        # 전체 보기에서는 균형을 위해 1:1.4 틀을 유지하고 내부 이미지만 음악일 때 정사각형 처리
         with sub_tabs[0]:
             years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
             year_options = {y: f"{y}({len(all_df[all_df['v_dt'].dt.year == y])})" for y in years}
@@ -441,16 +438,16 @@ with tab_a:
                         for j in range(grid_cols):
                             if i+j < len(items):
                                 row = items[i+j]
-                                # 음악 카테고리용 클래스 분기
-                                music_cls = "music-style" if row["category"] == "MUSIC" else ""
+                                # ALL 탭에서는 이미지만 정사각형으로 보이게 함 (틀은 1:1.4 고정)
+                                img_style = 'style="height: auto; aspect-ratio: 1/1;"' if row["category"] == "MUSIC" else ""
                                 with cols[j]:
                                     st.markdown(f'''
-                                        <div class="cal-img-box {music_cls}">
+                                        <div class="cal-img-box">
                                             <div class="badge">{pd.to_datetime(row["view_date"]).day}일</div>
-                                            <img src="{row["img_url"]}">
+                                            <img src="{row["img_url"]}" {img_style}>
                                         </div>
                                     ''', unsafe_allow_html=True)
-                                    if st.button(row['title'][:10], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
+                                    if st.button(row['title'][:8], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
 
         # --- [카테고리 탭] ---
         for idx, c_name in enumerate(cat_order):
@@ -459,7 +456,9 @@ with tab_a:
                 if c_data.empty: st.info(f"{c_name} 데이터 없음")
                 else:
                     items = c_data.to_dict('records')
-                    music_cls = "music-style" if c_name == "MUSIC" else ""
+                    # MUSIC 카테고리 탭일 때만 틀 자체를 1:1로 변경하는 클래스 추가
+                    tab_cls = "music-tab-style" if c_name == "MUSIC" else ""
+                    
                     for i in range(0, len(items), grid_cols):
                         cols = st.columns(grid_cols)
                         for j in range(grid_cols):
@@ -467,13 +466,9 @@ with tab_a:
                                 row = items[i+j]
                                 with cols[j]:
                                     st.markdown(f'''
-                                        <div class="cal-img-box {music_cls}">
+                                        <div class="cal-img-box {tab_cls}">
                                             <div class="badge">{row["view_date"]}</div>
                                             <img src="{row["img_url"]}">
                                         </div>
                                     ''', unsafe_allow_html=True)
-                                    if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
-
-
-
-
+                                    if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
