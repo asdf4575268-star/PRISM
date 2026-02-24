@@ -385,24 +385,19 @@ if is_admin and tab_w:
 
 # --- [ARCHIVE 탭] ---
 with tab_a:
-    # 1. 스트림릿 컬럼 시스템을 강제로 고정하는 CSS
+    # 1. 스타일 설정
     st.markdown("""<style>
-        /* 모든 기기에서 컬럼을 가로로 정렬 (반응형 무력화) */
         [data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-direction: row !important;
             flex-wrap: wrap !important;
             gap: 10px !important;
         }
-
-        /* 각 컬럼의 너비를 무조건 50%에서 간격을 뺀 만큼으로 고정 */
         [data-testid="column"] {
             width: calc(50% - 10px) !important;
             flex: 0 0 calc(50% - 10px) !important;
             min-width: calc(50% - 10px) !important;
         }
-
-        /* PC 화면에서는 다시 6열로 (화면이 넓을 때만 적용) */
         @media (min-width: 1024px) {
             [data-testid="column"] {
                 width: calc(16.66% - 10px) !important;
@@ -410,8 +405,6 @@ with tab_a:
                 min-width: calc(16.66% - 10px) !important;
             }
         }
-
-        /* 포스터 이미지 스타일 */
         .cal-img-box { 
             position: relative; width: 100%; aspect-ratio: 1/1.4; 
             overflow: hidden; border-radius: 8px; 
@@ -419,7 +412,6 @@ with tab_a:
         }
         .music-style .cal-img-box { aspect-ratio: 1/1 !important; }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
-        
         .badge-cat { position: absolute; top: 5px; left: 5px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
         .badge-date { position: absolute; top: 5px; right: 5px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
     </style>""", unsafe_allow_html=True)
@@ -448,28 +440,21 @@ with tab_a:
 
                 items = d_df.to_dict('records')
                 
-                # 핵심: 모바일이든 PC든 상관없이 논리적으로 2열씩 묶어서 st.columns(2)를 생성
-                # (CSS가 어차피 너비를 조정하므로 파이썬에서는 2개씩만 배분하면 됩니다)
+                # 가로로 2개씩 묶어서 배치
                 for i in range(0, len(items), 2):
                     cols = st.columns(2)
                     for j in range(2):
                         if i + j < len(items):
                             row = items[i + j]
                             with cols[j]:
+                                # HTML 코드를 한 줄로 작성하거나 들여쓰기를 최소화하여 에러 방지
                                 m_cls = "music-style" if row["category"] == "MUSIC" else ""
-                                st.markdown(f'''
-                                    <div class="{m_cls}">
-                                        <div class="cal-img-box">
-                                            <div class="badge-cat">{row["category"]}</div>
-                                            <div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div>
-                                            <img src="{row["img_url"]}">
-                                        </div>
-                                    </div>
-                                ''', unsafe_allow_html=True)
-                                # 버튼은 기존처럼 동작
+                                html_code = f'<div class="{m_cls}"><div class="cal-img-box">'
+                                html_code += f'<div class="badge-cat">{row["category"]}</div>'
+                                html_code += f'<div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div>'
+                                html_code += f'<img src="{row["img_url"]}"></div></div>'
+                                st.markdown(html_code, unsafe_allow_html=True)
+                                
+                                # 버튼 배치
                                 if st.button(row['title'][:10], key=f"btn_{c_name}_{row['id']}", use_container_width=True):
                                     show_details(row)
-                                        </div>
-                                    ''', unsafe_allow_html=True)
-                                    if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
-
