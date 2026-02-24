@@ -416,7 +416,7 @@ if is_admin and tab_w:
             cl, cr = st.columns([0.4, 0.6])
             
         with cl:
-            img_url_val = st.text_input("🖼️ 이미지 URL", value=data.get('img', ''))
+            img_url_val = st.text_input("🖼️ 이미지", value=data.get('img', ''))
             if img_url_val: st.image(img_url_val, use_container_width=True)
             title = st.text_input("제목", value=data.get('title', ''))
             creator = st.text_input("창작자 정보", value=data.get('creator', ''))
@@ -535,6 +535,7 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
