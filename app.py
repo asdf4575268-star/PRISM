@@ -278,7 +278,7 @@ def show_details(item):
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ 오류: {e}")
-   else: # 조회 모드
+   else: # 조회모드
         with col_img:
             img_url = item.get('img_url')
             if img_url: st.image(img_url, use_container_width=True)
@@ -497,6 +497,7 @@ with tab_a:
                                         </div>
                                     ''', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
