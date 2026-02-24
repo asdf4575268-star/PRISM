@@ -393,7 +393,7 @@ with tab_a:
             aspect-ratio: 1/1.4; 
             overflow: hidden; 
             border-radius: 8px; 
-            margin-bottom: 5px; 
+            margin-TOP: 5px; 
             box-shadow: 0 4px 8px rgba(0,0,0,0.2); 
             background: #1e1e1e;
             display: flex;
@@ -407,7 +407,7 @@ with tab_a:
             aspect-ratio: 1/1 !important;
         }
 
-        .badge { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
+        .badge { position: absolute; TOP: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
     </style>""", unsafe_allow_html=True)
 
     with sqlite3.connect(DB_NAME) as conn:
@@ -473,6 +473,7 @@ with tab_a:
                                         </div>
                                     ''', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
