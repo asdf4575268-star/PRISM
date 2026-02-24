@@ -278,7 +278,7 @@ def show_details(item):
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ 오류: {e}")
-    else: # 조회 모드
+   else: # 조회 모드
         with col_img:
             img_url = item.get('img_url')
             if img_url: st.image(img_url, use_container_width=True)
@@ -287,22 +287,21 @@ def show_details(item):
             st.markdown(f'# {item.get("title")}')
             st.write(f"**[{item.get('category')}]** {item.get('creator')}")
             st.write(f"**📅 {item.get('rel_date')} | 📍 {item.get('venue')}**")
-            # 폰트 사이즈 오타(1em1.1) 수정함
             st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
             st.divider()
 
-            # 배지 스타일과 데이터를 매핑 (라벨, 데이터 키, 색상)
+            # 섹션 설정
             sections = [
-                ("📖 줄거리/작품소개", "summary", "#444"),      # 다크 그레이
-                ("📝 요약", "brief", "#0E6245"),              # 그린
-                ("✨ 인상 깊은 부분", "highlights", "#7D5600"), # 골드
-                ("💬 나의 감상", "note", "#1E425E")           # 네이비
+                ("📖 줄거리/작품소개", "summary", "#444"),
+                ("📝 요약", "brief", "#0E6245"),
+                ("✨ 인상 깊은 부분", "highlights", "#7D5600"),
+                ("💬 나의 감상", "note", "#1E425E")
             ]
 
             for label, key, color in sections:
                 content = item.get(key)
                 if content:
-                    # 제목을 작은 버튼(배지) 형태로 출력
+                    # 배지 스타일 출력
                     st.markdown(f"""
                         <div style="
                             display: inline-block; 
@@ -317,9 +316,11 @@ def show_details(item):
                         </div>
                     """, unsafe_allow_html=True)
                     
-                    # 본문: 특수 공백 문제를 방지하기 위해 일반 스페이스 2개 사용
+                    # 본문 출력 (자동 줄바꿈 적용)
                     st.markdown(content.replace('\n', '  \n'))
-                    st.write("") # 섹션 간 여백
+                    
+                    # 섹션 구분을 위한 얇은 선 추가
+                    st.markdown("<hr style='margin: 1.5em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
 
 
 # --- [5. 메인 화면] ---
@@ -496,6 +497,7 @@ with tab_a:
                                         </div>
                                     ''', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
