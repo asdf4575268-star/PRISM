@@ -385,29 +385,30 @@ if is_admin and tab_w:
 
 # --- [ARCHIVE 탭] ---
 with tab_a:
-    # 1. 모바일 2열 강제 고정을 위한 CSS (기존 스타일 유지하며 추가)
+    # 1. 더 강력해진 세로 모드 대응 CSS
     st.markdown("""<style>
-        /* [중요] 모바일에서도 가로 배치를 유지하게 함 */
+        /* 가로 배치 컨테이너 강제 */
         [data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-direction: row !important;
             flex-wrap: wrap !important;
-            gap: 10px !important;
+            gap: 8px !important;
+            align-items: flex-start !important;
         }
 
-        /* [중요] 컬럼 너비를 50%로 강제 (간격 제외) */
+        /* [핵심] 모바일 세로에서도 무조건 50%를 유지하도록 강제 */
         [data-testid="column"] {
-            width: calc(50% - 10px) !important;
-            flex: 1 1 calc(50% - 10px) !important;
-            min-width: calc(50% - 10px) !important;
+            flex: 1 1 calc(50% - 8px) !important;
+            min-width: calc(50% - 8px) !important;
+            max-width: calc(50% - 8px) !important;
         }
 
-        /* PC 화면 (브라우저가 넓을 때) 다시 6열로 복구 */
+        /* PC 화면 (1024px 이상)에서는 6열로 복구 */
         @media (min-width: 1024px) {
             [data-testid="column"] {
-                width: calc(16.66% - 10px) !important;
-                flex: 1 1 calc(16.66% - 10px) !important;
-                min-width: calc(16.66% - 10px) !important;
+                flex: 1 1 calc(16.66% - 8px) !important;
+                min-width: calc(16.66% - 8px) !important;
+                max-width: calc(16.66% - 8px) !important;
             }
         }
 
@@ -419,8 +420,8 @@ with tab_a:
         }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
         .music-tab-style { aspect-ratio: 1/1 !important; }
-        .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
-        .badge-date { position: absolute; top: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
+        .badge-cat { position: absolute; top: 5px; left: 5px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; z-index: 10; }
+        .badge-date { position: absolute; top: 5px; right: 5px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; z-index: 10; }
     </style>""", unsafe_allow_html=True)
 
     with sqlite3.connect(DB_NAME) as conn:
@@ -433,8 +434,8 @@ with tab_a:
         tab_titles = [f"📅 ALL ({len(all_df)})"] + [f"{cat_emojis[c]}{c} ({len(all_df[all_df['category'] == c])})" for c in cat_order]
         sub_tabs = st.tabs(tab_titles)
         
-        # 핵심: CSS가 처리해주므로 파이썬 레벨에서는 항상 6열로 쪼개거나 2열로 쪼개도 무방합니다.
-        # 가장 안정적인 2열 단위 생성을 선택합니다.
+        # 기기 감지 여부와 상관없이 파이썬은 일단 2열씩 묶어서 던집니다.
+        # 나머지는 위의 CSS가 알아서 2열(모바일) 또는 6열(PC)로 재배치합니다.
         grid_cols = 2 if is_mobile else 6
 
         # --- [ALL 탭] ---
@@ -449,7 +450,6 @@ with tab_a:
                 if not m_data.empty:
                     st.subheader(f"🗓️ {m}월")
                     items = m_data.to_dict('records')
-                    # CSS가 줄바꿈을 처리하므로 6열씩 생성해도 모바일에서 2줄씩 보입니다.
                     for i in range(0, len(items), grid_cols):
                         cols = st.columns(grid_cols)
                         for j in range(grid_cols):
