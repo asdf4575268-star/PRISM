@@ -82,11 +82,6 @@ if "view_mode" not in st.session_state:
     st.session_state.view_mode = "PC"
 
 with st.sidebar:
-    st.markdown("### 📱 화면 모드")
-    # 기기 모드 선택 (화면 분할 기준)
-    st.session_state.view_mode = st.radio("보기 옵션", ["PC", "Mobile"], horizontal=True, label_visibility="collapsed")
-    st.divider()
-
     st.markdown("### 🔐 Admin Access")
     if not st.session_state.is_logged_in:
         input_password = st.text_input("Password", type="password")
@@ -307,7 +302,11 @@ else:
 # --- [WRITE 탭 로직] ---
 if is_admin and tab_w:
     with tab_w:
-        category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"], horizontal=True)
+        col_cat, col_mode = st.columns([0.75, 0.25])    
+        with col_cat:
+            category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"], horizontal=True)
+        with col_mode:
+            st.session_state.view_mode = st.radio("📱 모드", ["PC", "Mobile"], horizontal=True)
         search_query = st.text_input(f"🔍 {category} 검색")
         
         if search_query:
@@ -483,3 +482,4 @@ with tab_a:
                                     if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
     else:
         st.warning("기록이 없습니다.")
+
