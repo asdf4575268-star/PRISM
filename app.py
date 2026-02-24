@@ -251,8 +251,8 @@ def show_details(item):
                 except: curr_view = date.today()
                 
                 n_view_date = st.date_input("🍿 감상일 수정", value=curr_view)
-                n_brief = st.text_input("📝 요약", value=str(item.get('brief', '')))
                 n_sum = st.text_area("📖 줄거리", value=str(item.get('summary', '')), height=150)
+                n_brief = st.text_input("📝 요약", value=str(item.get('brief', '')))
                 n_high = st.text_area("✨ 인상 깊은 부분", value=str(item.get('highlights', '')), height=100)
                 n_note = st.text_area("💬 감상", value=str(item.get('note', '')), height=100)
 
@@ -472,6 +472,7 @@ with tab_a:
                                         </div>
                                     ''', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
