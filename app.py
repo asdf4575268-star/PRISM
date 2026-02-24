@@ -332,7 +332,7 @@ def show_details(item):
                 ("📖 줄거리/작품소개", "summary", "#444"),
                 ("📝 요약", "brief", "#0E6245"),
                 ("✨ 인상 깊은 부분", "highlights", "#7D5600"),
-                ("💬 🌈PRISM", "note", "#1E425E")
+                ("🌈 PRISM", "note", "#1E425E")
             ]
 
             for label, key, color in sections:
@@ -535,6 +535,7 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
