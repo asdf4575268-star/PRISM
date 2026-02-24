@@ -24,6 +24,7 @@ SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- [2. DB 함수 및 동기화 로직] ---
+st.title("🌈PRISM ARCHIVE ")
 def init_db():
     with sqlite3.connect(DB_NAME) as conn:
         conn.execute('''CREATE TABLE IF NOT EXISTS archive 
@@ -535,6 +536,7 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
