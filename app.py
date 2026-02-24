@@ -53,19 +53,19 @@ def migrate_to_supabase():
 
 def restore_from_supabase():
     try:
-        # 데이터 호출
-        response = supabase.table("archive").select("*").execute()
+        # 데이터 호출 시도
+        res = supabase.table("archive").select("*").execute()
         
-        # response 구조 확인 (버전마다 다를 수 있음)
-        cloud_data = response.data if hasattr(response, 'data') else response
+        # 슈퍼베이스 응답 객체에서 데이터 추출
+        cloud_data = res.data if hasattr(res, 'data') else res
         
         if not cloud_data:
-            st.session_state.sync_msg = ("warning", "⚠️ 클라우드에 데이터가 없습니다.")
+            st.session_state.sync_msg = ("warning", "⚠️ 클라우드 응답은 성공했으나 데이터가 비어있습니다. (RLS 정책 확인 필요)")
             return
 
         with sqlite3.connect(DB_NAME) as conn:
             for row in cloud_data:
-                # 제목(title)과 감상일(view_date) 기준으로 중복 체크
+                # [중복 방지] 제목과 감상일이 모두 일치하는 데이터가 있는지 확인
                 exists = conn.execute("SELECT id FROM archive WHERE title=? AND view_date=?", 
                                      (row.get('title'), row.get('view_date'))).fetchone()
                 if not exists:
@@ -76,12 +76,12 @@ def restore_from_supabase():
                          row.get('venue'), row.get('summary'), row.get('brief'), row.get('highlights'), 
                          row.get('note'), row.get('img_url'), row.get('save_date'), row.get('view_date')))
         
-        st.session_state.sync_msg = ("success", f"✅ {len(cloud_data)}개 기록 복구 완료!")
-        st.rerun() # 화면 새로고침해서 불러온 데이터 바로 보여주기
+        st.session_state.sync_msg = ("success", f"✅ {len(cloud_data)}개 데이터 복구 완료!")
+        st.rerun()
         
     except Exception as e:
-        # 에러 발생 시 상세 메시지 출력
-        st.session_state.sync_msg = ("error", f"❌ 조회 실패: {str(e)}")
+        # 이 부분이 중요합니다. 에러 메시지를 사이드바에 띄워줍니다.
+        st.session_state.sync_msg = ("error", f"❌ 복구 실패 상세: {str(e)}")
 
 
 # --- [3. 로그인 시스템 & 사이드바] ---
@@ -586,6 +586,7 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
