@@ -431,16 +431,58 @@ if is_admin and tab_w:
             view_date = st.date_input("🍿 감상일", value=date.today())
             
             if st.button("✅ 기록 저장", use_container_width=True):
-                new_record = {"category": str(category), "title": str(title).strip(), "creator": str(creator).strip(), "rel_date": str(rel_date), "venue": str(venue).strip(), "summary": str(summary).strip(), "brief": str(brief).strip(), "highlights": str(highlights).strip(), "note": str(note).strip(), "img_url": str(img_url_val).strip(), "save_date": str(date.today()), "view_date": str(view_date)}
+                new_record = {
+                    "category": str(category), 
+                    "title": str(title).strip(), 
+                    "creator": str(creator).strip(), 
+                    "rel_date": str(rel_date), 
+                    "venue": str(venue).strip(), 
+                    "summary": str(summary).strip(), 
+                    "brief": str(brief).strip(), 
+                    "highlights": str(highlights).strip(), 
+                    "note": str(note).strip(), 
+                    "img_url": str(img_url_val).strip(), 
+                    "save_date": str(date.today()), 
+                    "view_date": str(view_date)
+                }
+                
                 try:
+                    # 1. 로컬 DB 중복 체크 및 처리
                     with sqlite3.connect(DB_NAME) as conn:
-                        conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], new_record["note"], new_record["img_url"], new_record["save_date"], new_record["view_date"]))
-                    supabase.table("archive").upsert(new_record).execute()
-                    st.success("✅ 저장 완료!")
+                        # 제목과 감상일이 동일한 기존 기록이 있는지 확인
+                        exists = conn.execute(
+                            "SELECT id FROM archive WHERE title=? AND view_date=?", 
+                            (new_record['title'], new_record['view_date'])
+                        ).fetchone()
+                        
+                        if exists:
+                            # 이미 있다면 업데이트
+                            conn.execute("""UPDATE archive SET 
+                                            category=?, creator=?, rel_date=?, venue=?, summary=?, 
+                                            brief=?, highlights=?, note=?, img_url=? 
+                                            WHERE id=?""", 
+                                         (new_record['category'], new_record['creator'], new_record['rel_date'], 
+                                          new_record['venue'], new_record['summary'], new_record['brief'], 
+                                          new_record['highlights'], new_record['note'], new_record['img_url'], exists[0]))
+                        else:
+                            # 없다면 신규 삽입
+                            conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, save_date, view_date) 
+                                            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", 
+                                         (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], 
+                                          new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], 
+                                          new_record["note"], new_record["img_url"], new_record["save_date"], new_record["view_date"]))
+                    
+                    # 2. 슈퍼베이스 동기화 (on_conflict 설정으로 중복 방지)
+                    # title과 view_date가 고유 키 역할을 하도록 지정합니다.
+                    supabase.table("archive").upsert(new_record, on_conflict="title, view_date").execute()
+
+                    st.success("✅ 저장 및 동기화 완료!")
                     st.session_state.api_data = {}
                     time.sleep(0.8)
                     st.rerun()
-                except Exception as e: st.error(f"❌ 오류: {e}")
+                    
+                except Exception as e: 
+                    st.error(f"❌ 오류: {e}")
 
 # --- [ARCHIVE 탭] ---
 with tab_a:
@@ -536,6 +578,7 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
