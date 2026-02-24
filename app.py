@@ -447,7 +447,7 @@ with tab_a:
                                             <img src="{row["img_url"]}" {img_style}>
                                         </div>
                                     ''', unsafe_allow_html=True)
-                                    if st.button(row['title'][:8], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
+                                    if st.button(row['title'][:10], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
 
         # --- [카테고리 탭] ---
         for idx, c_name in enumerate(cat_order):
@@ -471,4 +471,5 @@ with tab_a:
                                             <img src="{row["img_url"]}">
                                         </div>
                                     ''', unsafe_allow_html=True)
-                                    if st.button(row['title'][:8], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+                                    if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
