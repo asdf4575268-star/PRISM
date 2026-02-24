@@ -295,7 +295,7 @@ def show_details(item):
                 st.info(f"**요약:** \n\n{item.get('brief').replace('\n', '  \n')}")
             if item.get('highlights'): 
                 st.warning("**인상 깊은 부분:**")
-                st.markdown(item.get('highlights').replace('\n', '  \n'))
+                st.markdown(item.get('highlights').replace('\n', '  \n')
             if item.get('note'): 
                 st.success("**나의 감상:**")
                 st.markdown(item.get('note').replace('\n', '  \n'))
@@ -475,5 +475,6 @@ with tab_a:
                                         </div>
                                     ''', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
