@@ -272,7 +272,7 @@ def show_details(item):
         with col_txt:
             with st.form(key=f"edit_form_{item['id']}"):
                 n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
-                n_creator = st.text_input("👤 창작자", value=str(item.get('creator', '')))
+                n_creator = st.text_area("👤 창작자", value=str(item.get('creator', '')), height=100)
                 cat = item.get('category')
                 labels = {"BOOKS": "📖 출판사", "MUSIC": "💿 레이블", "MOVIES": "🎬 제작사", "SERIES": "📺 플랫폼", "STAGE": "📍 장소"}
                 v_label = labels.get(cat, "📍 장소")
@@ -316,11 +316,20 @@ def show_details(item):
             img_url = item.get('img_url')
             if img_url: st.image(img_url, use_container_width=True)
         with col_txt:
+            # 제목 출력
             st.markdown(f'# {item.get("title")}')
-            st.write(f"**[{item.get('category')}]** {item.get('creator')}")
-            st.write(f"**📅 {item.get('rel_date')} | 📍 {item.get('venue')}**")
-            st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1em1.1;">🍿감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
+            
+            # [수정] 카테고리와 창작자 정보를 줄바꿈하여 시각적으로 분리
+            st.markdown(f"#### **[{item.get('category')}]**")
+            st.markdown(f"**{item.get('creator')}**")
+            
+            # 날짜, 장소 및 감상일
+            st.write(f"📅 {item.get('rel_date')} | 📍 {item.get('venue')}")
+            st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿 감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
+            
             st.divider()
+            
+            # 상세 내용 출력
             if item.get('summary'): st.write(f"**줄거리/작품소개:**\n\n{item.get('summary')}")
             if item.get('brief'): st.info(f"**요약:** \n\n{item.get('brief')}")
             if item.get('highlights'): st.warning(f"**인상 깊은 부분:**\n\n{item.get('highlights')}")
@@ -510,3 +519,4 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
