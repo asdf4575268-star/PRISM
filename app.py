@@ -385,44 +385,31 @@ if is_admin and tab_w:
 
 # --- [ARCHIVE 탭] ---
 with tab_a:
-    # 1. 더 강력해진 세로 모드 대응 CSS
     st.markdown("""<style>
-        /* 가로 배치 컨테이너 강제 */
-        [data-testid="stHorizontalBlock"] {
-            display: flex !important;
-            flex-direction: row !important;
-            flex-wrap: wrap !important;
-            gap: 8px !important;
-            align-items: flex-start !important;
-        }
-
-        /* [핵심] 모바일 세로에서도 무조건 50%를 유지하도록 강제 */
-        [data-testid="column"] {
-            flex: 1 1 calc(50% - 8px) !important;
-            min-width: calc(50% - 8px) !important;
-            max-width: calc(50% - 8px) !important;
-        }
-
-        /* PC 화면 (1024px 이상)에서는 6열로 복구 */
-        @media (min-width: 1024px) {
-            [data-testid="column"] {
-                flex: 1 1 calc(16.66% - 8px) !important;
-                min-width: calc(16.66% - 8px) !important;
-                max-width: calc(16.66% - 8px) !important;
-            }
-        }
-
+        /* 기본 틀: 포스터 비율 (1:1.4) */
         .cal-img-box { 
-            position: relative; width: 100%; aspect-ratio: 1/1.4; 
-            overflow: hidden; border-radius: 8px; margin-top: 5px; 
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2); background: #1e1e1e;
-            display: flex; align-items: center; justify-content: center;
+            position: relative; 
+            width: 100%; 
+            aspect-ratio: 1/1.4; 
+            overflow: hidden; 
+            border-radius: 8px; 
+            margin-TOP: 5px; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2); 
+            background: #1e1e1e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
-        .music-tab-style { aspect-ratio: 1/1 !important; }
-        .badge-cat { position: absolute; top: 5px; left: 5px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; z-index: 10; }
-        .badge-date { position: absolute; top: 5px; right: 5px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; z-index: 10; }
-    </style>""", unsafe_allow_html=True)
+        
+        /* [중요] 음악 카테고리 전용 스타일: 1:1 정사각형 비율로 강제 변경 */
+        .music-tab-style {
+            aspect-ratio: 1/1 !important;
+        }
+
+        .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
+        .badge-date { position: absolute; top: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
+</style>""", unsafe_allow_html=True)
 
     with sqlite3.connect(DB_NAME) as conn:
         all_df = pd.read_sql_query("SELECT * FROM archive ORDER BY view_date DESC", conn)
@@ -433,12 +420,10 @@ with tab_a:
         cat_emojis = {"BOOKS": "📚", "MUSIC": "🎧", "MOVIES": "🎞️", "SERIES": "📽️", "STAGE": "🎭"}
         tab_titles = [f"📅 ALL ({len(all_df)})"] + [f"{cat_emojis[c]}{c} ({len(all_df[all_df['category'] == c])})" for c in cat_order]
         sub_tabs = st.tabs(tab_titles)
-        
-        # 기기 감지 여부와 상관없이 파이썬은 일단 2열씩 묶어서 던집니다.
-        # 나머지는 위의 CSS가 알아서 2열(모바일) 또는 6열(PC)로 재배치합니다.
         grid_cols = 2 if is_mobile else 6
 
         # --- [ALL 탭] ---
+        # 전체 보기에서는 균형을 위해 1:1.4 틀을 유지하고 내부 이미지만 음악일 때 정사각형 처리
         with sub_tabs[0]:
             years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
             year_options = {y: f"{y}({len(all_df[all_df['v_dt'].dt.year == y])})" for y in years}
@@ -458,8 +443,8 @@ with tab_a:
                                 img_style = 'style="height: auto; aspect-ratio: 1/1;"' if row["category"] == "MUSIC" else ""
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}" {img_style}></div>', unsafe_allow_html=True)
+                                    # 버튼과 함수 실행을 한 줄로 정리하여 들여쓰기 에러 방지
                                     if st.button(row['title'][:10], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
-
         # --- [카테고리 탭] ---
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
@@ -467,12 +452,20 @@ with tab_a:
                 if c_data.empty: st.info(f"{c_name} 데이터 없음")
                 else:
                     items = c_data.to_dict('records')
+                    # MUSIC 카테고리 탭일 때만 틀 자체를 1:1로 변경하는 클래스 추가
                     tab_cls = "music-tab-style" if c_name == "MUSIC" else ""
+                    
                     for i in range(0, len(items), grid_cols):
                         cols = st.columns(grid_cols)
                         for j in range(grid_cols):
                             if i+j < len(items):
                                 row = items[i+j]
                                 with cols[j]:
-                                    st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
+                                    st.markdown(f'''
+                                        <div class="cal-img-box {tab_cls}">
+                                            <div class="badge-cat">{row["category"]}</div>
+                                            <div class="badge-date">{row["view_date"]}</div>
+                                            <img src="{row["img_url"]}">
+                                        </div>
+                                    ''', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
