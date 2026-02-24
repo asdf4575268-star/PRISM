@@ -149,25 +149,42 @@ def get_tmdb_details(item_id, category):
     is_movie = "MOVIES" in category
     type_path = "movie" if is_movie else "tv"
     url = f"https://api.themoviedb.org/3/{type_path}/{item_id}?api_key={TMDB_API_KEY}&language=ko-KR&append_to_response=credits"
+    
     try:
         res = requests.get(url).json()
         crew_list = res.get('credits', {}).get('crew', [])
+        cast_list = res.get('credits', {}).get('cast', [])
+        
+        # 1. 창작자(감독/작가) 정보 추출
         if is_movie:
             director = next((m['name'] for m in crew_list if m.get('job') == 'Director'), "정보 없음")
-            creator_info = f"감독: {director}"
+            creator_label = f"[감독] {director}"
+            
             companies = res.get('production_companies', [])
             venue_info = companies[0].get('name', '') if companies else ""
         else:
+            # 시리즈물 (TV)
             creators = res.get('created_by', [])
-            creator_names = ", ".join([c['name'] for c in creators]) if creators else \
-                            next((m['name'] for m in crew_list if m.get('job') in ['Writer', 'Executive Producer']), "정보 없음")
-            creator_info = f"작가/제작: {creator_names}"
+            if creators:
+                creator_names = ", ".join([c['name'] for c in creators])
+            else:
+                creator_names = next((m['name'] for m in crew_list if m.get('job') in ['Writer', 'Executive Producer']), "정보 없음")
+            
+            creator_label = f"[작가/제작] {creator_names}"
+            
             networks = res.get('networks', [])
             venue_info = networks[0].get('name', '') if networks else ""
 
-        cast = ", ".join([c['name'] for c in res.get('credits', {}).get('cast', [])[:3]])
-        return {"creator": f"{creator_info} / 출연: {cast}", "venue": venue_info}
-    except:
+        # 2. 출연진 정보 추출 (최대 3명)
+        cast_names = ", ".join([c['name'] for c in cast_list[:3]])
+        cast_label = f"[출연] {cast_names}" if cast_names else ""
+
+        # 3. 최종 결합 (역할별로 구분자 / 를 넣어 나중에 split하기 좋게 만듦)
+        full_creator = f"{creator_label} / {cast_label}".strip(" / ")
+        
+        return {"creator": full_creator, "venue": venue_info}
+    
+    except Exception as e:
         return {"creator": "정보 없음", "venue": ""}
 
 def search_kopis(query):
@@ -477,3 +494,4 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
