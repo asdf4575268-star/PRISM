@@ -278,7 +278,7 @@ def show_details(item):
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ 오류: {e}")
-   else: # 조회모드
+  else: # 조회모드
         with col_img:
             img_url = item.get('img_url')
             if img_url: st.image(img_url, use_container_width=True)
@@ -316,7 +316,7 @@ def show_details(item):
                         </div>
                     """, unsafe_allow_html=True)
                     
-                    # 본문 출력 (자동 줄바꿈 적용)
+                    # 본문 출력: 특수 공백 방지를 위해 일반 스페이스 2개('  \n') 적용
                     st.markdown(content.replace('\n', '  \n'))
                     
                     # 섹션 구분을 위한 얇은 선 추가
@@ -497,6 +497,7 @@ with tab_a:
                                         </div>
                                     ''', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
