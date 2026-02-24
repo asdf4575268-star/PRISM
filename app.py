@@ -546,3 +546,45 @@ with tab_a:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
 
+
+def cleanup_all_creators():
+    try:
+        with sqlite3.connect(DB_NAME) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute("SELECT id, creator, category FROM archive").fetchall()
+            
+            updated_count = 0
+            for row in rows:
+                original = row['creator']
+                cid = row['id']
+                
+                # 이미 형식이 잘 잡혀있거나 빈 데이터는 패스
+                if not original or " / " in original:
+                    continue
+                
+                # 1. 가공 로직
+                new_val = original
+                if row['category'] == 'STAGE':
+                    # 공연 데이터의 경우: [제작]과 [출연] 사이 분리
+                    if "[제작]" in new_val and "[출연]" in new_val and " / " not in new_val:
+                        new_val = new_val.replace("[출연]", " / [출연]")
+                
+                # 2. 로컬 DB 업데이트
+                conn.execute("UPDATE archive SET creator=? WHERE id=?", (new_val, cid))
+                
+                # 3. 슈퍼베이스도 같이 업데이트 (title과 view_date 기준)
+                # 이 부분은 필요 시 주석 해제하여 사용하세요.
+                # row_full = conn.execute("SELECT * FROM archive WHERE id=?", (cid,)).fetchone()
+                # supabase.table("archive").update({"creator": new_val}).eq("id", cid).execute()
+                
+                updated_count += 1
+            
+            conn.commit()
+            st.sidebar.success(f"🧹 {updated_count}개의 데이터 형식을 정리했습니다!")
+            
+    except Exception as e:
+        st.sidebar.error(f"❌ 정리 실패: {e}")
+
+# 실행 버튼 (사이드바에 임시로 생성)
+if st.sidebar.button("🧹 데이터 일괄 정리 실행"):
+    cleanup_all_creators()
