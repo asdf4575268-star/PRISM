@@ -215,11 +215,27 @@ def get_kopis_detail(mt20id):
         root = ET.fromstring(res.content)
         d = root.find('db')
         if d is not None:
+            # 1. 제작진(연출, 작가 등) 정보 추출
             crew = d.findtext('prfcrew').strip() if d.findtext('prfcrew') else ""
+            # 2. 출연진 정보 추출
             cast = d.findtext('prfcast').strip() if d.findtext('prfcast') else ""
-            if not crew and not cast: return "정보 없음"
-            return f"{crew} / {cast}".strip(" / ")
-    except: return "상세정보 로드 실패"
+            
+            info_parts = []
+            if crew:
+                # '연출: 홍길동' 식으로 올 수도 있고 이름만 올 수도 있으므로 태그 부여
+                info_parts.append(f"[제작] {crew}")
+            if cast:
+                # 출연진 정보 추가
+                info_parts.append(f"[출연] {cast}")
+            
+            if not info_parts:
+                return "정보 없음"
+                
+            # 최종 형태: [제작] 연출진 / [출연] 배우들
+            return " / ".join(info_parts)
+            
+    except Exception as e:
+        return "상세정보 로드 실패"
     return "정보 없음"
 
 
@@ -494,4 +510,5 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
