@@ -408,6 +408,20 @@ if is_admin and tab_w:
 # --- [ARCHIVE 탭] ---
 with tab_a:
     st.markdown("""<style>
+        /* [추가] 모바일 강제 2열 배치 스타일 */
+        @media (max-width: 640px) {
+            [data-testid="stHorizontalBlock"] {
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: wrap !important;
+            }
+            [data-testid="column"] {
+                width: 48% !important;  /* 간격을 고려해 50%보다 살짝 작게 설정 */
+                flex: 1 1 48% !important;
+                min-width: 48% !important;
+            }
+        }
+
         /* 기본 틀: 포스터 비율 (1:1.4) */
         .cal-img-box { 
             position: relative; 
@@ -415,7 +429,7 @@ with tab_a:
             aspect-ratio: 1/1.4; 
             overflow: hidden; 
             border-radius: 8px; 
-            margin-TOP: 5px; 
+            margin-top: 5px; 
             box-shadow: 0 4px 8px rgba(0,0,0,0.2); 
             background: #1e1e1e;
             display: flex;
@@ -431,7 +445,7 @@ with tab_a:
 
         .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
         .badge-date { position: absolute; top: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
-</style>""", unsafe_allow_html=True)
+    </style>""", unsafe_allow_html=True)
 
     with sqlite3.connect(DB_NAME) as conn:
         all_df = pd.read_sql_query("SELECT * FROM archive ORDER BY view_date DESC", conn)
@@ -490,6 +504,7 @@ with tab_a:
                                         </div>
                                     ''', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
