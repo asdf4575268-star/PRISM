@@ -86,10 +86,24 @@ def restore_from_supabase():
 
 
 # --- [3. 로그인 시스템 & 사이드바] ---
+DEV_MODE = True 
 if "is_logged_in" not in st.session_state:
     st.session_state.is_logged_in = False
 if "view_mode" not in st.session_state:
     st.session_state.view_mode = "PC"
+is_admin = st.session_state.is_logged_in or DEV_MODE
+with st.sidebar:
+    st.markdown("### 🔐 Admin Access")
+    if not is_admin:
+        input_password = st.text_input("Password", type="password")
+        if input_password:
+            if input_password == st.secrets["ADMIN_PASSWORD"]:
+                st.session_state.is_logged_in = True
+                st.rerun()
+            else:
+                st.error("Incorrect Password")
+    
+    st.divider()
 
 with st.sidebar:
     st.markdown("### 🔐 Admin Access")
@@ -545,6 +559,7 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
