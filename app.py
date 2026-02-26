@@ -437,9 +437,9 @@ def render_gallery(items, grid_cols, is_all_tab=False, key_prefix="btn"):
                 row = items[i + j]
                 cat = row["category"]
                 
-                # CSS 속성 정의
-                img_style = 'style="height: auto; aspect-ratio: 1/1;"' if cat == "MUSIC" else ""
-                tab_cls = "music-tab-style" if cat == "MUSIC" else ""
+                # ALL 탭에서는 모든 캔버스를 1:1.4로 강제 고정 (틀어짐 방지)
+                # 단일 카테고리 탭 중 MUSIC에서만 1:1 비율 적용
+                tab_cls = "music-tab-style" if cat == "MUSIC" and not is_all_tab else ""
                 
                 # ALL 탭 전용 뱃지 및 날짜 포맷
                 badge_cat_html = f'<div class="badge-cat">{cat}</div>' if is_all_tab else ""
@@ -450,11 +450,12 @@ def render_gallery(items, grid_cols, is_all_tab=False, key_prefix="btn"):
                     date_display = row["view_date"]
 
                 with cols[j]:
+                    # img 태그에 loading="lazy"를 추가해 숨겨진 탭에서도 이미지가 안정적으로 로드되게 유도
                     st.markdown(f'''
                     <div class="cal-img-box {tab_cls}">
                         {badge_cat_html}
                         <div class="badge-date">{date_display}</div>
-                        <img src="{row['img_url']}" {img_style}>
+                        <img src="{row['img_url']}" loading="lazy" alt="poster">
                     </div>
                     ''', unsafe_allow_html=True)
                     
@@ -464,8 +465,21 @@ def render_gallery(items, grid_cols, is_all_tab=False, key_prefix="btn"):
 # --- [ARCHIVE 탭] ---
 with tab_a:
     st.markdown("""<style>
-        .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1.4; overflow: hidden; border-radius: 8px; margin-top: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); background: #1e1e1e; display: flex; align-items: center; justify-content: center; }
-        .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
+        .cal-img-box { 
+            position: relative; 
+            width: 100%; 
+            min-width: 100px; /* 숨겨진 탭에서 가로 폭이 0px로 붕괴되는 현상 방지 */
+            aspect-ratio: 1/1.4; 
+            overflow: hidden; 
+            border-radius: 8px; 
+            margin-top: 5px; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2); 
+            background: #1e1e1e; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+        }
+        .cal-img-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .music-tab-style { aspect-ratio: 1/1 !important; }
         .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: yellow; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
         .badge-date { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
