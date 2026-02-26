@@ -29,7 +29,8 @@ def init_db():
     with sqlite3.connect(DB_NAME) as conn:
         conn.execute('''CREATE TABLE IF NOT EXISTS archive 
                         (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
-                         rel_date TEXT, venue TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, img_url TEXT, save_date TEXT, view_date TEXT)''')
+                         rel_date TEXT, venue TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, 
+                         img_url TEXT, img_url2 TEXT, save_date TEXT, view_date TEXT)''')
 init_db()
 
 def migrate_to_supabase():
@@ -296,7 +297,8 @@ def show_details(item):
     # --- 수정 모드 (Admin 전용) ---
     if is_admin and edit_mode:
         with col_img:
-            n_img = st.text_input("🖼️ 이미지", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
+            n_img = st.text_input("🖼️ 이미지 1", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
+            n_img2 = st.text_input("🖼️ 이미지 2", value=str(item.get('img_url2', '')), key=f"img2_in_{item['id']}")
             if n_img: st.image(n_img, use_container_width=True)
 
         with col_txt:
@@ -325,7 +327,7 @@ def show_details(item):
                         with sqlite3.connect(DB_NAME) as conn:
                             conn.execute("""UPDATE archive SET 
                                             title=?, creator=?, rel_date=?, venue=?, 
-                                            summary=?, brief=?, highlights=?, note=?, view_date=?, img_url=? 
+                                            summary=?, brief=?, highlights=?, note=?, view_date=?, img_url=?, , img_url2=? 
                                             WHERE id=?""", 
                                          (n_title, n_creator, n_rel, n_venue, 
                                           n_sum, n_brief, n_high, n_note, str(n_view_date), n_img, item['id']))
@@ -564,4 +566,5 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
