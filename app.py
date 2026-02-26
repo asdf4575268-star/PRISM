@@ -86,45 +86,46 @@ def restore_from_supabase():
 
 
 # --- [3. 로그인 시스템 & 사이드바] ---
-DEV_MODE = True 
+
+# 작업 중일 때 True로 두면 비번 없이도 관리자 메뉴가 보입니다. 
+# 배포 시에는 False로 바꾸세요.
+DEV_MODE = False 
+
+# 세션 초기화 (user_password를 저장하는 것이 핵심)
 if "is_logged_in" not in st.session_state:
     st.session_state.is_logged_in = False
+if "user_password" not in st.session_state:
+    st.session_state.user_password = ""
 if "view_mode" not in st.session_state:
     st.session_state.view_mode = "PC"
+
+# [핵심] 세션에 저장된 비번이 맞다면 자동으로 로그인 상태 유지
+if st.session_state.user_password == st.secrets["ADMIN_PASSWORD"]:
+    st.session_state.is_logged_in = True
+
+# 최종 관리자 권한 여부
 is_admin = st.session_state.is_logged_in or DEV_MODE
-with st.sidebar:
-    st.markdown("### 🔐 Admin Access")
-    if not is_admin:
-        input_password = st.text_input("Password", type="password")
-        if input_password:
-            if input_password == st.secrets["ADMIN_PASSWORD"]:
-                st.session_state.is_logged_in = True
-                st.rerun()
-            else:
-                st.error("Incorrect Password")
-    
-    st.divider()
 
 with st.sidebar:
     st.markdown("### 🔐 Admin Access")
-    if not st.session_state.is_logged_in:
-        input_password = st.text_input("Password", type="password")
+    
+    # 로그인하지 않은 상태일 때만 로그인 UI 표시
+    if not is_admin:
+        input_password = st.text_input("Password", type="password", key="sidebar_pw")
         if input_password:
             if input_password == st.secrets["ADMIN_PASSWORD"]:
+                st.session_state.user_password = input_password  # 세션에 비번 저장
                 st.session_state.is_logged_in = True
                 st.rerun()
             else:
                 st.error("Incorrect Password")
     
-    st.divider()
-    st.markdown("### 📱 화면 모드")
-    st.session_state.view_mode = st.radio("보기 옵션", ["PC", "Mobile"], horizontal=True, label_visibility="collapsed")
-    
-    
+    # 로그인 성공 후 표시되는 메뉴
     if st.session_state.is_logged_in:
         st.success("Admin Mode Active")
         if st.button("🔓 Logout", use_container_width=True):
             st.session_state.is_logged_in = False
+            st.session_state.user_password = "" # 로그아웃 시 비번 삭제
             st.rerun()
             
         st.divider()
@@ -139,7 +140,11 @@ with st.sidebar:
         st.button("📤 Cloud Backup", on_click=migrate_to_supabase, use_container_width=True)
         st.button("📥 Cloud Restore", on_click=restore_from_supabase, use_container_width=True)
 
-is_admin = st.session_state.is_logged_in
+    st.divider()
+    st.markdown("### 📱 화면 모드")
+    st.session_state.view_mode = st.radio("보기 옵션", ["PC", "Mobile"], horizontal=True, label_visibility="collapsed")
+
+# 최종 변수 설정
 is_mobile = st.session_state.view_mode == "Mobile"
 
 
@@ -559,6 +564,7 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
