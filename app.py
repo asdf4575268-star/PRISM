@@ -21,16 +21,16 @@ SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# --- [2. 데이터 로드 함수 (Supabase 전용)] ---
+# --- [2. 데이터 로드 함수] ---
 st.title("🌈PRISM ARCHIVE ")
 
-@st.cache_data(ttl=60) # 1분간 캐시 유지 (성능 향상)
-def load_data_from_supabase():
+def load_data():
     try:
+        # Supabase에서 직접 데이터를 가져옵니다.
         res = supabase.table("archive").select("*").order("view_date", desc=True).execute()
         return pd.DataFrame(res.data)
     except Exception as e:
-        st.error(f"❌ 데이터 로드 실패: {e}")
+        st.error(f"데이터 로드 실패: {e}")
         return pd.DataFrame()
 
 # --- [3. 로그인 시스템 & 사이드바] ---
@@ -69,7 +69,7 @@ with st.sidebar:
 is_mobile = st.session_state.view_mode == "Mobile"
 
 
-# --- [API 검색 함수들 - 기존과 동일] ---
+# --- [API 검색 함수들 - 변경 없음] ---
 def search_books(query):
     headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
     try:
@@ -155,7 +155,7 @@ def get_kopis_detail(mt20id):
     return "정보 없음"
 
 
-# --- [4. 팝업 상세 보기 (Supabase 전용)] ---
+# --- [4. 팝업 상세 보기 - 디자인 원본 유지] ---
 @st.dialog("📋 기록", width="large")
 def show_details(item):
     edit_mode = False
@@ -164,7 +164,6 @@ def show_details(item):
         with t_col1:
             if st.button("🗑️ 삭제", key=f"del_{item['id']}", use_container_width=True):
                 supabase.table("archive").delete().eq("id", item['id']).execute()
-                st.cache_data.clear()
                 st.rerun()
         with t_col3:
             edit_mode = st.toggle("✏️ 수정", key=f"tog_{item['id']}")
@@ -179,60 +178,67 @@ def show_details(item):
         with col_img:
             n_img = st.text_input("🖼️ 메인 이미지 URL", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
             n_sub_img = st.text_input("📸 추가 이미지 URL", value=str(item.get('sub_img', '')), key=f"sub_img_in_{item['id']}")
+            if n_img: st.image(n_img, use_container_width=True, caption="Main")
+            if n_sub_img: st.image(n_sub_img, use_container_width=True, caption="Sub")
         with col_txt:
             with st.form(key=f"edit_form_{item['id']}"):
                 n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
                 n_creator = st.text_input("👤 창작자", value=str(item.get('creator', '')))
+                cat = item.get('category')
+                labels = {"BOOKS": "📖 출판사", "MUSIC": "💿 레이블", "MOVIES": "🎬 제작사", "SERIES": "📺 플랫폼", "STAGE": "📍 장소"}
+                v_label = labels.get(cat, "📍 장소")
                 n_rel = st.text_input("📅 작품 날짜", value=str(item.get('rel_date', '')))
-                n_venue = st.text_input("📍 장소/플랫폼", value=str(item.get('venue', '')))
+                n_venue = st.text_input(v_label, value=str(item.get('venue', '')))
                 n_view_date = st.date_input("🍿 감상일", value=pd.to_datetime(item.get('view_date')).date())
-                n_sum = st.text_area("📖 작품소개", value=str(item.get('summary', '')), height=150)
+                n_sum = st.text_area("📖 줄거리/작품소개", value=str(item.get('summary', '')), height=150)
                 n_brief = st.text_input("📝 요약", value=str(item.get('brief', '')))
                 n_high = st.text_area("✨ 인상 깊은 부분", value=str(item.get('highlights', '')), height=100)
                 n_note = st.text_area("💬 감상", value=str(item.get('note', '')), height=100)
 
-                if st.form_submit_button("💾 수정사항 저장"):
+                if st.form_submit_button("💾 저장"):
                     supabase.table("archive").update({
                         "title": n_title, "creator": n_creator, "rel_date": n_rel, "venue": n_venue,
                         "summary": n_sum, "brief": n_brief, "highlights": n_high, "note": n_note,
                         "view_date": str(n_view_date), "img_url": n_img, "sub_img": n_sub_img
                     }).eq("id", item['id']).execute()
-                    st.cache_data.clear()
                     st.success("✅ 수정 완료!")
-                    st.rerun()
+                    time.sleep(0.5); st.rerun()
     else: 
         with col_img:
             if item.get('img_url'): st.image(item['img_url'], use_container_width=True)
-            if item.get('sub_img'): st.image(item['sub_img'], use_container_width=True, caption="Sub Image")
+            if item.get('sub_img'): 
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.image(item['sub_img'], use_container_width=True)
         with col_txt:
             st.markdown(f'# {item.get("title")}')
-            st.write(f"#### **[{item.get('category')}]** {item.get('creator')}")
-            st.write(f"📅 {item.get('rel_date')} | 📍 {item.get('venue')}")
-            st.write(f"🍿 **감상일: {item.get('view_date')}**")
+            st.write(f"#### **[{item.get('category')}]**")
+            st.write(f"**{item.get('creator')}**")
+            st.write(f"**📅 {item.get('rel_date')} | 📍 {item.get('venue')}**")
+            st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
             st.divider()
-            sections = [("📖 작품소개", "summary", "#444"), ("📝 요약", "brief", "#0E6245"), ("✨ 인상 깊은 부분", "highlights", "#7D5600"), ("🌈 PRISM", "note", "#1E425E")]
-            for lbl, k, col in sections:
-                if item.get(k):
-                    st.markdown(f'<div style="background:{col}; color:white; padding:2px 10px; border-radius:10px; display:inline-block; font-size:0.8em;">{lbl}</div>', unsafe_allow_html=True)
-                    st.markdown(item[k].replace('\n', '  \n'))
-                    st.divider()
+            sections = [("📖 줄거리/작품소개", "summary", "#444"), ("📝 요약", "brief", "#0E6245"), ("✨ 인상 깊은 부분", "highlights", "#7D5600"), ("🌈 PRISM", "note", "#1E425E")]
+            for label, key, color in sections:
+                content = item.get(key)
+                if content:
+                    st.markdown(f'<div style="display: inline-block; background-color: {color}; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px;">{label}</div>', unsafe_allow_html=True)
+                    st.markdown(content.replace('\n', '  \n'))
+                    st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
 
 
-# --- [5. 메인 화면] ---
+# --- [5. 메인 화면 - 디자인 및 로직 유지] ---
 if is_admin:
     tab_w, tab_a = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 else:
     tab_a = st.tabs(["📂 ARCHIVE"])[0]
     tab_w = None
 
-# --- WRITE 로직 (Supabase 저장) ---
+# WRITE 로직 (Supabase 직접 저장으로 변경)
 if is_admin and tab_w:
     with tab_w:
         category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"], horizontal=True)
         search_query = st.text_input(f"🔍 {category} 검색")
         
         if search_query:
-            # (API 검색 로직 동일... 지면상 중략)
             if category == "BOOKS":
                 res = search_books(search_query)
                 if res:
@@ -249,23 +255,23 @@ if is_admin and tab_w:
                     sel = st.selectbox("결과 선택", list(opts.keys()))
                     if st.button("✨ 가져오기"):
                         m = opts[sel]
-                        st.session_state.api_data = {'title': m['title'], 'creator': m['creator'], 'date': m['date'], 'img': m['img'], 'summary': f"{m.get('url', '')}"}
+                        st.session_state.api_data = {'title': m['title'], 'creator': m['creator'], 'date': m['date'], 'img': m['img'], 'summary': f"{m.get('url', '')}\n\n"}
                         st.rerun()
             elif category == "STAGE":
                 res = search_kopis(search_query)
                 if res:
-                    opts = {f"🎭 {s['title']} ({s['venue']})": s for s in res}
+                    opts = {f"🎭 {s['title']} [{s['date']}~] ({s['venue']})": s for s in res}
                     sel = st.selectbox("결과 선택", list(opts.keys()))
                     if st.button("✨ 가져오기"):
                         s = opts[sel]
-                        st.session_state.api_data = {'title': s['title'], 'creator': get_kopis_detail(s['id']), 'date': s['date'], 'venue': s['venue'], 'img': s['img']}
+                        st.session_state.api_data = {'title': s['title'], 'creator': get_kopis_detail(s['id']), 'date': s['date'], 'venue': s['venue'], 'img': s['img'], 'summary': f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id={s['id']}"}
                         st.rerun()
             else: 
                 res = search_tmdb(search_query, category)
                 if res:
                     t_key = 'title' if category == 'MOVIES' else 'name'
                     d_key = 'release_date' if category == 'MOVIES' else 'first_air_date'
-                    opts = {f"🎬 {r.get(t_key)}": r for r in res}
+                    opts = {f"🎬 {r.get(t_key)} ({str(r.get(d_key))[:4]})": r for r in res}
                     sel = st.selectbox("결과 선택", list(opts.keys()))
                     if st.button("✨ 가져오기"):
                         s = opts[sel]
@@ -278,61 +284,84 @@ if is_admin and tab_w:
         cl, cr = st.columns([0.4, 0.6]) if not is_mobile else (st.container(), st.container())
         
         with cl:
-            img_v = st.text_input("🖼️ 메인 이미지 URL", value=data.get('img', ''))
-            sub_v = st.text_input("📸 추가 이미지 URL")
-            if img_v: st.image(img_v, use_container_width=True)
+            img_url_val = st.text_input("🖼️ 메인 이미지 URL", value=data.get('img', ''), key="main_img_input")
+            sub_img_val = st.text_input("📸 추가 이미지 URL (인증샷 등)", value="", key="sub_img_input")
+            if img_url_val: st.image(img_url_val, use_container_width=True, caption="Main")
+            if sub_img_val: st.image(sub_img_val, use_container_width=True, caption="Sub")
+            title = st.text_input("제목", value=data.get('title', ''), key="title_input")
+            creator = st.text_input("창작자 정보", value=data.get('creator', ''), key="creator_input")
+            rel_date = st.text_input("📅 작품 날짜", value=data.get('date', str(date.today())), key="rel_date_input")
+            venue = st.text_input("📍 장소/플랫폼", value=data.get('venue', ''), key="venue_input")
         with cr:
-            t = st.text_input("제목", value=data.get('title', ''))
-            c = st.text_input("창작자", value=data.get('creator', ''))
-            rd = st.text_input("📅 날짜", value=data.get('date', ''))
-            vn = st.text_input("📍 장소/플랫폼", value=data.get('venue', ''))
-            sm = st.text_area("📖 소개", value=data.get('summary', ''), height=100)
-            br = st.text_input("📝 요약")
-            hi = st.text_area("✨ 하이라이트")
-            nt = st.text_area("🌈 PRISM")
-            vd = st.date_input("🍿 감상일", value=date.today())
+            summary = st.text_area("📖 줄거리/작품소개", value=data.get('summary', ''), height=150, key="summary_input")
+            brief = st.text_input("📝 요약 (한 줄 평)", key="brief_input")
+            highlights = st.text_area("✨ 인상 깊은 부분", height=100, key="highlights_input")
+            note = st.text_area("🌈 PRISM", height=100, key="note_input")
+            view_date = st.date_input("🍿 감상일", value=date.today(), key="view_date_input")
             
-            if st.button("✅ 수퍼베이스에 저장", use_container_width=True, type="primary"):
+            if st.button("✅ 기록 저장", use_container_width=True, type="primary"):
                 supabase.table("archive").insert({
-                    "category": category, "title": t, "creator": c, "rel_date": rd, "venue": vn,
-                    "summary": sm, "brief": br, "highlights": hi, "note": nt, "img_url": img_v,
-                    "sub_img": sub_v, "save_date": str(date.today()), "view_date": str(vd)
+                    "category": category, "title": title, "creator": creator, "rel_date": rel_date, 
+                    "venue": venue, "summary": summary, "brief": brief, "highlights": highlights, 
+                    "note": note, "img_url": img_url_val, "sub_img": sub_img_val, 
+                    "save_date": str(date.today()), "view_date": str(view_date)
                 }).execute()
-                st.cache_data.clear()
-                st.success("✅ 클라우드 저장 완료!")
+                st.success("✅ 저장 완료!")
                 st.session_state.api_data = {}
-                time.sleep(0.5); st.rerun()
+                time.sleep(0.8); st.rerun()
 
-# --- ARCHIVE 로직 (Supabase 호출) ---
+# --- ARCHIVE 탭 (디자인 원본 유지) ---
 with tab_a:
-    all_df = load_data_from_supabase()
+    st.markdown("""<style>
+        .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1.4; overflow: hidden; border-radius: 8px; margin-top: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); background: #1e1e1e; display: flex; align-items: center; justify-content: center; }
+        .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
+        .music-tab-style { aspect-ratio: 1/1 !important; }
+        .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: yellow; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
+        .badge-date { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
+    </style>""", unsafe_allow_html=True)
+
+    all_df = load_data()
+
     if not all_df.empty:
         all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
         cat_order = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
-        sub_tabs = st.tabs([f"📅 ALL"] + [f"{c}" for c in cat_order])
-        
+        cat_emojis = {"BOOKS": "📚", "MUSIC": "🎧", "MOVIES": "🎞️", "SERIES": "📽️", "STAGE": "🎭"}
+        tab_titles = [f"📅 ALL ({len(all_df)})"] + [f"{cat_emojis[c]}{c} ({len(all_df[all_df['category'] == c])})" for c in cat_order]
+        sub_tabs = st.tabs(tab_titles)
+        grid_cols = 6 
+
         with sub_tabs[0]:
             years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
-            sel_y = st.selectbox("📅 연도", years)
+            year_options = {y: f"{y}({len(all_df[all_df['v_dt'].dt.year == y])})" for y in years}
+            sel_y = st.selectbox("📅 연도 선택", options=list(year_options.keys()), format_func=lambda x: year_options[x])
             y_df = all_df[all_df['v_dt'].dt.year == sel_y]
+            
             for m in range(12, 0, -1):
                 m_data = y_df[y_df['v_dt'].dt.month == m]
                 if not m_data.empty:
                     st.subheader(f"🗓️ {m}월")
                     items = m_data.to_dict('records')
-                    cols = st.columns(6)
-                    for idx, row in enumerate(items):
-                        with cols[idx % 6]:
-                            st.image(row["img_url"], use_container_width=True)
-                            if st.button(row['title'][:8], key=f"all_{row['id']}", use_container_width=True): show_details(row)
+                    for i in range(0, len(items), grid_cols):
+                        cols = st.columns(grid_cols)
+                        for j in range(grid_cols):
+                            if i+j < len(items):
+                                row = items[i+j]
+                                with cols[j]:
+                                    st.markdown(f'<div class="cal-img-box"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
+                                    if st.button(row['title'][:10], key=f"all_{row['id']}", use_container_width=True): show_details(row)
 
-        for i, c_name in enumerate(cat_order):
-            with sub_tabs[i+1]:
+        for idx, c_name in enumerate(cat_order):
+            with sub_tabs[idx + 1]:
                 c_data = all_df[all_df['category'] == c_name]
-                if not c_data.empty:
+                if c_data.empty: st.info(f"{c_name} 데이터 없음")
+                else:
                     items = c_data.to_dict('records')
-                    cols = st.columns(6)
-                    for idx, row in enumerate(items):
-                        with cols[idx % 6]:
-                            st.image(row["img_url"], use_container_width=True)
-                            if st.button(row['title'][:8], key=f"cat_{row['id']}", use_container_width=True): show_details(row)
+                    tab_cls = "music-tab-style" if c_name == "MUSIC" else ""
+                    for i in range(0, len(items), grid_cols):
+                        cols = st.columns(grid_cols)
+                        for j in range(grid_cols):
+                            if i+j < len(items):
+                                row = items[i+j]
+                                with cols[j]:
+                                    st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
+                                    if st.button(row['title'][:10], key=f"cat_{row['id']}", use_container_width=True): show_details(row)
