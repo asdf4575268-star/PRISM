@@ -349,6 +349,10 @@ def show_details(item):
         with col_img:
             img_url = item.get('img_url')
             if img_url: st.image(img_url, use_container_width=True)
+    
+        # 이미지 2가 있다면 추가 출력
+            img_url2 = item.get('img_url2')
+            if img_url2: st.image(img_url2, use_container_width=True, caption="Sub View")
             
         with col_txt:
             st.markdown(f'# {item.get("title")}')
@@ -566,5 +570,6 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
