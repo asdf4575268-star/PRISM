@@ -348,7 +348,7 @@ with tab_a:
                                 row = items[i+j]
                                 is_music = row["category"] == "MUSIC"
                                 music_cls = "music-tab-style" if is_music else ""
-                                
+                                img_style = 'style="object-fit: contain; background: #000;"' if row["category"] == "MUSIC" else 'style="object-fit: cover;"'
                                 with cols[j]:
                                     st.markdown(f'''
                                         <div class="cal-img-box {music_cls}">
@@ -375,5 +375,6 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_{row['id']}", use_container_width=True): show_details(row)
+
 
 
