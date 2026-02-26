@@ -8,6 +8,13 @@ import re
 import xml.etree.ElementTree as ET
 from supabase import create_client, Client
 
+def is_valid_url(url):
+    """문자열이 유효한 http/https URL인지 확인"""
+    if not url or not isinstance(url, str):
+        return False
+    url = url.strip()
+    return url.startswith("http://") or url.startswith("https://")
+    
 # --- [1. 설정 및 API] ---
 st.set_page_config(
     layout="wide", 
@@ -234,7 +241,6 @@ def get_kopis_detail(mt20id):
     except: return "상세정보 로드 실패"
     return "정보 없음"
 
-
 # --- [4. 팝업 상세 보기] ---
 @st.dialog("📋 기록", width="large")
 def show_details(item):
@@ -265,8 +271,12 @@ def show_details(item):
         with col_img:
             n_img = st.text_input("🖼️ 메인 이미지", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
             n_img2 = st.text_input("🖼️ 추가 이미지", value=str(item.get('img_url2', '')), key=f"img2_in_{item['id']}")
-            if n_img: st.image(n_img, use_container_width=True, caption="Main")
-            if n_img2: st.image(n_img2, use_container_width=True, caption="Sub")
+            
+            # 에러 방지: 유효한 URL일 때만 출력
+            if is_valid_url(n_img): 
+                st.image(n_img, use_container_width=True, caption="Main Preview")
+            if is_valid_url(n_img2): 
+                st.image(n_img2, use_container_width=True, caption="Sub Preview")
 
         with col_txt:
             with st.form(key=f"edit_form_{item['id']}"):
@@ -297,12 +307,12 @@ def show_details(item):
                                             summary=?, brief=?, highlights=?, note=?, view_date=?, img_url=?, img_url2=? 
                                             WHERE id=?""", 
                                          (n_title, n_creator, n_rel, n_venue, 
-                                          n_sum, n_brief, n_high, n_note, str(n_view_date), n_img, n_img2, item['id']))
+                                          n_sum, n_brief, n_high, n_note, str(n_view_date), n_img.strip(), n_img2.strip(), item['id']))
                         
                         supabase.table("archive").update({
                             "title": n_title, "creator": n_creator, "rel_date": n_rel, "venue": n_venue,
                             "summary": n_sum, "brief": n_brief, "highlights": n_high, "note": n_note,
-                            "view_date": str(n_view_date), "img_url": n_img, "img_url2": n_img2
+                            "view_date": str(n_view_date), "img_url": n_img.strip(), "img_url2": n_img2.strip()
                         }).eq("title", item['title']).eq("view_date", item['view_date']).execute()
 
                         st.success("✅ 수정 완료!")
@@ -315,8 +325,12 @@ def show_details(item):
         with col_img:
             img_url = item.get('img_url')
             img_url2 = item.get('img_url2')
-            if img_url: st.image(img_url, use_container_width=True)
-            if img_url2: st.image(img_url2, use_container_width=True)
+            
+            # 에러 방지: 유효한 URL일 때만 출력
+            if is_valid_url(img_url): 
+                st.image(img_url, use_container_width=True)
+            if is_valid_url(img_url2): 
+                st.image(img_url2, use_container_width=True)
             
         with col_txt:
             st.markdown(f'# {item.get("title")}')
@@ -333,8 +347,6 @@ def show_details(item):
                     st.markdown(f'<div style="display: inline-block; background-color: {color}; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px;">{label}</div>', unsafe_allow_html=True)
                     st.markdown(content.replace('\n', '  \n'))
                     st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
-
-
 # --- [5. 메인 화면] ---
 if is_admin:
     tab_w, tab_a = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
@@ -479,3 +491,4 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
