@@ -348,9 +348,17 @@ with tab_a:
                                 row = items[i+j]
                                 is_music = row["category"] == "MUSIC"
                                 music_cls = "music-tab-style" if is_music else ""
+                                
                                 with cols[j]:
-                                    st.markdown(f'<div class="cal-img-box"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
-                                    if st.button(row['title'][:10], key=f"all_{row['id']}", use_container_width=True): show_details(row)
+                                    st.markdown(f'''
+                                        <div class="cal-img-box {music_cls}">
+                                            <div class="badge-cat">{row["category"]}</div>
+                                            <div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div>
+                                            <img src="{row["img_url"]}">
+                                        </div>
+                                    ''', unsafe_allow_html=True)
+                                    if st.button(row['title'][:10], key=f"all_{row['id']}", use_container_width=True): 
+                                        show_details(row)
 
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
@@ -367,4 +375,5 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_{row['id']}", use_container_width=True): show_details(row)
+
 
