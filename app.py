@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import pandas as pd
+import sqlite3
 from datetime import date, datetime
 import time
 import re 
@@ -8,65 +9,69 @@ import xml.etree.ElementTree as ET
 from supabase import create_client, Client
 
 # --- [1. 설정 및 API] ---
-st.set_page_config(
-    layout="wide", 
-    page_title="PRISM",
-    page_icon="🌈",
-    initial_sidebar_state="collapsed"
-)
+st.set_page_config(layout="wide", page_title="PRISM", page_icon="🌈")
 
+DB_NAME = "archive.db"
 TMDB_API_KEY = "6e7c55b6259b7731655033f783f3fc5b"
 KOPIS_KEY = "7a919bc272204f06bbca10e2af376dea"
-SUPABASE_URL = st.secrets["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# --- [2. 데이터 로드 함수] ---
-st.title("🌈PRISM ARCHIVE ")
+# Supabase 설정 (비밀번호 등은 st.secrets 권장)
+SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
+SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
+supabase: Client = None
+if SUPABASE_URL and SUPABASE_KEY:
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def load_data():
-    try:
-        # Supabase에서 직접 데이터를 가져옵니다.
-        res = supabase.table("archive").select("*").order("view_date", desc=True).execute()
-        return pd.DataFrame(res.data)
-    except Exception as e:
-        st.error(f"데이터 로드 실패: {e}")
-        return pd.DataFrame()
-
-# --- [3. 로그인 시스템 & 사이드바] ---
-if "is_logged_in" not in st.session_state:
-    st.session_state.is_logged_in = False
-if "user_password" not in st.session_state:
-    st.session_state.user_password = ""
-if "view_mode" not in st.session_state:
-    st.session_state.view_mode = "PC"
-
-if st.session_state.user_password == st.secrets["ADMIN_PASSWORD"]:
-    st.session_state.is_logged_in = True
-
-is_admin = st.session_state.is_logged_in 
-
-with st.sidebar:
-    st.markdown("### 🔐 Admin Access")
-    if not is_admin:
-        input_password = st.text_input("Password", type="password", key="sidebar_pw")
-        if input_password == st.secrets["ADMIN_PASSWORD"]:
-            st.session_state.user_password = input_password 
-            st.session_state.is_logged_in = True
-            st.rerun()
+# --- [2. 로컬 DB 초기화 (sub_img 보장)] ---
+def init_db():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS archive
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
+                  rel_date TEXT, venue TEXT, summary TEXT, brief TEXT, highlights TEXT, 
+                  note TEXT, img_url TEXT, sub_img TEXT, save_date TEXT, view_date TEXT)''')
     
-    if st.session_state.is_logged_in:
-        st.success("Admin Mode Active")
-        if st.button("🔓 Logout", use_container_width=True):
-            st.session_state.is_logged_in = False
-            st.session_state.user_password = "" 
-            st.rerun()
-            
-    st.divider()
-    st.markdown("### 📱 화면 모드")
-    st.session_state.view_mode = st.radio("보기 옵션", ["PC", "Mobile"], horizontal=True, label_visibility="collapsed")
+    # 기존 DB에 sub_img 컬럼이 없는 경우를 대비한 안전장치
+    c.execute("PRAGMA table_info(archive)")
+    columns = [info[1] for info in c.fetchall()]
+    if 'sub_img' not in columns:
+        c.execute("ALTER TABLE archive ADD COLUMN sub_img TEXT")
+    
+    conn.commit()
+    conn.close()
 
-is_mobile = st.session_state.view_mode == "Mobile"
+init_db()
+
+# --- [3. 동기화 로직] ---
+def sync_to_cloud():
+    if not supabase: return st.error("Supabase 설정이 없습니다.")
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        local_df = pd.read_sql("SELECT * FROM archive", conn)
+        conn.close()
+        
+        # 덮어쓰기 방식으로 동기화 (기존 클라우드 데이터 삭제 후 업로드)
+        supabase.table("archive").delete().neq("id", -1).execute() 
+        data_to_sync = local_df.to_dict('records')
+        if data_to_sync:
+            supabase.table("archive").insert(data_to_sync).execute()
+        st.success("☁️ 클라우드 백업 완료!")
+    except Exception as e:
+        st.error(f"백업 실패: {e}")
+
+def sync_from_cloud():
+    if not supabase: return st.error("Supabase 설정이 없습니다.")
+    try:
+        res = supabase.table("archive").select("*").execute()
+        cloud_df = pd.DataFrame(res.data)
+        if not cloud_df.empty:
+            conn = sqlite3.connect(DB_NAME)
+            cloud_df.to_sql("archive", conn, if_exists="replace", index=False)
+            conn.close()
+            st.success("💾 로컬로 데이터 복원 완료!")
+            time.sleep(0.5); st.rerun()
+    except Exception as e:
+        st.error(f"복원 실패: {e}")
 
 
 # --- [API 검색 함수들 - 변경 없음] ---
@@ -376,6 +381,7 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
