@@ -327,7 +327,7 @@ def show_details(item):
                         with sqlite3.connect(DB_NAME) as conn:
                             conn.execute("""UPDATE archive SET 
                                             title=?, creator=?, rel_date=?, venue=?, 
-                                            summary=?, brief=?, highlights=?, note=?, view_date=?, img_url=?, , img_url2=? 
+                                            summary=?, brief=?, highlights=?, note=?, view_date=?, img_url=?, img_url2=? 
                                             WHERE id=?""", 
                                          (n_title, n_creator, n_rel, n_venue, 
                                           n_sum, n_brief, n_high, n_note, str(n_view_date), n_img, n_img2, item['id']))
@@ -335,7 +335,7 @@ def show_details(item):
                         supabase.table("archive").update({
                             "title": n_title, "creator": n_creator, "rel_date": n_rel, "venue": n_venue,
                             "summary": n_sum, "brief": n_brief, "highlights": n_high, "note": n_note,
-                            "view_date": str(n_view_date), "img_url": n_img
+                            "view_date": str(n_view_date), "img_url": n_img, "img_url2": n_img2
                         }).eq("title", item['title']).eq("view_date", item['view_date']).execute()
 
                         st.success("✅ 수정 완료!")
@@ -570,6 +570,7 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
