@@ -1,4 +1,3 @@
-import st
 import streamlit as st
 import sqlite3
 import requests
@@ -310,3 +309,4 @@ with tab_a:
                         st.markdown(f'<div class="cal-img-box"><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                         if st.button(row['title'][:10], key=f"btn_{row['id']}", use_container_width=True):
                             show_details(row)
+
