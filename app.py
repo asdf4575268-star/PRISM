@@ -2,9 +2,9 @@ import streamlit as st
 import sqlite3
 import requests
 import pandas as pd
-from datetime import date, datetime
+from datetime import date
 import time
-import re 
+import re
 import xml.etree.ElementTree as ET
 from supabase import create_client, Client
 
@@ -14,7 +14,7 @@ def is_valid_url(url):
         return False
     url = url.strip()
     return url.startswith("http://") or url.startswith("https://")
-    
+
 # --- [1. 설정 및 API] ---
 st.set_page_config(
     layout="wide", 
@@ -35,13 +35,11 @@ st.title("🌈PRISM ARCHIVE ")
 
 def init_db():
     with sqlite3.connect(DB_NAME) as conn:
-        # 초기 테이블 생성 (img_url2 포함)
         conn.execute('''CREATE TABLE IF NOT EXISTS archive 
                         (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
                         rel_date TEXT, venue TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, 
                         img_url TEXT, img_url2 TEXT, save_date TEXT, view_date TEXT)''')
         
-        # 기존 DB 사용자를 위한 컬럼 추가 로직 (Migration)
         cursor = conn.cursor()
         cursor.execute("PRAGMA table_info(archive)")
         columns = [column[1] for column in cursor.fetchall()]
@@ -102,7 +100,6 @@ def restore_from_supabase():
     except Exception as e:
         st.session_state.sync_msg = ("error", f"❌ 복구 실패: {e}")
 
-
 # --- [3. 로그인 시스템 & 사이드바] ---
 DEV_MODE = False 
 
@@ -154,7 +151,6 @@ with st.sidebar:
     st.session_state.view_mode = st.radio("보기 옵션", ["PC", "Mobile"], horizontal=True, label_visibility="collapsed")
 
 is_mobile = st.session_state.view_mode == "Mobile"
-
 
 # --- [API 검색 함수들] ---
 def search_books(query):
@@ -272,7 +268,6 @@ def show_details(item):
             n_img = st.text_input("🖼️ 메인 이미지", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
             n_img2 = st.text_input("🖼️ 추가 이미지", value=str(item.get('img_url2', '')), key=f"img2_in_{item['id']}")
             
-            # 에러 방지: 유효한 URL일 때만 출력
             if is_valid_url(n_img): 
                 st.image(n_img, use_container_width=True, caption="Main Preview")
             if is_valid_url(n_img2): 
@@ -326,7 +321,6 @@ def show_details(item):
             img_url = item.get('img_url')
             img_url2 = item.get('img_url2')
             
-            # 에러 방지: 유효한 URL일 때만 출력
             if is_valid_url(img_url): 
                 st.image(img_url, use_container_width=True)
             if is_valid_url(img_url2): 
@@ -347,6 +341,7 @@ def show_details(item):
                     st.markdown(f'<div style="display: inline-block; background-color: {color}; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px;">{label}</div>', unsafe_allow_html=True)
                     st.markdown(content.replace('\n', '  \n'))
                     st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
+
 # --- [5. 메인 화면] ---
 if is_admin:
     tab_w, tab_a = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
@@ -433,6 +428,39 @@ if is_admin and tab_w:
                     st.rerun()
                 except Exception as e: st.error(f"❌ 오류: {e}")
 
+# --- [공통 그리드 렌더링 헬퍼 함수] ---
+def render_gallery(items, grid_cols, is_all_tab=False, key_prefix="btn"):
+    for i in range(0, len(items), grid_cols):
+        cols = st.columns(grid_cols)
+        for j in range(grid_cols):
+            if i + j < len(items):
+                row = items[i + j]
+                cat = row["category"]
+                
+                # CSS 속성 정의
+                img_style = 'style="height: auto; aspect-ratio: 1/1;"' if cat == "MUSIC" else ""
+                tab_cls = "music-tab-style" if cat == "MUSIC" else ""
+                
+                # ALL 탭 전용 뱃지 및 날짜 포맷
+                badge_cat_html = f'<div class="badge-cat">{cat}</div>' if is_all_tab else ""
+                
+                try:
+                    date_display = f'{pd.to_datetime(row["view_date"]).day}일' if is_all_tab else row["view_date"]
+                except:
+                    date_display = row["view_date"]
+
+                with cols[j]:
+                    st.markdown(f'''
+                    <div class="cal-img-box {tab_cls}">
+                        {badge_cat_html}
+                        <div class="badge-date">{date_display}</div>
+                        <img src="{row['img_url']}" {img_style}>
+                    </div>
+                    ''', unsafe_allow_html=True)
+                    
+                    if st.button(row['title'][:10], key=f"{key_prefix}_{row['id']}", use_container_width=True): 
+                        show_details(row)
+
 # --- [ARCHIVE 탭] ---
 with tab_a:
     st.markdown("""<style>
@@ -455,6 +483,7 @@ with tab_a:
         sub_tabs = st.tabs(tab_titles)
         grid_cols = 6 
 
+        # [ALL 탭 로직]
         with sub_tabs[0]:
             years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
             year_options = {y: f"{y}({len(all_df[all_df['v_dt'].dt.year == y])})" for y in years}
@@ -466,28 +495,14 @@ with tab_a:
                     if not m_data.empty:
                         st.subheader(f"🗓️ {m}월")
                         items = m_data.to_dict('records')
-                        for i in range(0, len(items), grid_cols):
-                            cols = st.columns(grid_cols)
-                            for j in range(grid_cols):
-                                if i+j < len(items):
-                                    row = items[i+j]
-                                    img_style = 'style="height: auto; aspect-ratio: 1/1;"' if row["category"] == "MUSIC" else ""
-                                    with cols[j]:
-                                        st.markdown(f'<div class="cal-img-box"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}" {img_style}></div>', unsafe_allow_html=True)
-                                        if st.button(row['title'][:10], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
+                        render_gallery(items, grid_cols, is_all_tab=True, key_prefix=f"all_{sel_y}_{m}")
 
+        # [카테고리별 탭 로직]
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
                 c_data = all_df[all_df['category'] == c_name]
-                if c_data.empty: st.info(f"{c_name} 데이터 없음")
+                if c_data.empty: 
+                    st.info(f"{c_name} 데이터 없음")
                 else:
                     items = c_data.to_dict('records')
-                    tab_cls = "music-tab-style" if c_name == "MUSIC" else ""
-                    for i in range(0, len(items), grid_cols):
-                        cols = st.columns(grid_cols)
-                        for j in range(grid_cols):
-                            if i+j < len(items):
-                                row = items[i+j]
-                                with cols[j]:
-                                    st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
-                                    if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+                    render_gallery(items, grid_cols, is_all_tab=False, key_prefix=f"cat_{c_name}")
