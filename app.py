@@ -390,31 +390,50 @@ if is_admin and tab_w:
 
         st.divider()
         data = st.session_state.get('api_data', {})
-        cl, cr = st.container(), st.container() if is_mobile else st.columns([0.4, 0.6])
+        
+        # 변수 할당을 if-else로 명확히 분리하여 에러를 방지합니다.
+        if is_mobile:
+            cl = st.container()
+            cr = st.container()
+        else:
+            cl, cr = st.columns([0.4, 0.6])
             
         with cl:
-            img_url_val = st.text_input("🖼️ 메인 이미지 URL", value=data.get('img', ''))
-            sub_img_val = st.text_input("📸 추가 이미지 URL (인증샷 등)", value="")
-            if img_url_val: st.image(img_url_val, use_container_width=True, caption="Main")
-            if sub_img_val: st.image(sub_img_val, use_container_width=True, caption="Sub")
-            title = st.text_input("제목", value=data.get('title', ''))
-            creator = st.text_input("창작자 정보", value=data.get('creator', ''))
-            rel_date = st.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
-            venue = st.text_input("📍 장소/플랫폼", value=data.get('venue', ''))
-        with cr:
-            summary = st.text_area("📖 줄거리/작품소개", value=data.get('summary', ''), height=100)
-            brief = st.text_input("📝 요약 (한 줄 평)")
-            highlights = st.text_area("✨ 인상 깊은 부분", height=100)
-            note = st.text_area("🌈 PRISM", height=100)
-            view_date = st.date_input("🍿 감상일", value=date.today())
+            img_url_val = st.text_input("🖼️ 메인 이미지 URL", value=data.get('img', ''), key="main_img_input")
+            sub_img_val = st.text_input("📸 추가 이미지 URL (인증샷 등)", value="", key="sub_img_input")
+            if img_url_val: 
+                st.image(img_url_val, use_container_width=True, caption="Main")
+            if sub_img_val: 
+                st.image(sub_img_val, use_container_width=True, caption="Sub")
             
-            if st.button("✅ 기록 저장", use_container_width=True):
+            title = st.text_input("제목", value=data.get('title', ''), key="title_input")
+            creator = st.text_input("창작자 정보", value=data.get('creator', ''), key="creator_input")
+            rel_date = st.text_input("📅 작품 날짜", value=data.get('date', str(date.today())), key="rel_date_input")
+            venue = st.text_input("📍 장소/플랫폼", value=data.get('venue', ''), key="venue_input")
+
+        with cr: # 이제 cr은 확실히 단일 객체이므로 에러가 발생하지 않습니다.
+            summary = st.text_area("📖 줄거리/작품소개", value=data.get('summary', ''), height=150, key="summary_input")
+            brief = st.text_input("📝 요약 (한 줄 평)", key="brief_input")
+            highlights = st.text_area("✨ 인상 깊은 부분", height=100, key="highlights_input")
+            note = st.text_area("🌈 PRISM", height=100, key="note_input")
+            view_date = st.date_input("🍿 감상일", value=date.today(), key="view_date_input")
+            
+            st.markdown("<br>", unsafe_allow_html=True) # 간격 조정
+            if st.button("✅ 기록 저장", use_container_width=True, type="primary"):
                 new_record = {
-                    "category": str(category), "title": str(title).strip(), "creator": str(creator).strip(), 
-                    "rel_date": str(rel_date), "venue": str(venue).strip(), "summary": str(summary).strip(), 
-                    "brief": str(brief).strip(), "highlights": str(highlights).strip(), "note": str(note).strip(), 
-                    "img_url": str(img_url_val).strip(), "sub_img": str(sub_img_val).strip(), 
-                    "save_date": str(date.today()), "view_date": str(view_date)
+                    "category": str(category), 
+                    "title": str(title).strip(), 
+                    "creator": str(creator).strip(), 
+                    "rel_date": str(rel_date), 
+                    "venue": str(venue).strip(), 
+                    "summary": str(summary).strip(), 
+                    "brief": str(brief).strip(), 
+                    "highlights": str(highlights).strip(), 
+                    "note": str(note).strip(), 
+                    "img_url": str(img_url_val).strip(), 
+                    "sub_img": str(sub_img_val).strip(), 
+                    "save_date": str(date.today()), 
+                    "view_date": str(view_date)
                 }
                 try:
                     with sqlite3.connect(DB_NAME) as conn:
@@ -424,12 +443,19 @@ if is_admin and tab_w:
                             (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], 
                              new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], 
                              new_record["note"], new_record["img_url"], new_record["sub_img"], new_record["save_date"], new_record["view_date"]))
-                    supabase.table("archive").upsert(new_record).execute()
+                    
+                    # Supabase 동기화 (에러 무관하게 로컬 우선 저장 후 시도)
+                    try:
+                        supabase.table("archive").upsert(new_record).execute()
+                    except:
+                        st.warning("⚠️ 클라우드 백업에 실패했습니다. (나중에 수동 백업 가능)")
+                        
                     st.success("✅ 저장 완료!")
                     st.session_state.api_data = {}
                     time.sleep(0.8)
                     st.rerun()
-                except Exception as e: st.error(f"❌ 오류: {e}")
+                except Exception as e: 
+                    st.error(f"❌ DB 오류: {e}")
 
 # --- [ARCHIVE 탭] ---
 with tab_a:
@@ -492,3 +518,4 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
