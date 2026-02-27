@@ -257,7 +257,7 @@ def show_details(item):
         with col_img:
             n_img = st.text_input("🖼️ 이미지 1", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
             n_img2 = st.text_input("🖼️ 이미지 2", value=str(item.get('img_url2', '')), key=f"img2_in_{item['id']}")
-            if n_img and n_img.strip() != "None": st.image(n_img, use_container_width=True)
+            if n_img and n_img.strip() and n_img != "None": st.image(n_img, use_container_width=True)
 
         with col_txt:
             with st.form(key=f"edit_form_{item['id']}"):
@@ -299,7 +299,6 @@ def show_details(item):
     # --- 조회 모드 ---
     else: 
         with col_img:
-            # 에러 방지를 위한 이미지 로직 수정
             img_url = item.get('img_url')
             if isinstance(img_url, str) and img_url.strip() and img_url != "None":
                 try: st.image(img_url, use_container_width=True)
@@ -386,7 +385,7 @@ if is_admin and tab_w:
         cl, cr = st.columns([0.4, 0.6]) if not is_mobile else (st.container(), st.container())
         with cl:
             img_url_val = st.text_input("🖼️ 이미지", value=data.get('img', ''))
-            if img_url_val and img_url_val.strip() != "None": st.image(img_url_val, use_container_width=True)
+            if img_url_val and img_url_val.strip() and img_url_val != "None": st.image(img_url_val, use_container_width=True)
             title = st.text_input("제목", value=data.get('title', ''))
             creator = st.text_input("창작자 정보", value=data.get('creator', ''))
             rel_date = st.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
@@ -413,6 +412,8 @@ if is_admin and tab_w:
 with tab_a:
     st.markdown("""<style>
         .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1.4; overflow: hidden; border-radius: 8px; margin-top: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); background: #1e1e1e; display: flex; align-items: center; justify-content: center; }
+        /* 음악 카테고리 전용 1:1 비율 스타일 */
+        .music-tab-style { aspect-ratio: 1/1 !important; }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
         .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: yellow; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
         .badge-date { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
@@ -434,8 +435,8 @@ with tab_a:
 
         with sub_tabs[0]:
             years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
-            year_options = {y: f"{y}({len(all_df[all_df['v_dt'].dt.year == y])})" for y in years}
             if years:
+                year_options = {y: f"{y}({len(all_df[all_df['v_dt'].dt.year == y])})" for y in years}
                 sel_y = st.selectbox("📅 연도 선택", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
                 y_df = all_df[all_df['v_dt'].dt.year == sel_y]
                 for m in range(12, 0, -1):
@@ -448,10 +449,10 @@ with tab_a:
                             for j in range(grid_cols):
                                 if i+j < len(items):
                                     row = items[i+j]
-                                    img_style = 'style="height: auto; aspect-ratio: 1/1;"' if row["category"] == "MUSIC" else ""
+                                    music_cls = "music-tab-style" if row["category"] == "MUSIC" else ""
                                     with cols[j]:
                                         img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
-                                        st.markdown(f'<div class="cal-img-box"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{img_u}" {img_style}></div>', unsafe_allow_html=True)
+                                        st.markdown(f'<div class="cal-img-box {music_cls}"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{img_u}"></div>', unsafe_allow_html=True)
                                         if st.button(row['title'][:10], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
 
         for idx, c_name in enumerate(cat_order):
@@ -460,17 +461,13 @@ with tab_a:
                 if c_data.empty: st.info(f"{c_name} 데이터 없음")
                 else:
                     items = c_data.to_dict('records')
-                    tab_cls = "music-tab-style" if c_name == "MUSIC" else ""
+                    music_cls = "music-tab-style" if c_name == "MUSIC" else ""
                     for i in range(0, len(items), grid_cols):
                         cols = st.columns(grid_cols)
                         for j in range(grid_cols):
                             if i+j < len(items):
                                 row = items[i+j]
                                 with cols[j]:
-                                    st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
-                                    if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
                                     img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
-                                    st.markdown(f'<div class="cal-img-box"><div class="badge-date">{row["view_date"]}</div><img src="{img_u}"></div>', unsafe_allow_html=True)
+                                    st.markdown(f'<div class="cal-img-box {music_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{img_u}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
-
-
