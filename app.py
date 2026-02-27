@@ -479,73 +479,38 @@ if is_admin and tab_w:
 # --- [ARCHIVE 탭] ---
 with tab_a:
     # 1. CSS 수정: 모바일에서는 2열, PC에서는 6열로 강제 고정
-   st.markdown("""<style>
-    /* 1. 이미지 박스: 뱃지의 기준점(relative)을 확실히 설정 */
-    .cal-img-box { 
-        position: relative; 
-        width: 100%; 
-        aspect-ratio: 1/1.4; 
-        overflow: hidden; 
-        border-radius: 8px; 
-        margin-top: 5px; 
-        background: #1e1e1e; 
-        display: block; /* flex 대신 block으로 기준점 명확화 */
-    }
-
-    /* 2. 이미지: 박스에 가득 차게 */
-    .cal-img-box img { 
-        width: 100%; 
-        height: 100%; 
-        object-fit: cover; 
-    }
-
-    /* 3. 뱃지 스타일: 박스(relative) 내부의 절대 위치(absolute) */
-    .badge-cat { 
-        position: absolute; 
-        top: 6px; 
-        left: 6px; 
-        background: rgba(0, 0, 0, 0.7); 
-        color: #FFD700; /* 골드 색상으로 가독성 업 */
-        padding: 2px 6px; 
-        border-radius: 4px; 
-        font-size: 10px; 
-        z-index: 2; 
-        white-space: nowrap; /* 뱃지 줄바꿈 방지 */
-    }
-    
-    .badge-date { 
-        position: absolute; 
-        bottom: 6px; 
-        right: 6px; 
-        background: rgba(0, 0, 0, 0.7); 
-        color: white; 
-        padding: 2px 6px; 
-        border-radius: 4px; 
-        font-size: 10px; 
-        z-index: 2; 
-    }
-
-    /* 4. 모바일 2열 강제 유지 레이아웃 */
-    [data-testid="stHorizontalBlock"] {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: wrap !important;
-        gap: 8px !important;
-    }
-
-    @media (max-width: 640px) {
-        [data-testid="column"] {
-            width: calc(50% - 4px) !important; /* 갭을 고려한 정확한 절반 */
-            flex: 0 0 calc(50% - 4px) !important;
-            min-width: calc(50% - 4px) !important;
+    st.markdown("""<style>
+        .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1.4; overflow: hidden; border-radius: 8px; margin-top: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); background: #1e1e1e; display: flex; align-items: center; justify-content: center; }
+        .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
+        .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: yellow; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
+        .badge-date { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
+        
+        /* [중요] 컬럼 강제 배치 규칙 */
+        [data-testid="stHorizontalBlock"] {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: wrap !important; /* 모바일에서 2개씩 끊기도록 설정 */
+            gap: 10px !important;
         }
-        /* 모바일에서는 텍스트 크기를 살짝 줄여서 정렬 유지 */
-        .stButton button {
-            font-size: 12px !important;
-            padding: 2px !important;
+
+        /* 모바일: 2열 배치 (전체 너비의 약 절반) */
+        @media (max-width: 600px) {
+            [data-testid="column"] {
+                width: calc(50% - 5px) !important; /* 2열 유지 */
+                flex: 1 1 calc(50% - 5px) !important;
+                min-width: calc(50% - 5px) !important;
+            }
         }
-    }
-</style>""", unsafe_allow_html=True)
+
+        /* PC: 6열 배치 (전체 너비의 약 1/6) */
+        @media (min-width: 601px) {
+            [data-testid="column"] {
+                width: calc(16.66% - 10px) !important;
+                flex: 1 1 calc(16.66% - 10px) !important;
+                min-width: 0 !important;
+            }
+        }
+    </style>""", unsafe_allow_html=True)
 
     with sqlite3.connect(DB_NAME) as conn:
         all_df = pd.read_sql_query("SELECT * FROM archive ORDER BY view_date DESC", conn)
@@ -597,6 +562,7 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
