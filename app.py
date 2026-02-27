@@ -511,7 +511,8 @@ with tab_a:
             }
         }
     </style>""", unsafe_allow_html=True)
-        grid_cols = 2 if is_mobile else 6
+    
+    grid_cols = 2 if is_mobile else 6
 
         # --- [ALL 탭] ---
         with sub_tabs[0]:
@@ -551,5 +552,6 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
