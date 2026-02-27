@@ -252,7 +252,6 @@ def show_details(item):
     else:
         col_img, col_txt = st.columns([0.3, 0.7])
 
-    # --- 수정 모드 (Admin 전용) ---
     if is_admin and edit_mode:
         with col_img:
             n_img = st.text_input("🖼️ 이미지 1", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
@@ -295,8 +294,6 @@ def show_details(item):
                         time.sleep(0.5)
                         st.rerun()
                     except Exception as e: st.error(f"❌ 오류: {e}")
-
-    # --- 조회 모드 ---
     else: 
         with col_img:
             img_url = item.get('img_url')
@@ -412,7 +409,6 @@ if is_admin and tab_w:
 with tab_a:
     st.markdown("""<style>
         .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1.4; overflow: hidden; border-radius: 8px; margin-top: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); background: #1e1e1e; display: flex; align-items: center; justify-content: center; }
-        /* 음악 카테고리 전용 1:1 비율 스타일 */
         .music-tab-style { aspect-ratio: 1/1 !important; }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
         .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: yellow; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
@@ -449,6 +445,7 @@ with tab_a:
                             for j in range(grid_cols):
                                 if i+j < len(items):
                                     row = items[i+j]
+                                    # ALL 탭에서도 MUSIC 카테고리라면 music-tab-style 클래스 부여
                                     music_cls = "music-tab-style" if row["category"] == "MUSIC" else ""
                                     with cols[j]:
                                         img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
