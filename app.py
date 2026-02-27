@@ -556,10 +556,7 @@ with tab_a:
         cat_emojis = {"BOOKS": "📚", "MUSIC": "🎧", "MOVIES": "🎞️", "SERIES": "📽️", "STAGE": "🎭"}
         tab_titles = [f"📅 ALL ({len(all_df)})"] + [f"{cat_emojis[c]}{c} ({len(all_df[all_df['category'] == c])})" for c in cat_order]
         sub_tabs = st.tabs(tab_titles)
-        
-        # 기본적으로 6열 구조로 생성합니다. 
-        # 세로 화면에서는 스트림릿이 알아서 1줄로 쌓고, 
-        # 가로 화면(600px 이상)에서는 위의 CSS가 강제로 6열을 유지시킵니다.
+
         grid_cols = 2 if is_mobile else 6 
 
         # --- [ALL 탭] ---
@@ -600,6 +597,7 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
