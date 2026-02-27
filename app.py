@@ -460,6 +460,7 @@ with tab_a:
                 if c_data.empty: st.info(f"{c_name} 데이터 없음")
                 else:
                     items = c_data.to_dict('records')
+                    tab_cls = "music-tab-style" if c_name == "MUSIC" else ""
                     for i in range(0, len(items), grid_cols):
                         cols = st.columns(grid_cols)
                         for j in range(grid_cols):
@@ -469,3 +470,4 @@ with tab_a:
                                     img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
                                     st.markdown(f'<div class="cal-img-box"><div class="badge-date">{row["view_date"]}</div><img src="{img_u}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
