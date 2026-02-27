@@ -478,40 +478,35 @@ if is_admin and tab_w:
 
 # --- [ARCHIVE 탭] ---
 with tab_a:
+    # 1. CSS 수정: 모바일에서는 2열, PC에서는 6열로 강제 고정
     st.markdown("""<style>
-        /* 기본 틀: 포스터 비율 (1:1.4) */
-        .cal-img-box { 
-            position: relative; 
-            width: 100%; 
-            aspect-ratio: 1/1.4; 
-            overflow: hidden; 
-            border-radius: 8px; 
-            margin-top: 5px; 
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2); 
-            background: #1e1e1e;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+        .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1.4; overflow: hidden; border-radius: 8px; margin-top: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); background: #1e1e1e; display: flex; align-items: center; justify-content: center; }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
-        
-        /* 음악 카테고리 전용 스타일 */
-        .music-tab-style {
-            aspect-ratio: 1/1 !important;
-        }
-         
         .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: yellow; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
         .badge-date { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
+        
+        /* [중요] 컬럼 강제 배치 규칙 */
+        [data-testid="stHorizontalBlock"] {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: wrap !important; /* 모바일에서 2개씩 끊기도록 설정 */
+            gap: 10px !important;
+        }
 
-        /* [핵심] 가로 모드 및 넓은 화면 대응 CSS */
-        @media (min-width: 600px) {
-            [data-testid="stHorizontalBlock"] {
-                display: flex !important;
-                flex-wrap: nowrap !important;
-                gap: 10px !important;
-            }
+        /* 모바일: 2열 배치 (전체 너비의 약 절반) */
+        @media (max-width: 600px) {
             [data-testid="column"] {
-                flex: 1 1 0% !important;
+                width: calc(50% - 5px) !important; /* 2열 유지 */
+                flex: 1 1 calc(50% - 5px) !important;
+                min-width: calc(50% - 5px) !important;
+            }
+        }
+
+        /* PC: 6열 배치 (전체 너비의 약 1/6) */
+        @media (min-width: 601px) {
+            [data-testid="column"] {
+                width: calc(16.66% - 10px) !important;
+                flex: 1 1 calc(16.66% - 10px) !important;
                 min-width: 0 !important;
             }
         }
@@ -530,7 +525,7 @@ with tab_a:
         # 기본적으로 6열 구조로 생성합니다. 
         # 세로 화면에서는 스트림릿이 알아서 1줄로 쌓고, 
         # 가로 화면(600px 이상)에서는 위의 CSS가 강제로 6열을 유지시킵니다.
-        grid_cols = 6 
+        grid_cols = 2 if is_mobile else 6
 
         # --- [ALL 탭] ---
         with sub_tabs[0]:
@@ -570,3 +565,4 @@ with tab_a:
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box {tab_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{row["img_url"]}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
