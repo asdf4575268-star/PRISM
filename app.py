@@ -459,26 +459,24 @@ with tab_a:
 
         with sub_tabs[0]:
             years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
-            if years:
-                year_options = {y: f"{y}({len(all_df[all_df['v_dt'].dt.year == y])})" for y in years}
-                sel_y = st.selectbox("📅 연도 선택", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
-                y_df = all_df[all_df['v_dt'].dt.year == sel_y]
-                for m in range(12, 0, -1):
-                    m_data = y_df[y_df['v_dt'].dt.month == m]
-                    if not m_data.empty:
-                        st.subheader(f"🗓️ {m}월")
-                        items = m_data.to_dict('records')
-                        for i in range(0, len(items), grid_cols):
-                            cols = st.columns(grid_cols)
-                            for j in range(grid_cols):
-                                if i+j < len(items):
-                                    row = items[i+j]
-                                    # ALL 탭에서도 MUSIC 카테고리라면 music-tab-style 클래스 부여
-                                    music_cls = "music-tab-style" if row["category"] == "MUSIC" else ""
-                                    with cols[j]:
-                                        img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
-                                        st.markdown(f'<div class="cal-img-box {music_cls}"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{img_u}"></div>', unsafe_allow_html=True)
-                                        if st.button(row['title'][:10], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
+            year_options = {y: f"{y}({len(all_df[all_df['v_dt'].dt.year == y])})" for y in years}
+            sel_y = st.selectbox("📅 연도 선택", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
+            y_df = all_df[all_df['v_dt'].dt.year == sel_y]
+            
+            for m in range(12, 0, -1):
+                m_data = y_df[y_df['v_dt'].dt.month == m]
+                if not m_data.empty:
+                    st.subheader(f"🗓️ {m}월")
+                    items = m_data.to_dict('records')
+                    for i in range(0, len(items), grid_cols):
+                        cols = st.columns(grid_cols)
+                        for j in range(grid_cols):
+                            if i+j < len(items):
+                                row = items[i+j]
+                                img_style = 'style="height: auto; aspect-ratio: 1/1;"' if row["category"] == "MUSIC" else ""
+                                with cols[j]:
+                                    st.markdown(f'<div class="cal-img-box"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}" {img_style}></div>', unsafe_allow_html=True)
+                                    if st.button(row['title'][:10], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
 
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
@@ -496,4 +494,5 @@ with tab_a:
                                     img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
                                     st.markdown(f'<div class="cal-img-box {music_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{img_u}"></div>', unsafe_allow_html=True)
                                     if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
