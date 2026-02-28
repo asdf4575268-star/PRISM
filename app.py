@@ -334,7 +334,6 @@ def show_details(item):
             
         with col_txt:
             st.markdown(f'# {item.get("title")}')
-            st.write(f"#### **[{item.get('category')}]**")
             st.write(f"**{item.get('creator')}**")
             st.write(f"**📅 {item.get('rel_date')} | 📍 {item.get('venue')}**")
             st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
@@ -504,7 +503,9 @@ with tab_a:
                                 img_style = 'style="height: auto; aspect-ratio: 1/1;"' if row["category"] == "MUSIC" else ""
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}" {img_style}></div>', unsafe_allow_html=True)
-                                    if st.button(row['title'][:10], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
+                                    
+                                    short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
+                                    if st.button(short_title, key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
 
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
@@ -521,4 +522,6 @@ with tab_a:
                                 with cols[j]:
                                     img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
                                     st.markdown(f'<div class="cal-img-box {music_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{img_u}"></div>', unsafe_allow_html=True)
-                                    if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+                                    
+                                    short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
+                                    if st.button(short_title, key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
