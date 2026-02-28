@@ -23,20 +23,34 @@ SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# --- [2. DB 함수 및 동기화 로직] ---
+
+# --- [2. DB 함수 및 속도 최적화 동기화 로직] ---
+# DB 커넥션 캐싱 (매번 연결하지 않도록 최적화)
+@st.cache_resource
+def get_connection():
+    return sqlite3.connect(DB_NAME, check_same_thread=False)
+
 def init_db():
-    with sqlite3.connect(DB_NAME) as conn:
-        conn.execute('''CREATE TABLE IF NOT EXISTS archive 
-                        (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
-                         rel_date TEXT, venue TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, 
-                         img_url TEXT, img_url2 TEXT, save_date TEXT, view_date TEXT)''')
+    conn = get_connection()
+    conn.execute('''CREATE TABLE IF NOT EXISTS archive 
+                    (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
+                     rel_date TEXT, venue TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, 
+                     img_url TEXT, img_url2 TEXT, save_date TEXT, view_date TEXT)''')
+    conn.commit()
+
 init_db()
+
+# 데이터 조회 결과 캐싱 (화면이 다시 그려질 때마다 DB를 읽지 않도록 방어)
+@st.cache_data(ttl=600)
+def get_all_data():
+    conn = get_connection()
+    return pd.read_sql_query("SELECT * FROM archive ORDER BY view_date DESC", conn)
 
 def migrate_to_supabase():
     try:
-        with sqlite3.connect(DB_NAME) as conn:
-            conn.row_factory = sqlite3.Row
-            local_data = conn.execute("SELECT * FROM archive").fetchall()
+        conn = get_connection()
+        conn.row_factory = sqlite3.Row
+        local_data = conn.execute("SELECT * FROM archive").fetchall()
         
         if not local_data:
             st.session_state.sync_msg = ("warning", "로컬 데이터가 없습니다.")
@@ -60,23 +74,31 @@ def restore_from_supabase():
             st.session_state.sync_msg = ("warning", "클라우드가 비어있습니다.")
             return
 
-        with sqlite3.connect(DB_NAME) as conn:
-            cursor = conn.cursor()
-            added_count = 0
-            for row in cloud_data:
-                exists = cursor.execute("SELECT id FROM archive WHERE title=? AND view_date=?", 
-                                     (row['title'], row['view_date'])).fetchone()
-                if not exists:
-                    cursor.execute("""INSERT INTO archive 
-                        (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) 
-                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                        (row['category'], row['title'], row['creator'], row['rel_date'], 
-                         row['venue'], row['summary'], row['brief'], row['highlights'], 
-                         row['note'], row.get('img_url'), row.get('img_url2'), row['save_date'], row['view_date']))
-                    added_count += 1
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # 중복 체크용 로컬 데이터셋 미리 만들기 (루프마다 DB 쿼리 방지)
+        local_df = get_all_data()
+        local_keys = set(zip(local_df['title'], local_df['view_date'])) if not local_df.empty else set()
+        
+        to_insert = []
+        for row in cloud_data:
+            if (row['title'], row['view_date']) not in local_keys:
+                to_insert.append((
+                    row['category'], row['title'], row['creator'], row['rel_date'], 
+                    row['venue'], row['summary'], row['brief'], row['highlights'], 
+                    row['note'], row.get('img_url'), row.get('img_url2'), row['save_date'], row['view_date']
+                ))
+        
+        if to_insert:
+            # executemany로 한 번에 밀어넣기 (속도 대폭 향상)
+            cursor.executemany("""INSERT INTO archive 
+                (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) 
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", to_insert)
             conn.commit()
+            st.cache_data.clear() # 새 데이터가 들어왔으므로 캐시 초기화
             
-        st.session_state.sync_msg = ("success", f"✅ {added_count}개의 새로운 데이터를 복구했습니다!")
+        st.session_state.sync_msg = ("success", f"✅ {len(to_insert)}개의 새로운 데이터를 복구했습니다!")
     except Exception as e:
         st.session_state.sync_msg = ("error", f"❌ 복구 실패: {e}")
 
@@ -237,10 +259,12 @@ def show_details(item):
         t_col1, t_col2, t_col3 = st.columns([0.3, 0.4, 0.3])
         with t_col1:
             if st.button("🗑️ 삭제", key=f"del_{item['id']}", use_container_width=True):
-                with sqlite3.connect(DB_NAME) as conn:
-                    conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
+                conn = get_connection()
+                conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
+                conn.commit()
                 try: supabase.table("archive").delete().eq("title", item['title']).eq("view_date", item['view_date']).execute()
                 except: pass
+                st.cache_data.clear() # 삭제 후 리스트 갱신
                 st.rerun()
         with t_col3:
             edit_mode = st.toggle("✏️ 수정", key=f"tog_{item['id']}")
@@ -278,18 +302,20 @@ def show_details(item):
 
                 if st.form_submit_button("💾 저장"):
                     try:
-                        with sqlite3.connect(DB_NAME) as conn:
-                            conn.execute("""UPDATE archive SET 
-                                            title=?, creator=?, rel_date=?, venue=?, 
-                                            summary=?, brief=?, highlights=?, note=?, view_date=?, img_url=?, img_url2=? 
-                                            WHERE id=?""", 
-                                         (n_title, n_creator, n_rel, n_venue, 
-                                          n_sum, n_brief, n_high, n_note, str(n_view_date), n_img, n_img2, item['id']))
+                        conn = get_connection()
+                        conn.execute("""UPDATE archive SET 
+                                        title=?, creator=?, rel_date=?, venue=?, 
+                                        summary=?, brief=?, highlights=?, note=?, view_date=?, img_url=?, img_url2=? 
+                                        WHERE id=?""", 
+                                     (n_title, n_creator, n_rel, n_venue, 
+                                      n_sum, n_brief, n_high, n_note, str(n_view_date), n_img, n_img2, item['id']))
+                        conn.commit()
                         supabase.table("archive").update({
                             "title": n_title, "creator": n_creator, "rel_date": n_rel, "venue": n_venue,
                             "summary": n_sum, "brief": n_brief, "highlights": n_high, "note": n_note,
                             "view_date": str(n_view_date), "img_url": n_img, "img_url2": n_img2
                         }).eq("title", item['title']).eq("view_date", item['view_date']).execute()
+                        st.cache_data.clear() # 업데이트 후 리스트 갱신
                         st.success("✅ 수정 완료!")
                         time.sleep(0.5)
                         st.rerun()
@@ -396,9 +422,11 @@ if is_admin and tab_w:
             if st.button("✅ 기록 저장", use_container_width=True):
                 new_record = {"category": str(category), "title": str(title).strip(), "creator": str(creator).strip(), "rel_date": str(rel_date), "venue": str(venue).strip(), "summary": str(summary).strip(), "brief": str(brief).strip(), "highlights": str(highlights).strip(), "note": str(note).strip(), "img_url": str(img_url_val).strip(), "img_url2": "", "save_date": str(date.today()), "view_date": str(view_date)}
                 try:
-                    with sqlite3.connect(DB_NAME) as conn:
-                        conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], new_record["note"], new_record["img_url"], new_record["img_url2"], new_record["save_date"], new_record["view_date"]))
+                    conn = get_connection()
+                    conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], new_record["note"], new_record["img_url"], new_record["img_url2"], new_record["save_date"], new_record["view_date"]))
+                    conn.commit()
                     supabase.table("archive").upsert(new_record).execute()
+                    st.cache_data.clear() # 기록 후 리스트 갱신
                     st.success("✅ 저장 완료!")
                     st.session_state.api_data = {}
                     time.sleep(0.8)
@@ -446,8 +474,8 @@ with tab_a:
         }
     </style>""", unsafe_allow_html=True)
 
-    with sqlite3.connect(DB_NAME) as conn:
-        all_df = pd.read_sql_query("SELECT * FROM archive ORDER BY view_date DESC", conn)
+    # 이 부분이 캐싱되어 탭을 전환하거나 다시 그릴 때마다 DB에서 데이터를 끌어오지 않게 됩니다.
+    all_df = get_all_data()
 
     if not all_df.empty:
         all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
