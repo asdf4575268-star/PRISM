@@ -7,6 +7,7 @@ import time
 import re 
 import xml.etree.ElementTree as ET
 from supabase import create_client, Client
+import streamlit.components.v1 as components
 
 # --- [1. 설정 및 API] ---
 st.set_page_config(
@@ -246,6 +247,20 @@ def show_details(item):
             edit_mode = st.toggle("✏️ 수정", key=f"tog_{item['id']}")
         st.divider()
 
+    # --- [수정 모드 시 자동 새로고침/이탈 방지] ---
+    if is_admin and edit_mode:
+        components.html(
+            """
+            <script>
+                window.parent.addEventListener('beforeunload', function (e) {
+                    e.preventDefault();
+                    e.returnValue = ''; 
+                });
+            </script>
+            """,
+            height=0,
+        )
+
     if is_mobile:
         col_img = st.container()
         col_txt = st.container()
@@ -408,7 +423,6 @@ if is_admin and tab_w:
 # --- [ARCHIVE 탭] ---
 with tab_a:
     st.markdown("""<style>
-        /* 기본 틀: 포스터 비율 (1:1.4) */
         .cal-img-box { 
             position: relative; 
             width: 100%; 
@@ -423,16 +437,10 @@ with tab_a:
             justify-content: center;
         }
         .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
-        
-        /* 음악 카테고리 전용 스타일 */
-        .music-tab-style {
-            aspect-ratio: 1/1 !important;
-        }
-         
+        .music-tab-style { aspect-ratio: 1/1 !important; }
         .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: yellow; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
         .badge-date { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
 
-        /* [핵심] 가로 모드 및 넓은 화면 대응 CSS */
         @media (min-width: 600px) {
             [data-testid="stHorizontalBlock"] {
                 display: flex !important;
@@ -474,9 +482,11 @@ with tab_a:
                             if i+j < len(items):
                                 row = items[i+j]
                                 img_style = 'style="height: auto; aspect-ratio: 1/1;"' if row["category"] == "MUSIC" else ""
+                                # --- [제목 말줄임표(...) 처리] ---
+                                display_title = row['title'] if len(row['title']) <= 10 else row['title'][:10] + "..."
                                 with cols[j]:
                                     st.markdown(f'<div class="cal-img-box"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}" {img_style}></div>', unsafe_allow_html=True)
-                                    if st.button(row['title'][:10], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
+                                    if st.button(display_title, key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
 
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
@@ -490,9 +500,9 @@ with tab_a:
                         for j in range(grid_cols):
                             if i+j < len(items):
                                 row = items[i+j]
+                                # --- [제목 말줄임표(...) 처리] ---
+                                display_title = row['title'] if len(row['title']) <= 10 else row['title'][:10] + "..."
                                 with cols[j]:
                                     img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
                                     st.markdown(f'<div class="cal-img-box {music_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{img_u}"></div>', unsafe_allow_html=True)
-                                    if st.button(row['title'][:10], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
-
-
+                                    if st.button(display_title, key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
