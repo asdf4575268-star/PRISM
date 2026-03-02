@@ -163,6 +163,24 @@ def search_books(query):
         res = requests.get("https://dapi.kakao.com/v3/search/book", headers=headers, params={"query": query})
         return res.json().get("documents", []) if res.status_code == 200 else []
     except: return []
+def search_naver_books(query):
+    # 실제 발급받은 키로 교체하세요
+    NAVER_CLIENT_ID = "S7NU9zo0E14iYGTS1L3e" 
+    NAVER_CLIENT_SECRET = "eW1hRp9Zxj"
+    
+    url = f"https://openapi.naver.com/v1/search/book.json?query={query}&display=10"
+    headers = {
+        "X-Naver-Client-Id": NAVER_CLIENT_ID,
+        "X-Naver-Client-Secret": NAVER_CLIENT_SECRET
+    }
+    
+    try:
+        res = requests.get(url, headers=headers)
+        if res.status_code == 200:
+            return res.json().get("items", [])
+        return []
+    except:
+        return []
 
 def search_apple_music(query):
     url = f"https://itunes.apple.com/search?term={query}&limit=20&country=kr&entity=musicTrack,album"
@@ -360,16 +378,47 @@ if is_admin and tab_w:
     with tab_w:
         category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"], horizontal=True)
         search_query = st.text_input(f"🔍 {category} 검색")
+        
         if search_query:
             if category == "BOOKS":
-                res = search_books(search_query)
-                if res:
-                    opts = {f"📚 {b['title']}": b for b in res}
-                    sel = st.selectbox("결과 선택", list(opts.keys()))
-                    if st.button("✨ 가져오기"):
-                        b = opts[sel]
-                        st.session_state.api_data = {'title': b['title'], 'creator': ", ".join(b['authors']), 'date': b['datetime'][:10], 'img': b.get('thumbnail', '').replace("R120x174", "R400x0"), 'venue': b.get('publisher', ''), 'summary': b.get('contents', '')}
+                # 1. 두 API에서 동시에 데이터를 져옵니다.
+                kakao_res = search_books(search_query)
+                naver_res = search_naver_books(search_query)
+                
+                # 2. 선택 옵션을 하나로 합칩니다.
+                opts = {}
+                for b in kakao_res:
+                    opts[f"🟡 [카카오] {b['title']} - {', '.join(b['authors'])}"] = ('kakao', b)
+                for b in naver_res:
+                    clean_title = re.sub('<[^<]+?>', '', b['title'])
+                    opts[f"🟢 [네이버] {clean_title} - {b['author']}"] = ('naver', b)
+                
+                if opts:
+                    sel_key = st.selectbox("검색 결과 선택 (보강됨)", list(opts.keys()))
+                    source, data = opts[sel_key]
+                    
+                    if st.button("✨ 데이터 불러오기"):
+                        if source == 'kakao':
+                            st.session_state.api_data = {
+                                'title': data['title'],
+                                'creator': ", ".join(data['authors']),
+                                'date': data['datetime'][:10],
+                                'img': data.get('thumbnail', '').replace("R120x174", "R400x0"),
+                                'venue': data.get('publisher', ''),
+                                'summary': data.get('contents', '')
+                            }
+                        else: # naver
+                            st.session_state.api_data = {
+                                'title': re.sub('<[^<]+?>', '', data['title']),
+                                'creator': re.sub('<[^<]+?>', '', data['author']),
+                                'date': f"{data['pubdate'][:4]}-{data['pubdate'][4:6]}-{data['pubdate'][6:]}",
+                                'img': data['image'],
+                                'venue': data['publisher'],
+                                'summary': re.sub('<[^<]+?>', '', data['description'])
+                            }
                         st.rerun()
+                else:
+                    st.warning("검색 결과가 없습니다.")
             elif category == "MUSIC":
                 res = search_apple_music(search_query)
                 if res:
@@ -525,3 +574,4 @@ with tab_a:
                                     
                                     short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
                                     if st.button(short_title, key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
