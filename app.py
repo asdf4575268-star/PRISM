@@ -175,29 +175,6 @@ def search_apple_music(query):
             formatted_res.append({'display_name': f"{'📀' if is_album else '🎵'} {title} - {m.get('artistName', '')}", 'title': title, 'creator': m.get('artistName', ''), 'date': m.get('releaseDate', '')[:10], 'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'), 'venue': m.get('artistName', '')})
         return formatted_res
     except: return []
-def search_naver_music(query):
-    NAVER_CLIENT_ID = "S7NU9zo0E14iYGTS1L3e" 
-    NAVER_CLIENT_SECRET = "eW1hRp9Zxj"
-    
-    # 백과사전 API는 음악 앨범 정보를 가져오기에 적합합니다.
-    url = f"https://openapi.naver.com/v1/search/encyc.json?query={query}&display=10"
-    headers = {
-        "X-Naver-Client-Id": NAVER_CLIENT_ID,
-        "X-Naver-Client-Secret": NAVER_CLIENT_SECRET
-    }
-    
-    try:
-        res = requests.get(url, headers=headers, timeout=3)
-        if res.status_code == 200:
-            items = res.json().get("items", [])
-            for item in items:
-                # HTML 태그 제거
-                item['title'] = re.sub('<[^<]+?>', '', item.get('title', ''))
-                item['description'] = re.sub('<[^<]+?>', '', item.get('description', ''))
-            return items
-        return []
-    except:
-        return []
 
 def search_tmdb(query, category):
     type_path = "movie" if category == "MOVIES" else "tv"
@@ -394,53 +371,14 @@ if is_admin and tab_w:
                         st.session_state.api_data = {'title': b['title'], 'creator': ", ".join(b['authors']), 'date': b['datetime'][:10], 'img': b.get('thumbnail', '').replace("R120x174", "R400x0"), 'venue': b.get('publisher', ''), 'summary': b.get('contents', '')}
                         st.rerun()
             elif category == "MUSIC":
-                # 1. 두 API 호출
-                apple_res = search_apple_music(search_query)
-                naver_res = search_naver_music(search_query) # 이 함수가 위에 정의되어 있어야 함
-                
-                opts = {}
-                
-                # 네이버 결과 먼저 추가 (네이버 DB를 우선 확인하기 위함)
-                if naver_res:
-                    for n in naver_res:
-                        # 중복 방지를 위해 키값에 소스 표시
-                        opts[f"🟢 [Naver] {n['title']}"] = ('naver', n)
-                
-                # 애플 결과 추가
-                if apple_res:
-                    for m in apple_res:
-                        opts[f"🍎 [Apple] {m['display_name']}"] = ('apple', m)
-                
-                if opts:
-                    # 결과가 섞여서 리스트에 나옵니다.
-                    sel_key = st.selectbox("검색 결과 선택 (Apple/Naver)", list(opts.keys()))
-                    source, data = opts[sel_key]
-                    
-                    if st.button("✨ 데이터 가져오기"):
-                        if source == 'apple':
-                            st.session_state.api_data = {
-                                'title': data['title'], 
-                                'creator': data['creator'], 
-                                'date': data['date'], 
-                                'img': data['img'], 
-                                'venue': data['creator'],
-                                'summary': "Apple Music 제공 정보"
-                            }
-                        else: # Naver 백과사전
-                            st.session_state.api_data = {
-                                'title': data['title'],
-                                'creator': "아티스트/작곡가 정보 확인 필요",
-                                'date': str(date.today()), 
-                                'img': data.get('thumbnail', ''),
-                                'venue': "Naver Encyclopedia",
-                                'summary': data.get('description', '')
-                            }
+                res = search_apple_music(search_query)
+                if res:
+                    opts = {m['display_name']: m for m in res}
+                    sel = st.selectbox("결과 선택", list(opts.keys()))
+                    if st.button("✨ 가져오기"):
+                        m = opts[sel]
+                        st.session_state.api_data = {'title': m['title'], 'creator': m['creator'], 'date': m['date'], 'img': m['img'], 'summary': f"{m.get('url', '')}\n\n"}
                         st.rerun()
-                else:
-                    if not search_query:
-                        st.info("검색어를 입력해주세요.")
-                    else:
-                        st.warning("애플과 네이버 모두에서 검색 결과를 찾을 수 없습니다. API 키 설정을 확인하세요.")
             elif category == "STAGE":
                 res = search_kopis(search_query)
                 if res:
@@ -587,6 +525,4 @@ with tab_a:
                                     
                                     short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
                                     if st.button(short_title, key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
-
-
 
