@@ -41,7 +41,7 @@ def init_db():
 init_db()
 
 # 데이터 조회 결과 캐싱 (화면이 다시 그려질 때마다 DB를 읽지 않도록 방어)
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=600)
 def get_all_data():
     conn = get_connection()
     return pd.read_sql_query("SELECT * FROM archive ORDER BY view_date DESC", conn)
@@ -158,34 +158,11 @@ is_mobile = st.session_state.view_mode == "Mobile"
 
 # --- [API 검색 함수들] ---
 def search_books(query):
-    # 본인의 네이버 API 키를 입력하세요
-    NAVER_CLIENT_ID = "S7NU9zo0E14iYGTS1L3e"
-    NAVER_CLIENT_SECRET = "eW1hRp9Zxj"
-    
-    if not query:
-        return []
-
-    url = f"https://openapi.naver.com/v1/search/book.json?query={query}&display=15"
-    headers = {
-        "X-Naver-Client-Id": S7NU9zo0E14iYGTS1L3e,
-        "X-Naver-Client-Secret": eW1hRp9Zxj
-    }
-    
+    headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
     try:
-        res = requests.get(url, headers=headers, timeout=3)
-        if res.status_code == 200:
-            items = res.json().get("items", [])
-            for item in items:
-                # HTML 태그 및 특수문자 제거 전처리
-                for key in ['title', 'author', 'description', 'publisher']:
-                    if key in item:
-                        text = re.sub('<[^<]+?>', '', item[key])
-                        text = text.replace('&quot;', '"').replace('&apos;', "'").replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
-                        item[key] = text
-            return items
-        return []
-    except:
-        return []
+        res = requests.get("https://dapi.kakao.com/v3/search/book", headers=headers, params={"query": query})
+        return res.json().get("documents", []) if res.status_code == 200 else []
+    except: return []
 
 def search_apple_music(query):
     url = f"https://itunes.apple.com/search?term={query}&limit=20&country=kr&entity=musicTrack,album"
@@ -383,33 +360,16 @@ if is_admin and tab_w:
     with tab_w:
         category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"], horizontal=True)
         search_query = st.text_input(f"🔍 {category} 검색")
-        
         if search_query:
             if category == "BOOKS":
-                # 네이버 API를 통해 도서 검색
                 res = search_books(search_query)
                 if res:
-                    # 선택 목록 구성 (제목, 저자, 출판사 표시)
-                    opts = {f"📚 {b['title']} ({b['author']}) - {b['publisher']}": b for b in res}
-                    sel = st.selectbox("네이버 검색 결과 선택", list(opts.keys()))
-                    
+                    opts = {f"📚 {b['title']}": b for b in res}
+                    sel = st.selectbox("결과 선택", list(opts.keys()))
                     if st.button("✨ 가져오기"):
                         b = opts[sel]
-                        # 날짜 포맷팅 (YYYYMMDD -> YYYY-MM-DD)
-                        raw_date = b.get('pubdate', '')
-                        formatted_date = f"{raw_date[:4]}-{raw_date[4:6]}-{raw_date[6:]}" if len(raw_date) == 8 else raw_date
-                        
-                        st.session_state.api_data = {
-                            'title': b['title'],
-                            'creator': b['author'],
-                            'date': formatted_date,
-                            'img': b['image'], # 네이버 책 이미지는 기본적으로 고화질 링크를 제공합니다
-                            'venue': b['publisher'],
-                            'summary': b['description']
-                        }
+                        st.session_state.api_data = {'title': b['title'], 'creator': ", ".join(b['authors']), 'date': b['datetime'][:10], 'img': b.get('thumbnail', '').replace("R120x174", "R400x0"), 'venue': b.get('publisher', ''), 'summary': b.get('contents', '')}
                         st.rerun()
-                else:
-                    st.warning("네이버에서 검색 결과가 없습니다.")
             elif category == "MUSIC":
                 res = search_apple_music(search_query)
                 if res:
@@ -565,7 +525,4 @@ with tab_a:
                                     
                                     short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
                                     if st.button(short_title, key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
-
-
-
 
