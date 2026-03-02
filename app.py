@@ -10,10 +10,10 @@ import xml.etree.ElementTree as ET
 from supabase import create_client, Client
 
 # --- [1. 설정 및 API] ---
-logo = Image.open("logo.png")
+favicon = Image.open("logo.png").resize((64, 64), Image.LANCZOS)
 st.set_page_config(
     page_title="PRISM",
-    page_icon=logo,
+    page_icon=favicon,
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -557,6 +557,7 @@ with tab_a:
                                     
                                     short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
                                     if st.button(short_title, key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
