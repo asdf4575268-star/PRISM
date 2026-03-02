@@ -1,4 +1,5 @@
 import streamlit as st
+from PIL import Image
 import sqlite3
 import requests
 import pandas as pd
@@ -9,10 +10,11 @@ import xml.etree.ElementTree as ET
 from supabase import create_client, Client
 
 # --- [1. 설정 및 API] ---
+logo = Image.open("logo.png")
 st.set_page_config(
-    layout="wide", 
     page_title="PRISM",
-    page_icon="🌈",
+    page_icon=logo,
+    layout="wide",
     initial_sidebar_state="collapsed"
 )
 
@@ -525,5 +527,6 @@ with tab_a:
                                     
                                     short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
                                     if st.button(short_title, key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
