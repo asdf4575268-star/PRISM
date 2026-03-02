@@ -159,7 +159,7 @@ is_mobile = st.session_state.view_mode == "Mobile"
 # --- [API 검색 함수들] ---
 def search_books(query):
     # 본인의 네이버 API 키를 입력하세요
-    NAVER_CLIENT_ID = "S7NU9zo0E14iYGTS1L3e 
+    NAVER_CLIENT_ID = "S7NU9zo0E14iYGTS1L3e"
     NAVER_CLIENT_SECRET = "eW1hRp9Zxj"
     
     if not query:
@@ -565,6 +565,7 @@ with tab_a:
                                     
                                     short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
                                     if st.button(short_title, key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
