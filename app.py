@@ -350,14 +350,37 @@ def show_details(item):
 
 
 # --- [5. 메인 화면] ---
-col1, col2 = st.columns([1,5])
-with col1:
-    st.image(logo, width=80)
-with col2:
-    st.markdown(
-        "<h1 style='margin-top:10px;'>PRISM ARCHIVE</h1>",
-        unsafe_allow_html=True
-    )
+import base64
+
+def get_base64(path):
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+logo_base64 = get_base64("logo.png")
+
+st.markdown("""
+<style>
+.header-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.header-wrap h1 {
+    margin: 0;
+    letter-spacing: -1px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown(
+    f"""
+    <div class="header-wrap">
+        <img src="data:image/png;base64,{logo_base64}" width="90">
+        <h1>PRISM ARCHIVE</h1>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 if is_admin:
     tab_w, tab_a = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 else:
@@ -534,6 +557,7 @@ with tab_a:
                                     
                                     short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
                                     if st.button(short_title, key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
