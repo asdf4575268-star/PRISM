@@ -350,7 +350,14 @@ def show_details(item):
 
 
 # --- [5. 메인 화면] ---
-st.title("🌈PRISM ARCHIVE ")
+col1, col2 = st.columns([1,5])
+with col1:
+    st.image(logo, width=80)
+with col2:
+    st.markdown(
+        "<h1 style='margin-top:10px;'>PRISM ARCHIVE</h1>",
+        unsafe_allow_html=True
+    )
 if is_admin:
     tab_w, tab_a = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 else:
@@ -527,6 +534,7 @@ with tab_a:
                                     
                                     short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
                                     if st.button(short_title, key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
 
