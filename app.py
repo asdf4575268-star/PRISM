@@ -170,8 +170,8 @@ def search_naver_books(query):
     
     url = f"https://openapi.naver.com/v1/search/book.json?query={query}&display=10"
     headers = {
-        "X-Naver-Client-Id": NAVER_CLIENT_ID,
-        "X-Naver-Client-Secret": NAVER_CLIENT_SECRET
+        "X-Naver-Client-Id": S7NU9zo0E14iYGTS1L3e,
+        "X-Naver-Client-Secret": eW1hRp9Zxj
     }
     
     try:
@@ -574,4 +574,5 @@ with tab_a:
                                     
                                     short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
                                     if st.button(short_title, key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
