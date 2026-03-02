@@ -157,9 +157,9 @@ is_mobile = st.session_state.view_mode == "Mobile"
 
 
 # --- [API 검색 함수들] ---
-def search_naver_books(query):
-    # 네이버 개발자 센터에서 발급받은 본인의 키를 넣어주세요
-    NAVER_CLIENT_ID = "S7NU9zo0E14iYGTS1L3e" 
+def search_books(query):
+    # 본인의 네이버 API 키를 입력하세요
+    NAVER_CLIENT_ID = "S7NU9zo0E14iYGTS1L3e 
     NAVER_CLIENT_SECRET = "eW1hRp9Zxj"
     
     if not query:
@@ -172,15 +172,13 @@ def search_naver_books(query):
     }
     
     try:
-        # 타임아웃을 설정해 응답이 늦어질 경우 무한 대기를 방지합니다.
         res = requests.get(url, headers=headers, timeout=3)
         if res.status_code == 200:
             items = res.json().get("items", [])
-            # HTML 태그 제거 및 특수문자 변환 전처리
             for item in items:
+                # HTML 태그 및 특수문자 제거 전처리
                 for key in ['title', 'author', 'description', 'publisher']:
                     if key in item:
-                        # <b>..</b> 태그 제거 및 HTML 엔티티 변환
                         text = re.sub('<[^<]+?>', '', item[key])
                         text = text.replace('&quot;', '"').replace('&apos;', "'").replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
                         item[key] = text
@@ -567,5 +565,6 @@ with tab_a:
                                     
                                     short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
                                     if st.button(short_title, key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
 
