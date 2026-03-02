@@ -160,7 +160,7 @@ is_mobile = st.session_state.view_mode == "Mobile"
 def search_books(query):
     headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
     try:
-        res = requests.get("https://dapi.kakao.com/v3/search/book", headers=headers, params={"query": query})
+        res = requests.get("https://dapi.kakao.com/v3/search/book", headers=headers, params={"query": query, "size": 15})
         return res.json().get("documents", []) if res.status_code == 200 else []
     except: return []
 
@@ -525,4 +525,5 @@ with tab_a:
                                     
                                     short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
                                     if st.button(short_title, key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
