@@ -512,8 +512,8 @@ if is_admin and tab_w:
             rel_date = st.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
             venue = st.text_input("📍 장소/플랫폼", value=data.get('venue', ''))
         with cr:
-            summary = st.text_area("📖 작품소개 (스크랩의 경우 자동 숨김 처리됨)", value=data.get('summary', ''), height=100)
-            brief = st.text_input("📝 요약 (한 줄 평)")
+            summary = st.text_area("📖 작품소개", value=data.get('summary', ''), height=100)
+            brief = st.text_input("📝 요약")
             highlights = st.text_area("✨ 인상 깊은 부분", height=100)
             note = st.text_area("🌈 PRISM", height=100)
             view_date = st.date_input("🍿 감상일", value=date.today())
@@ -643,3 +643,4 @@ with tab_a:
                                     show_details(row)
                 else:
                     st.info("스크랩된 기록이 없습니다.")
+
