@@ -4,107 +4,60 @@ import requests
 import pandas as pd
 from datetime import date, datetime
 import time
-import re 
+import re
 import xml.etree.ElementTree as ET
 from supabase import create_client, Client
+from bs4 import BeautifulSoup
 
-# --- [1. 설정 및 API] ---
+# -----------------------------
+# 1. 기본 설정
+# -----------------------------
 st.set_page_config(
-    layout="wide", 
+    layout="wide",
     page_title="PRISM",
     page_icon="🌈",
     initial_sidebar_state="collapsed"
 )
 
-TMDB_API_KEY = "6e7c55b6259b7731655033f783f3fc5b"
-DB_NAME = 'archive_prism_total_v5.db'
-KOPIS_KEY = "7a919bc272204f06bbca10e2af376dea"
+TMDB_API_KEY = "YOUR_TMDB_KEY"
+KOPIS_KEY = "YOUR_KOPIS_KEY"
+DB_NAME = "archive_prism_total_v5.db"
+
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-
-# --- [2. DB 함수 및 속도 최적화 동기화 로직] ---
-# DB 커넥션 캐싱 (매번 연결하지 않도록 최적화)
+# -----------------------------
+# 2. DB 초기화
+# -----------------------------
 @st.cache_resource
 def get_connection():
     return sqlite3.connect(DB_NAME, check_same_thread=False)
 
 def init_db():
     conn = get_connection()
-    conn.execute('''CREATE TABLE IF NOT EXISTS archive 
-                    (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
-                     rel_date TEXT, venue TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, 
-                     img_url TEXT, img_url2 TEXT, save_date TEXT, view_date TEXT)''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS archive (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        category TEXT, title TEXT, creator TEXT,
+        rel_date TEXT, venue TEXT,
+        summary TEXT, brief TEXT,
+        highlights TEXT, note TEXT,
+        img_url TEXT, img_url2 TEXT,
+        save_date TEXT, view_date TEXT
+    )''')
     conn.commit()
 
 init_db()
 
-# 데이터 조회 결과 캐싱 (화면이 다시 그려질 때마다 DB를 읽지 않도록 방어)
 @st.cache_data(ttl=600)
 def get_all_data():
     conn = get_connection()
     return pd.read_sql_query("SELECT * FROM archive ORDER BY view_date DESC", conn)
 
-def migrate_to_supabase():
-    try:
-        conn = get_connection()
-        conn.row_factory = sqlite3.Row
-        local_data = conn.execute("SELECT * FROM archive").fetchall()
-        
-        if not local_data:
-            st.session_state.sync_msg = ("warning", "로컬 데이터가 없습니다.")
-            return
-
-        upload_list = [dict(row) for row in local_data]
-        for d in upload_list:
-            if 'id' in d: del d['id']
-            
-        supabase.table("archive").upsert(upload_list).execute() 
-        st.session_state.sync_msg = ("success", f"✅ {len(upload_list)}개 데이터 클라우드 백업 완료!")
-    except Exception as e:
-        st.session_state.sync_msg = ("error", f"❌ 백업 실패: {e}")
-
-def restore_from_supabase():
-    try:
-        res = supabase.table("archive").select("*").execute()
-        cloud_data = res.data if hasattr(res, 'data') else res
-        
-        if not cloud_data:
-            st.session_state.sync_msg = ("warning", "클라우드가 비어있습니다.")
-            return
-
-        conn = get_connection()
-        cursor = conn.cursor()
-        
-        # 중복 체크용 로컬 데이터셋 미리 만들기 (루프마다 DB 쿼리 방지)
-        local_df = get_all_data()
-        local_keys = set(zip(local_df['title'], local_df['view_date'])) if not local_df.empty else set()
-        
-        to_insert = []
-        for row in cloud_data:
-            if (row['title'], row['view_date']) not in local_keys:
-                to_insert.append((
-                    row['category'], row['title'], row['creator'], row['rel_date'], 
-                    row['venue'], row['summary'], row['brief'], row['highlights'], 
-                    row['note'], row.get('img_url'), row.get('img_url2'), row['save_date'], row['view_date']
-                ))
-        
-        if to_insert:
-            # executemany로 한 번에 밀어넣기 (속도 대폭 향상)
-            cursor.executemany("""INSERT INTO archive 
-                (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) 
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", to_insert)
-            conn.commit()
-            st.cache_data.clear() # 새 데이터가 들어왔으므로 캐시 초기화
-            
-        st.session_state.sync_msg = ("success", f"✅ {len(to_insert)}개의 새로운 데이터를 복구했습니다!")
-    except Exception as e:
-        st.session_state.sync_msg = ("error", f"❌ 복구 실패: {e}")
-
-
-# --- [3. 로그인 시스템 & 사이드바] ---
-DEV_MODE = False 
+# -----------------------------
+# 3. 로그인 시스템
+# -----------------------------
+DEV_MODE = False
 
 if "is_logged_in" not in st.session_state:
     st.session_state.is_logged_in = False
@@ -120,134 +73,191 @@ is_admin = st.session_state.is_logged_in or DEV_MODE
 
 with st.sidebar:
     st.markdown("### 🔐 Admin Access")
+
     if not is_admin:
-        input_password = st.text_input("Password", type="password", key="sidebar_pw")
-        if input_password:
-            if input_password == st.secrets["ADMIN_PASSWORD"]:
-                st.session_state.user_password = input_password 
+        pw = st.text_input("Password", type="password")
+        if pw:
+            if pw == st.secrets["ADMIN_PASSWORD"]:
+                st.session_state.user_password = pw
                 st.session_state.is_logged_in = True
                 st.rerun()
             else:
                 st.error("Incorrect Password")
-    
-    if st.session_state.is_logged_in:
+
+    if is_admin:
         st.success("Admin Mode Active")
-        if st.button("🔓 Logout", use_container_width=True):
+        if st.button("🔓 Logout"):
             st.session_state.is_logged_in = False
             st.session_state.user_password = ""
             st.rerun()
-            
-        st.divider()
-        st.markdown("### 🔄 Data Sync")
-        if 'sync_msg' in st.session_state:
-            m_type, m_txt = st.session_state.sync_msg
-            if m_type == "success": st.success(m_txt)
-            elif m_type == "warning": st.warning(m_txt)
-            else: st.error(m_txt)
-            del st.session_state.sync_msg
-        
-        st.button("📤 Cloud Backup", on_click=migrate_to_supabase, use_container_width=True)
-        st.button("📥 Cloud Restore", on_click=restore_from_supabase, use_container_width=True)
 
     st.divider()
     st.markdown("### 📱 화면 모드")
-    st.session_state.view_mode = st.radio("보기 옵션", ["PC", "Mobile"], horizontal=True, label_visibility="collapsed")
+    st.session_state.view_mode = st.radio(
+        "보기 옵션",
+        ["PC", "Mobile"],
+        horizontal=True,
+        label_visibility="collapsed"
+    )
 
 is_mobile = st.session_state.view_mode == "Mobile"
 
-
-# --- [API 검색 함수들] ---
-def search_books(query):
-    headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
+# -----------------------------
+# 4. SCRAP URL 크롤링
+# -----------------------------
+def crawl_url_metadata(url):
     try:
-        res = requests.get("https://dapi.kakao.com/v3/search/book", headers=headers, params={"query": query})
-        return res.json().get("documents", []) if res.status_code == 200 else []
-    except: return []
+        res = requests.get(url, timeout=5)
+        soup = BeautifulSoup(res.text, "html.parser")
 
-def search_apple_music(query):
-    url = f"https://itunes.apple.com/search?term={query}&limit=20&country=kr&entity=musicTrack,album"
-    try:
-        res = requests.get(url).json().get("results", [])
-        formatted_res = []
-        for m in res:
-            is_album = m.get('wrapperType') == 'collection'
-            title = m.get('collectionName' if is_album else 'trackName', 'Unknown')
-            formatted_res.append({'display_name': f"{'📀' if is_album else '🎵'} {title} - {m.get('artistName', '')}", 'title': title, 'creator': m.get('artistName', ''), 'date': m.get('releaseDate', '')[:10], 'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'), 'venue': m.get('artistName', '')})
-        return formatted_res
-    except: return []
+        title = soup.find("meta", property="og:title")
+        image = soup.find("meta", property="og:image")
+        desc = soup.find("meta", property="og:description")
+        site = soup.find("meta", property="og:site_name")
 
-def search_tmdb(query, category):
-    type_path = "movie" if category == "MOVIES" else "tv"
-    url = f"https://api.themoviedb.org/3/search/{type_path}?api_key={TMDB_API_KEY}&query={query}&language=ko-KR"
-    try: return requests.get(url).json().get("results", [])
-    except: return []
-
-def get_tmdb_details(item_id, category):
-    is_movie = "MOVIES" in category
-    type_path = "movie" if is_movie else "tv"
-    url = f"https://api.themoviedb.org/3/{type_path}/{item_id}?api_key={TMDB_API_KEY}&language=ko-KR&append_to_response=credits"
-    try:
-        res = requests.get(url).json()
-        crew_list = res.get('credits', {}).get('crew', [])
-        cast_list = res.get('credits', {}).get('cast', [])
-        if is_movie:
-            director = next((m['name'] for m in crew_list if m.get('job') == 'Director'), "정보 없음")
-            creator_label = f"[감독] {director}"
-            companies = res.get('production_companies', [])
-            venue_info = companies[0].get('name', '') if companies else ""
-        else:
-            creators = res.get('created_by', [])
-            if creators:
-                creator_names = ", ".join([c['name'] for c in creators])
-            else:
-                creator_names = next((m['name'] for m in crew_list if m.get('job') in ['Writer', 'Executive Producer']), "정보 없음")
-            creator_label = f"[작가/제작] {creator_names}"
-            networks = res.get('networks', [])
-            venue_info = networks[0].get('name', '') if networks else ""
-        cast_names = ", ".join([c['name'] for c in cast_list[:3]])
-        cast_label = f"[출연] {cast_names}" if cast_names else ""
-        full_creator = f"{creator_label} / {cast_label}".strip(" / ")
-        return {"creator": full_creator, "venue": venue_info}
+        return {
+            "title": title["content"] if title else "",
+            "img": image["content"] if image else "",
+            "summary": desc["content"] if desc else "",
+            "creator": site["content"] if site else ""
+        }
     except:
-        return {"creator": "정보 없음", "venue": ""}
+        return None
 
-def search_kopis(query):
-    year_match = re.search(r'\d{4}', query)
-    search_year = year_match.group() if year_match else None
-    clean_query = re.sub(r'\d{4}', '', query).strip()
-    url = f"http://www.kopis.or.kr/openApi/restful/pblprfr?service={KOPIS_KEY}&shprfnm={clean_query}&stdate=19500101&eddate=20261231&rows=100&cpage=1"
-    try:
-        res = requests.get(url)
-        root = ET.fromstring(res.content)
-        items = root.findall('db')
-        results = []
-        for d in items:
-            title = d.findtext('prfnm')
-            date_from = d.findtext('prfpdfrom')
-            if search_year and search_year not in date_from: continue
-            results.append({
-                'title': title, 'id': d.findtext('mt20id'), 'img': d.findtext('poster'), 
-                'date': date_from, 'venue': d.findtext('fcltynm')
-            })
-        return results
-    except: return []
+# -----------------------------
+# 5. SCRAP 해시태그 추출
+# -----------------------------
+def extract_hashtags(text):
+    if not text:
+        return []
+    return re.findall(r"#\w+", text)
 
-def get_kopis_detail(mt20id):
-    url = f"http://www.kopis.or.kr/openApi/restful/pblprfr/{mt20id}?service={KOPIS_KEY}"
-    try:
-        res = requests.get(url)
-        root = ET.fromstring(res.content)
-        d = root.find('db')
-        if d is not None:
-            crew = d.findtext('prfcrew').strip() if d.findtext('prfcrew') else ""
-            cast = d.findtext('prfcast').strip() if d.findtext('prfcast') else ""
-            info_parts = []
-            if crew: info_parts.append(f"[제작] {crew}")
-            if cast: info_parts.append(f"[출연] {cast}")
-            return " / ".join(info_parts) if info_parts else "정보 없음"
-    except: return "상세정보 로드 실패"
-    return "정보 없음"
+# -----------------------------
+# 6. 데이터 로드
+# -----------------------------
+df = get_all_data()
 
+# SCRAP 완전 격리
+display_df = df[df["category"] != "SCRAP"]
+
+# -----------------------------
+# 7. 탭 구성
+# -----------------------------
+cat_order = ["ALL"] + sorted(display_df["category"].dropna().unique().tolist())
+
+if is_admin:
+    cat_order.append("SCRAP")
+
+tabs = st.tabs(cat_order)
+
+# -----------------------------
+# 8. ALL 탭
+# -----------------------------
+with tabs[0]:
+    st.markdown("## 📚 Archive")
+
+    if display_df.empty:
+        st.info("데이터가 없습니다.")
+    else:
+        for _, row in display_df.iterrows():
+            with st.expander(f"{row['title']} ({row['category']})"):
+                if row["img_url"]:
+                    st.image(row["img_url"], width=200)
+                st.write(row["summary"])
+                st.caption(row["view_date"])
+
+                # SCRAP 단방향 참조
+                scrap_df = df[df["category"] == "SCRAP"]
+                related = scrap_df[
+                    scrap_df["note"].str.contains(f"#{row['title']}", na=False)
+                ]
+
+                if not related.empty:
+                    if st.button("🔗 관련 SCRAP 보기", key=row["id"]):
+                        st.write(related[["title", "note"]])
+
+# -----------------------------
+# 9. SCRAP 관리자 탭
+# -----------------------------
+if is_admin and "SCRAP" in cat_order:
+    scrap_tab = tabs[cat_order.index("SCRAP")]
+
+    with scrap_tab:
+        st.markdown("## 📰 SCRAP Dashboard")
+
+        scrap_df = df[df["category"] == "SCRAP"]
+
+        if scrap_df.empty:
+            st.info("스크랩 데이터가 없습니다.")
+        else:
+            # 해시태그 클라우드
+            all_tags = []
+            for n in scrap_df["note"]:
+                all_tags.extend(extract_hashtags(n))
+
+            unique_tags = sorted(set(all_tags))
+
+            if unique_tags:
+                st.markdown("### 🏷️ Hashtag Cloud")
+                st.write(" ".join(unique_tags))
+
+            # 주간 그룹화
+            scrap_df["view_date"] = pd.to_datetime(scrap_df["view_date"])
+            weekly = scrap_df.groupby(
+                pd.Grouper(key="view_date", freq="W-MON")
+            )
+
+            for week, group in weekly:
+                st.markdown(f"### 📅 {week.date()} 주간")
+                for _, row in group.iterrows():
+                    with st.expander(row["title"]):
+                        if row["img_url"]:
+                            st.image(row["img_url"], width=200)
+                        st.write(row["summary"])
+                        st.write(row["note"])
+
+        st.divider()
+        st.markdown("## ➕ 새 SCRAP 추가")
+
+        url_input = st.text_input("기사 URL 입력")
+
+        if st.button("🔍 자동 입력"):
+            data = crawl_url_metadata(url_input)
+            if data:
+                st.session_state.scrap_title = data["title"]
+                st.session_state.scrap_creator = data["creator"]
+                st.session_state.scrap_summary = data["summary"]
+                st.session_state.scrap_img = data["img"]
+                st.success("자동 입력 완료")
+            else:
+                st.error("크롤링 실패")
+
+        title = st.text_input("제목", key="scrap_title")
+        creator = st.text_input("매체", key="scrap_creator")
+        summary = st.text_area("요약", key="scrap_summary")
+        note = st.text_area("노트 (#태그 포함)")
+        img_url = st.text_input("썸네일", key="scrap_img")
+
+        if st.button("💾 저장"):
+            conn = get_connection()
+            conn.execute("""
+                INSERT INTO archive
+                (category, title, creator, rel_date, venue,
+                 summary, brief, highlights, note,
+                 img_url, img_url2, save_date, view_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                "SCRAP",
+                title, creator, "",
+                "", summary, "", "",
+                note, img_url, "",
+                datetime.now().strftime("%Y-%m-%d"),
+                datetime.now().strftime("%Y-%m-%d")
+            ))
+            conn.commit()
+            st.cache_data.clear()
+            st.success("저장 완료")
+            st.rerun()
 
 # --- [4. 팝업 상세 보기] ---
 @st.dialog("📋 기록", width="large")
@@ -525,4 +535,5 @@ with tab_a:
                                     
                                     short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
                                     if st.button(short_title, key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
 
