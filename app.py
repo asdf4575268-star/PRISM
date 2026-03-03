@@ -379,18 +379,31 @@ def show_details(item):
                     st.markdown(content.replace('\n', '  \n'))
                     st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
             
-           if item.get('category') != 'SCRAP':
+           # [기획 3] 일방향 참조 시스템 - 스마트 키워드 추출 버전
+            if item.get('category') != 'SCRAP':
                 conn = get_connection()
-                
-                # 1. 원본 제목에서 특수문자와 공백을 완전히 제거 (예: <블랙 메리 포핀스> -> 블랙메리포핀스)
                 import re
-                raw_title = str(item.get('title', ''))
-                clean_title = re.sub(r'[^가-힣a-zA-Z0-9]', '', raw_title)
                 
-                if clean_title: # 핵심 단어가 남아있을 때만 검색 실행
-                    search_keyword = f"%{clean_title}%"
+                raw_title = str(item.get('title', ''))
+                
+                # 1. [서울], (재연), <뮤지컬> 같은 괄호 안의 불필요한 단어 제거
+                title_no_brackets = re.sub(r'\[.*?\]|\(.*?\)|<.*?>', '', raw_title)
+                
+                # 2. 특수문자를 공백으로 치환하고 단어 단위로 쪼갬
+                clean_text = re.sub(r'[^가-힣a-zA-Z0-9]', ' ', title_no_brackets)
+                words = [w for w in clean_text.split() if len(w) >= 2]
+                
+                # 3. 만약 괄호를 다 지웠더니 남는 게 없다면 원본으로 다시 추출
+                if not words:
+                    clean_text = re.sub(r'[^가-힣a-zA-Z0-9]', ' ', raw_title)
+                    words = [w for w in clean_text.split() if len(w) >= 2]
+
+                if words:
+                    # 4. 가장 긴 단어를 핵심 키워드로 사용
+                    core_keyword = max(words, key=len)
+                    search_keyword = f"%{core_keyword}%"
                     
-                    # 2. DB 안의 스크랩 데이터도 띄어쓰기를 무시(REPLACE)하고 검색하도록 설정
+                    # REPLACE로 스크랩 쪽의 띄어쓰기만 무시하고 검색
                     sql_query = "SELECT * FROM archive WHERE category='SCRAP' AND (REPLACE(summary, ' ', '') LIKE ? OR REPLACE(title, ' ', '') LIKE ?)"
                     ref_df = pd.read_sql_query(sql_query, conn, params=(search_keyword, search_keyword))
                     
@@ -656,6 +669,7 @@ with tab_a:
                                 show_details(row)
                 else:
                     st.info("스크랩된 기록이 없습니다.")
+
 
 
 
