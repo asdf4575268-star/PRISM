@@ -9,6 +9,7 @@ import re
 import xml.etree.ElementTree as ET
 from supabase import create_client, Client
 import base64
+import html
 
 # --- [1. 설정 및 API] ---
 favicon = Image.open("logo.png").resize((64, 64), Image.LANCZOS)
@@ -265,7 +266,7 @@ def scrape_url(url):
         if not site: site = re.search(r'name="h:section"\s+content="(.*?)"', html)
         desc = re.search(r'property="og:description"\s+content="(.*?)"', html)
         return {
-            "title": title.group(1) if title else "제목 없음",
+            "title": html.unescape(raw_title),
             "img": img.group(1) if img else "",
             "venue": site.group(1) if site else "URL",
             "summary": desc.group(1) if desc else ""
@@ -634,3 +635,4 @@ with tab_a:
                                 show_details(row)
                 else:
                     st.info("스크랩된 기록이 없습니다.")
+
