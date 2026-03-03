@@ -381,7 +381,16 @@ def show_details(item):
             
             if item.get("category") != "SCRAP":
                 conn = get_connection()
-                ref_df = pd.read_sql_query(f"SELECT * FROM archive WHERE category='SCRAP' AND (summary LIKE '%{item.get('title')}%' OR title LIKE '%{item.get('title')}%')", conn)
+                
+                # 특수문자나 홑따옴표로 인한 에러를 방지하는 안전한 검색 방식
+                search_keyword = f"%{item.get('title', '')}%"
+                sql_query = "SELECT * FROM archive WHERE category='SCRAP' AND (summary LIKE ? OR title LIKE ?)"
+                ref_df = pd.read_sql_query(sql_query, conn, params=(search_keyword, search_keyword))
+                
+                if not ref_df.empty:
+                    st.markdown("""<div style="display: inline-block; background-color: #555; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px;">🔗 관련 스크랩</div>""", unsafe_allow_html=True)
+                    for _, r in ref_df.iterrows():
+                        st.markdown(f"- [{r['venue']}] {r['title']} ({r['view_date']})")
                 if not ref_df.empty:
                     st.markdown("""<div style="display: inline-block; background-color: #555; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px;">🔗 관련 스크랩</div>""", unsafe_allow_html=True)
                     for _, r in ref_df.iterrows():
@@ -644,3 +653,4 @@ with tab_a:
                                 show_details(row)
                 else:
                     st.info("스크랩된 기록이 없습니다.")
+
