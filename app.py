@@ -8,6 +8,7 @@ import time
 import re
 import xml.etree.ElementTree as ET
 from supabase import create_client, Client
+import base64
 
 # --- [1. 설정 및 API] ---
 favicon = Image.open("logo.png").resize((64, 64), Image.LANCZOS)
@@ -85,7 +86,7 @@ def restore_from_supabase():
             if (row['title'], row['view_date']) not in local_keys:
                 to_insert.append((
                     row['category'], row['title'], row['creator'], row['rel_date'], 
-                    row['venue'], row['summary'], row['brief'], row['highlights'], 
+                    row['venue'], row['summary'], row.get('brief', ''), row.get('highlights', ''), 
                     row['note'], row.get('img_url'), row.get('img_url2'), row['save_date'], row['view_date']
                 ))
         
@@ -154,9 +155,8 @@ with st.sidebar:
 is_mobile = st.session_state.view_mode == "Mobile"
 
 
-# --- [API 검색 및 스크랩 함수들] ---
+# --- [API 검색 함수들] ---
 def scrape_url(url):
-    # [기획 4] 기사 크롤러: 링크만 넣으면 제목과 신문사를 자동으로 가져옵니다.
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
         res = requests.get(url, headers=headers, timeout=5)
@@ -366,7 +366,7 @@ def show_details(item):
                     st.markdown(content.replace('\n', '  \n'))
                     st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
             
-            # [기획 3] 일방향 참조 시스템: 콘텐츠 상세 팝업 하단에만 관련 스크랩 링크가 나타납니다.
+            # [기획 3] 일방향 참조 시스템
             if item.get('category') != 'SCRAP':
                 conn = get_connection()
                 title_escaped = str(item.get('title', '')).replace("'", "''")
@@ -380,11 +380,12 @@ def show_details(item):
 
 
 # --- [5. 메인 화면] ---
-import base64
-
 def get_base64(path):
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode()
+    try:
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    except FileNotFoundError:
+        return ""
 
 logo_base64 = get_base64("logo.png")
 
@@ -547,7 +548,7 @@ with tab_a:
     if not all_df.empty:
         all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
         
-        # [기획 1] 독립된 SCRAP 아카이브: 메인 콘텐츠와 완벽 분리
+        # [기획 1] 독립된 SCRAP 아카이브
         main_df = all_df[all_df['category'] != "SCRAP"]
         scrap_df = all_df[all_df['category'] == "SCRAP"]
 
@@ -556,14 +557,13 @@ with tab_a:
         
         tab_titles = [f"📅 ALL ({len(main_df)})"] + [f"{cat_emojis[c]}{c} ({len(main_df[main_df['category'] == c])})" for c in cat_order]
         
-        # 관리자일 때만 SCRAP 탭 추가
         if is_admin:
             tab_titles.append(f"🔐 SCRAP ({len(scrap_df)})")
             
         sub_tabs = st.tabs(tab_titles)
         grid_cols = 2 if is_mobile else 6
 
-        # ALL 탭 렌더링 (main_df 사용)
+        # ALL 탭 렌더링
         with sub_tabs[0]:
             years = sorted(main_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
             if years:
@@ -587,7 +587,7 @@ with tab_a:
                                         short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
                                         if st.button(short_title, key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
 
-        # 각 카테고리별 탭 렌더링 (main_df 사용)
+        # 각 카테고리별 탭 렌더링
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
                 c_data = main_df[main_df['category'] == c_name]
