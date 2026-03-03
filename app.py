@@ -1,209 +1,528 @@
 import streamlit as st
+import sqlite3
 import requests
-import re
 import pandas as pd
-from datetime import date
-from supabase import create_client
+from datetime import date, datetime
+import time
+import re 
+import xml.etree.ElementTree as ET
+from supabase import create_client, Client
 
-# -------------------------------
-# 기본 설정
-# -------------------------------
-st.set_page_config(layout="wide")
+# --- [1. 설정 및 API] ---
+st.set_page_config(
+    layout="wide", 
+    page_title="PRISM",
+    page_icon="🌈",
+    initial_sidebar_state="collapsed"
+)
 
-# -------------------------------
-# Supabase 연결 (기존 값 사용)
-# -------------------------------
+TMDB_API_KEY = "6e7c55b6259b7731655033f783f3fc5b"
+DB_NAME = 'archive_prism_total_v5.db'
+KOPIS_KEY = "7a919bc272204f06bbca10e2af376dea"
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# -------------------------------
-# 데이터 로드
-# -------------------------------
+
+# --- [2. DB 함수 및 속도 최적화 동기화 로직] ---
+# DB 커넥션 캐싱 (매번 연결하지 않도록 최적화)
+@st.cache_resource
+def get_connection():
+    return sqlite3.connect(DB_NAME, check_same_thread=False)
+
+def init_db():
+    conn = get_connection()
+    conn.execute('''CREATE TABLE IF NOT EXISTS archive 
+                    (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
+                     rel_date TEXT, venue TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, 
+                     img_url TEXT, img_url2 TEXT, save_date TEXT, view_date TEXT)''')
+    conn.commit()
+
+init_db()
+
+# 데이터 조회 결과 캐싱 (화면이 다시 그려질 때마다 DB를 읽지 않도록 방어)
+@st.cache_data(ttl=600)
 def get_all_data():
-    res = supabase.table("archive").select("*").execute()
-    return pd.DataFrame(res.data)
+    conn = get_connection()
+    return pd.read_sql_query("SELECT * FROM archive ORDER BY view_date DESC", conn)
 
-# -------------------------------
-# SCRAP 전용 URL 메타 파싱 (bs4 제거)
-# -------------------------------
-def crawl_url_metadata(url):
+def migrate_to_supabase():
     try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        res = requests.get(url, headers=headers, timeout=5)
-        html = res.text
+        conn = get_connection()
+        conn.row_factory = sqlite3.Row
+        local_data = conn.execute("SELECT * FROM archive").fetchall()
+        
+        if not local_data:
+            st.session_state.sync_msg = ("warning", "로컬 데이터가 없습니다.")
+            return
 
-        def extract(prop):
-            match = re.search(
-                rf'<meta[^>]+property=["\']{prop}["\'][^>]+content=["\'](.*?)["\']',
-                html,
-                re.IGNORECASE
-            )
-            return match.group(1) if match else ""
+        upload_list = [dict(row) for row in local_data]
+        for d in upload_list:
+            if 'id' in d: del d['id']
+            
+        supabase.table("archive").upsert(upload_list).execute() 
+        st.session_state.sync_msg = ("success", f"✅ {len(upload_list)}개 데이터 클라우드 백업 완료!")
+    except Exception as e:
+        st.session_state.sync_msg = ("error", f"❌ 백업 실패: {e}")
 
-        return {
-            "title": extract("og:title"),
-            "img": extract("og:image"),
-            "summary": extract("og:description"),
-            "creator": extract("og:site_name")
-        }
-    except:
-        return None
+def restore_from_supabase():
+    try:
+        res = supabase.table("archive").select("*").execute()
+        cloud_data = res.data if hasattr(res, 'data') else res
+        
+        if not cloud_data:
+            st.session_state.sync_msg = ("warning", "클라우드가 비어있습니다.")
+            return
 
-# -------------------------------
-# 관리자 여부
-# -------------------------------
-is_admin = st.session_state.get("is_admin", False)
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # 중복 체크용 로컬 데이터셋 미리 만들기 (루프마다 DB 쿼리 방지)
+        local_df = get_all_data()
+        local_keys = set(zip(local_df['title'], local_df['view_date'])) if not local_df.empty else set()
+        
+        to_insert = []
+        for row in cloud_data:
+            if (row['title'], row['view_date']) not in local_keys:
+                to_insert.append((
+                    row['category'], row['title'], row['creator'], row['rel_date'], 
+                    row['venue'], row['summary'], row['brief'], row['highlights'], 
+                    row['note'], row.get('img_url'), row.get('img_url2'), row['save_date'], row['view_date']
+                ))
+        
+        if to_insert:
+            # executemany로 한 번에 밀어넣기 (속도 대폭 향상)
+            cursor.executemany("""INSERT INTO archive 
+                (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) 
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", to_insert)
+            conn.commit()
+            st.cache_data.clear() # 새 데이터가 들어왔으므로 캐시 초기화
+            
+        st.session_state.sync_msg = ("success", f"✅ {len(to_insert)}개의 새로운 데이터를 복구했습니다!")
+    except Exception as e:
+        st.session_state.sync_msg = ("error", f"❌ 복구 실패: {e}")
 
-# -------------------------------
-# 탭 구성
-# -------------------------------
-tab1, tab2 = st.tabs(["WRITE", "ARCHIVE"])
 
-# =========================================================
-# WRITE TAB
-# =========================================================
-with tab1:
+# --- [3. 로그인 시스템 & 사이드바] ---
+DEV_MODE = False 
 
-    category = st.radio(
-        "📂 CATEGORY",
-        ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"],
-        horizontal=True
-    )
+if "is_logged_in" not in st.session_state:
+    st.session_state.is_logged_in = False
+if "user_password" not in st.session_state:
+    st.session_state.user_password = ""
+if "view_mode" not in st.session_state:
+    st.session_state.view_mode = "PC"
 
-    # ---------------------------
-    # SCRAP 입력 모드
-    # ---------------------------
-    if category == "SCRAP":
+if st.session_state.user_password == st.secrets["ADMIN_PASSWORD"]:
+    st.session_state.is_logged_in = True
 
-        if not is_admin:
-            st.warning("SCRAP은 관리자 전용입니다.")
-            st.stop()
+is_admin = st.session_state.is_logged_in or DEV_MODE
 
-        url_input = st.text_input("🔗 기사 URL 입력")
-
-        if st.button("🔍 자동 입력"):
-            data = crawl_url_metadata(url_input)
-            if data:
-                st.session_state.api_data = {
-                    "title": data["title"],
-                    "creator": data["creator"],
-                    "date": str(date.today()),
-                    "img": data["img"],
-                    "summary": data["summary"]
-                }
-                st.success("자동 입력 완료")
+with st.sidebar:
+    st.markdown("### 🔐 Admin Access")
+    if not is_admin:
+        input_password = st.text_input("Password", type="password", key="sidebar_pw")
+        if input_password:
+            if input_password == st.secrets["ADMIN_PASSWORD"]:
+                st.session_state.user_password = input_password 
+                st.session_state.is_logged_in = True
                 st.rerun()
             else:
-                st.error("메타데이터 추출 실패")
-
-    # ---------------------------
-    # 기존 API 검색 모드 (SCRAP 제외)
-    # ---------------------------
-    else:
-        search_query = st.text_input("검색어 입력")
-
-        if search_query:
-            st.write("여기에 기존 API 검색 로직 그대로 유지")
-
-    # ---------------------------
-    # 공통 저장 폼
-    # ---------------------------
-    if "api_data" in st.session_state:
-
-        data = st.session_state.api_data
-
-        title = st.text_input("제목", value=data.get("title", ""))
-        creator = st.text_input("저자/출연", value=data.get("creator", ""))
-        view_date = st.date_input("감상일", date.today())
-        rating = st.slider("평점", 1, 5, 3)
-        note = st.text_area("메모")
-
-        if st.button("저장"):
-            supabase.table("archive").insert({
-                "category": category,
-                "title": title,
-                "creator": creator,
-                "view_date": str(view_date),
-                "rating": rating,
-                "note": note,
-                "img_url": data.get("img"),
-                "summary": data.get("summary")
-            }).execute()
-
-            st.success("저장 완료")
-            del st.session_state["api_data"]
+                st.error("Incorrect Password")
+    
+    if st.session_state.is_logged_in:
+        st.success("Admin Mode Active")
+        if st.button("🔓 Logout", use_container_width=True):
+            st.session_state.is_logged_in = False
+            st.session_state.user_password = ""
             st.rerun()
+            
+        st.divider()
+        st.markdown("### 🔄 Data Sync")
+        if 'sync_msg' in st.session_state:
+            m_type, m_txt = st.session_state.sync_msg
+            if m_type == "success": st.success(m_txt)
+            elif m_type == "warning": st.warning(m_txt)
+            else: st.error(m_txt)
+            del st.session_state.sync_msg
+        
+        st.button("📤 Cloud Backup", on_click=migrate_to_supabase, use_container_width=True)
+        st.button("📥 Cloud Restore", on_click=restore_from_supabase, use_container_width=True)
 
-# =========================================================
-# ARCHIVE TAB
-# =========================================================
-with tab2:
+    st.divider()
+    st.markdown("### 📱 화면 모드")
+    st.session_state.view_mode = st.radio("보기 옵션", ["PC", "Mobile"], horizontal=True, label_visibility="collapsed")
 
+is_mobile = st.session_state.view_mode == "Mobile"
+
+
+# --- [API 검색 함수들] ---
+def search_books(query):
+    headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
+    try:
+        res = requests.get("https://dapi.kakao.com/v3/search/book", headers=headers, params={"query": query})
+        return res.json().get("documents", []) if res.status_code == 200 else []
+    except: return []
+
+def search_apple_music(query):
+    url = f"https://itunes.apple.com/search?term={query}&limit=20&country=kr&entity=musicTrack,album"
+    try:
+        res = requests.get(url).json().get("results", [])
+        formatted_res = []
+        for m in res:
+            is_album = m.get('wrapperType') == 'collection'
+            title = m.get('collectionName' if is_album else 'trackName', 'Unknown')
+            formatted_res.append({'display_name': f"{'📀' if is_album else '🎵'} {title} - {m.get('artistName', '')}", 'title': title, 'creator': m.get('artistName', ''), 'date': m.get('releaseDate', '')[:10], 'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'), 'venue': m.get('artistName', '')})
+        return formatted_res
+    except: return []
+
+def search_tmdb(query, category):
+    type_path = "movie" if category == "MOVIES" else "tv"
+    url = f"https://api.themoviedb.org/3/search/{type_path}?api_key={TMDB_API_KEY}&query={query}&language=ko-KR"
+    try: return requests.get(url).json().get("results", [])
+    except: return []
+
+def get_tmdb_details(item_id, category):
+    is_movie = "MOVIES" in category
+    type_path = "movie" if is_movie else "tv"
+    url = f"https://api.themoviedb.org/3/{type_path}/{item_id}?api_key={TMDB_API_KEY}&language=ko-KR&append_to_response=credits"
+    try:
+        res = requests.get(url).json()
+        crew_list = res.get('credits', {}).get('crew', [])
+        cast_list = res.get('credits', {}).get('cast', [])
+        if is_movie:
+            director = next((m['name'] for m in crew_list if m.get('job') == 'Director'), "정보 없음")
+            creator_label = f"[감독] {director}"
+            companies = res.get('production_companies', [])
+            venue_info = companies[0].get('name', '') if companies else ""
+        else:
+            creators = res.get('created_by', [])
+            if creators:
+                creator_names = ", ".join([c['name'] for c in creators])
+            else:
+                creator_names = next((m['name'] for m in crew_list if m.get('job') in ['Writer', 'Executive Producer']), "정보 없음")
+            creator_label = f"[작가/제작] {creator_names}"
+            networks = res.get('networks', [])
+            venue_info = networks[0].get('name', '') if networks else ""
+        cast_names = ", ".join([c['name'] for c in cast_list[:3]])
+        cast_label = f"[출연] {cast_names}" if cast_names else ""
+        full_creator = f"{creator_label} / {cast_label}".strip(" / ")
+        return {"creator": full_creator, "venue": venue_info}
+    except:
+        return {"creator": "정보 없음", "venue": ""}
+
+def search_kopis(query):
+    year_match = re.search(r'\d{4}', query)
+    search_year = year_match.group() if year_match else None
+    clean_query = re.sub(r'\d{4}', '', query).strip()
+    url = f"http://www.kopis.or.kr/openApi/restful/pblprfr?service={KOPIS_KEY}&shprfnm={clean_query}&stdate=19500101&eddate=20261231&rows=100&cpage=1"
+    try:
+        res = requests.get(url)
+        root = ET.fromstring(res.content)
+        items = root.findall('db')
+        results = []
+        for d in items:
+            title = d.findtext('prfnm')
+            date_from = d.findtext('prfpdfrom')
+            if search_year and search_year not in date_from: continue
+            results.append({
+                'title': title, 'id': d.findtext('mt20id'), 'img': d.findtext('poster'), 
+                'date': date_from, 'venue': d.findtext('fcltynm')
+            })
+        return results
+    except: return []
+
+def get_kopis_detail(mt20id):
+    url = f"http://www.kopis.or.kr/openApi/restful/pblprfr/{mt20id}?service={KOPIS_KEY}"
+    try:
+        res = requests.get(url)
+        root = ET.fromstring(res.content)
+        d = root.find('db')
+        if d is not None:
+            crew = d.findtext('prfcrew').strip() if d.findtext('prfcrew') else ""
+            cast = d.findtext('prfcast').strip() if d.findtext('prfcast') else ""
+            info_parts = []
+            if crew: info_parts.append(f"[제작] {crew}")
+            if cast: info_parts.append(f"[출연] {cast}")
+            return " / ".join(info_parts) if info_parts else "정보 없음"
+    except: return "상세정보 로드 실패"
+    return "정보 없음"
+
+
+# --- [4. 팝업 상세 보기] ---
+@st.dialog("📋 기록", width="large")
+def show_details(item):
+    if hasattr(item, 'to_dict'): item = item.to_dict()
+    
+    edit_mode = False
+    if is_admin:
+        t_col1, t_col2, t_col3 = st.columns([0.3, 0.4, 0.3])
+        with t_col1:
+            if st.button("🗑️ 삭제", key=f"del_{item['id']}", use_container_width=True):
+                conn = get_connection()
+                conn.execute("DELETE FROM archive WHERE id=?", (item['id'],))
+                conn.commit()
+                try: supabase.table("archive").delete().eq("title", item['title']).eq("view_date", item['view_date']).execute()
+                except: pass
+                st.cache_data.clear() # 삭제 후 리스트 갱신
+                st.rerun()
+        with t_col3:
+            edit_mode = st.toggle("✏️ 수정", key=f"tog_{item['id']}")
+        st.divider()
+
+    if is_mobile:
+        col_img = st.container()
+        col_txt = st.container()
+    else:
+        col_img, col_txt = st.columns([0.3, 0.7])
+
+    if is_admin and edit_mode:
+        with col_img:
+            n_img = st.text_input("🖼️ 이미지 1", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
+            n_img2 = st.text_input("🖼️ 이미지 2", value=str(item.get('img_url2', '')), key=f"img2_in_{item['id']}")
+            if n_img and n_img.strip() and n_img != "None": st.image(n_img, use_container_width=True)
+
+        with col_txt:
+            with st.form(key=f"edit_form_{item['id']}"):
+                n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
+                n_creator = st.text_input("👤 창작자", value=str(item.get('creator', '')))
+                cat = item.get('category')
+                labels = {"BOOKS": "📖 출판사", "MUSIC": "💿 레이블", "MOVIES": "🎬 제작사", "SERIES": "📺 플랫폼", "STAGE": "📍 장소"}
+                v_label = labels.get(cat, "📍 장소")
+                c1, c2 = st.columns(2)
+                n_rel = c1.text_input("📅 작품 날짜", value=str(item.get('rel_date', '')))
+                n_venue = c2.text_input(v_label, value=str(item.get('venue', '')))
+                try: curr_view = pd.to_datetime(item.get('view_date')).date()
+                except: curr_view = date.today()
+                n_view_date = st.date_input("🍿 감상일 수정", value=curr_view)
+                n_sum = st.text_area("📖 작품소개", value=str(item.get('summary', '')), height=150)
+                n_brief = st.text_input("📝 요약", value=str(item.get('brief', '')))
+                n_high = st.text_area("✨ 인상 깊은 부분", value=str(item.get('highlights', '')), height=100)
+                n_note = st.text_area("💬 감상", value=str(item.get('note', '')), height=100)
+
+                if st.form_submit_button("💾 저장"):
+                    try:
+                        conn = get_connection()
+                        conn.execute("""UPDATE archive SET 
+                                        title=?, creator=?, rel_date=?, venue=?, 
+                                        summary=?, brief=?, highlights=?, note=?, view_date=?, img_url=?, img_url2=? 
+                                        WHERE id=?""", 
+                                     (n_title, n_creator, n_rel, n_venue, 
+                                      n_sum, n_brief, n_high, n_note, str(n_view_date), n_img, n_img2, item['id']))
+                        conn.commit()
+                        supabase.table("archive").update({
+                            "title": n_title, "creator": n_creator, "rel_date": n_rel, "venue": n_venue,
+                            "summary": n_sum, "brief": n_brief, "highlights": n_high, "note": n_note,
+                            "view_date": str(n_view_date), "img_url": n_img, "img_url2": n_img2
+                        }).eq("title", item['title']).eq("view_date", item['view_date']).execute()
+                        st.cache_data.clear() # 업데이트 후 리스트 갱신
+                        st.success("✅ 수정 완료!")
+                        time.sleep(0.5)
+                        st.rerun()
+                    except Exception as e: st.error(f"❌ 오류: {e}")
+    else: 
+        with col_img:
+            img_url = item.get('img_url')
+            if isinstance(img_url, str) and img_url.strip() and img_url != "None":
+                try: st.image(img_url, use_container_width=True)
+                except: st.warning("이미지 1 로드 실패")
+            
+            img_url2 = item.get('img_url2')
+            if isinstance(img_url2, str) and img_url2.strip() and img_url2 != "None":
+                try: st.image(img_url2, use_container_width=True)
+                except: st.warning("이미지 2 로드 실패")
+            
+        with col_txt:
+            st.markdown(f'# {item.get("title")}')
+            st.write(f"**{item.get('creator')}**")
+            st.write(f"**📅 {item.get('rel_date')} | 📍 {item.get('venue')}**")
+            st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
+            st.divider()
+            sections = [("📖 작품소개", "summary", "#444"), ("📝 요약", "brief", "#0E6245"), ("✨ 인상 깊은 부분", "highlights", "#7D5600"), ("🌈 PRISM", "note", "#1E425E")]
+            for label, key, color in sections:
+                content = item.get(key)
+                if content:
+                    st.markdown(f"""<div style="display: inline-block; background-color: {color}; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px;">{label}</div>""", unsafe_allow_html=True)
+                    st.markdown(content.replace('\n', '  \n'))
+                    st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
+
+
+# --- [5. 메인 화면] ---
+st.title("🌈PRISM ARCHIVE ")
+if is_admin:
+    tab_w, tab_a = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
+else:
+    tabs = st.tabs(["📂 ARCHIVE"])
+    tab_a = tabs[0]
+    tab_w = None
+
+if is_admin and tab_w:
+    with tab_w:
+        category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"], horizontal=True)
+        search_query = st.text_input(f"🔍 {category} 검색")
+        if search_query:
+            if category == "BOOKS":
+                res = search_books(search_query)
+                if res:
+                    opts = {f"📚 {b['title']}": b for b in res}
+                    sel = st.selectbox("결과 선택", list(opts.keys()))
+                    if st.button("✨ 가져오기"):
+                        b = opts[sel]
+                        st.session_state.api_data = {'title': b['title'], 'creator': ", ".join(b['authors']), 'date': b['datetime'][:10], 'img': b.get('thumbnail', '').replace("R120x174", "R400x0"), 'venue': b.get('publisher', ''), 'summary': b.get('contents', '')}
+                        st.rerun()
+            elif category == "MUSIC":
+                res = search_apple_music(search_query)
+                if res:
+                    opts = {m['display_name']: m for m in res}
+                    sel = st.selectbox("결과 선택", list(opts.keys()))
+                    if st.button("✨ 가져오기"):
+                        m = opts[sel]
+                        st.session_state.api_data = {'title': m['title'], 'creator': m['creator'], 'date': m['date'], 'img': m['img'], 'summary': f"{m.get('url', '')}\n\n"}
+                        st.rerun()
+            elif category == "STAGE":
+                res = search_kopis(search_query)
+                if res:
+                    opts = {f"🎭 {s['title']} [{s['date']}~] ({s['venue']})": s for s in res}
+                    sel = st.selectbox("결과 선택", list(opts.keys()))
+                    if st.button("✨ 가져오기"):
+                        s = opts[sel]
+                        combined_creator = get_kopis_detail(s['id'])
+                        st.session_state.api_data = {'title': s['title'], 'creator': combined_creator, 'date': s['date'], 'venue': s['venue'], 'img': s['img'], 'summary': f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id={s['id']}"}
+                        st.rerun()
+            else: 
+                res = search_tmdb(search_query, category)
+                if res:
+                    t_key = 'title' if category == 'MOVIES' else 'name'
+                    d_key = 'release_date' if category == 'MOVIES' else 'first_air_date'
+                    opts = {f"🎬 {r.get(t_key)} ({str(r.get(d_key))[:4]})": r for r in res}
+                    sel = st.selectbox("결과 선택", list(opts.keys()))
+                    if st.button("✨ 가져오기"):
+                        s = opts[sel]
+                        details = get_tmdb_details(s['id'], category)
+                        st.session_state.api_data = {'title': s.get(t_key), 'creator': details['creator'], 'date': s.get(d_key), 'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", 'venue': details['venue'], 'summary': s.get('overview', '')}
+                        st.rerun()
+
+        st.divider()
+        data = st.session_state.get('api_data', {})
+        cl, cr = st.columns([0.4, 0.6]) if not is_mobile else (st.container(), st.container())
+        with cl:
+            img_url_val = st.text_input("🖼️ 이미지", value=data.get('img', ''))
+            if img_url_val and img_url_val.strip() and img_url_val != "None": st.image(img_url_val, use_container_width=True)
+            title = st.text_input("제목", value=data.get('title', ''))
+            creator = st.text_input("창작자 정보", value=data.get('creator', ''))
+            rel_date = st.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
+            venue = st.text_input("📍 장소/플랫폼", value=data.get('venue', ''))
+        with cr:
+            summary = st.text_area("📖 작품소개", value=data.get('summary', ''), height=100)
+            brief = st.text_input("📝 요약 (한 줄 평)")
+            highlights = st.text_area("✨ 인상 깊은 부분", height=100)
+            note = st.text_area("🌈 PRISM", height=100)
+            view_date = st.date_input("🍿 감상일", value=date.today())
+            if st.button("✅ 기록 저장", use_container_width=True):
+                new_record = {"category": str(category), "title": str(title).strip(), "creator": str(creator).strip(), "rel_date": str(rel_date), "venue": str(venue).strip(), "summary": str(summary).strip(), "brief": str(brief).strip(), "highlights": str(highlights).strip(), "note": str(note).strip(), "img_url": str(img_url_val).strip(), "img_url2": "", "save_date": str(date.today()), "view_date": str(view_date)}
+                try:
+                    conn = get_connection()
+                    conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], new_record["note"], new_record["img_url"], new_record["img_url2"], new_record["save_date"], new_record["view_date"]))
+                    conn.commit()
+                    supabase.table("archive").upsert(new_record).execute()
+                    st.cache_data.clear() # 기록 후 리스트 갱신
+                    st.success("✅ 저장 완료!")
+                    st.session_state.api_data = {}
+                    time.sleep(0.8)
+                    st.rerun()
+                except Exception as e: st.error(f"❌ 오류: {e}")
+
+# --- [ARCHIVE 탭] ---
+with tab_a:
+    st.markdown("""<style>
+        /* 기본 틀: 포스터 비율 (1:1.4) */
+        .cal-img-box { 
+            position: relative; 
+            width: 100%; 
+            aspect-ratio: 1/1.4; 
+            overflow: hidden; 
+            border-radius: 8px; 
+            margin-top: 5px; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2); 
+            background: #1e1e1e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* 음악 카테고리 전용 스타일 */
+        .music-tab-style {
+            aspect-ratio: 1/1 !important;
+        }
+         
+        .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: yellow; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
+        .badge-date { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
+
+        /* [핵심] 가로 모드 및 넓은 화면 대응 CSS */
+        @media (min-width: 600px) {
+            [data-testid="stHorizontalBlock"] {
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                gap: 10px !important;
+            }
+            [data-testid="column"] {
+                flex: 1 1 0% !important;
+                min-width: 0 !important;
+            }
+        }
+    </style>""", unsafe_allow_html=True)
+
+    # 이 부분이 캐싱되어 탭을 전환하거나 다시 그릴 때마다 DB에서 데이터를 끌어오지 않게 됩니다.
     all_df = get_all_data()
 
-    # ALL 탭에서 SCRAP 숨김 (비관리자)
-    if not is_admin:
-        display_df = all_df[all_df["category"] != "SCRAP"]
-    else:
-        display_df = all_df
+    if not all_df.empty:
+        all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
+        cat_order = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
+        cat_emojis = {"BOOKS": "📚", "MUSIC": "🎧", "MOVIES": "🎞️", "SERIES": "📽️", "STAGE": "🎭"}
+        tab_titles = [f"📅 ALL ({len(all_df)})"] + [f"{cat_emojis[c]}{c} ({len(all_df[all_df['category'] == c])})" for c in cat_order]
+        sub_tabs = st.tabs(tab_titles)
+        grid_cols = 2 if is_mobile else 6
 
-    categories = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
-    if is_admin:
-        categories.append("SCRAP")
+        with sub_tabs[0]:
+            years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
+            year_options = {y: f"{y}({len(all_df[all_df['v_dt'].dt.year == y])})" for y in years}
+            sel_y = st.selectbox("📅 연도 선택", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
+            y_df = all_df[all_df['v_dt'].dt.year == sel_y]
+            
+            for m in range(12, 0, -1):
+                m_data = y_df[y_df['v_dt'].dt.month == m]
+                if not m_data.empty:
+                    st.subheader(f"🗓️ {m}월")
+                    items = m_data.to_dict('records')
+                    for i in range(0, len(items), grid_cols):
+                        cols = st.columns(grid_cols)
+                        for j in range(grid_cols):
+                            if i+j < len(items):
+                                row = items[i+j]
+                                img_style = 'style="height: auto; aspect-ratio: 1/1;"' if row["category"] == "MUSIC" else ""
+                                with cols[j]:
+                                    st.markdown(f'<div class="cal-img-box"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}" {img_style}></div>', unsafe_allow_html=True)
+                                    
+                                    short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
+                                    if st.button(short_title, key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
 
-    for c_name in categories:
+        for idx, c_name in enumerate(cat_order):
+            with sub_tabs[idx + 1]:
+                c_data = all_df[all_df['category'] == c_name]
+                if c_data.empty: st.info(f"{c_name} 데이터 없음")
+                else:
+                    items = c_data.to_dict('records')
+                    music_cls = "music-tab-style" if c_name == "MUSIC" else ""
+                    for i in range(0, len(items), grid_cols):
+                        cols = st.columns(grid_cols)
+                        for j in range(grid_cols):
+                            if i+j < len(items):
+                                row = items[i+j]
+                                with cols[j]:
+                                    img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
+                                    st.markdown(f'<div class="cal-img-box {music_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{img_u}"></div>', unsafe_allow_html=True)
+                                    
+                                    short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
+                                    if st.button(short_title, key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
 
-        st.subheader(c_name)
-        df = display_df[display_df["category"] == c_name]
-
-        if df.empty:
-            st.write("데이터 없음")
-            continue
-
-        for _, row in df.iterrows():
-            with st.expander(row["title"]):
-
-                if row["img_url"]:
-                    st.image(row["img_url"], width=150)
-
-                st.write("작성자:", row["creator"])
-                st.write("감상일:", row["view_date"])
-                st.write("평점:", row["rating"])
-                st.write("요약:", row["summary"])
-                st.write("메모:", row["note"])
-
-        # ---------------------------
-        # SCRAP 주간 대시보드 (관리자)
-        # ---------------------------
-        if is_admin and c_name == "SCRAP":
-
-            scrap_df = df.copy()
-
-            if not scrap_df.empty:
-                st.divider()
-                st.subheader("📰 SCRAP Weekly")
-
-                scrap_df["v_dt"] = pd.to_datetime(scrap_df["view_date"])
-                weekly = scrap_df.groupby(pd.Grouper(key="v_dt", freq="W-MON"))
-
-                # 해시태그 추출
-                tags = []
-                for t in scrap_df["note"]:
-                    if t:
-                        tags.extend(re.findall(r"#\w+", t))
-
-                if tags:
-                    st.markdown("### 🏷️ Hashtags")
-                    st.write(" ".join(sorted(set(tags))))
-
-                for week, group in weekly:
-                    if not group.empty:
-                        st.markdown(f"### 📅 {week.date()} 주간")
-
-                        for _, row in group.iterrows():
-                            with st.expander(row["title"]):
-                                if row["img_url"]:
-                                    st.image(row["img_url"], width=150)
-                                st.write(row["summary"])
-                                st.write(row["note"])
