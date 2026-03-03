@@ -1,4 +1,5 @@
 streamlit
 pandas
 requests
-ytmusicapi
+supabase
+beautifulsoup4
