@@ -274,11 +274,14 @@ def scrape_url(url):
         raw_title = title.group(1) if title else "제목 없음"
         raw_summary = desc.group(1) if desc else ""
         
+        # ★ 변경된 부분: 작품소개(summary) 맨 윗줄에 원본 URL을 삽입합니다.
+        combined_summary = f"{url}\n\n{html.unescape(raw_summary)}"
+        
         return {
-            "title": html.unescape(raw_title),  # <--- 여기서 깨진 특수문자를 정상 기호(<, >, & 등)로 복원합니다.
+            "title": html.unescape(raw_title),
             "img": img.group(1) if img else "",
             "venue": site.group(1) if site else "URL",
-            "summary": html.unescape(raw_summary) # 요약본도 같이 복원해줍니다.
+            "summary": combined_summary
         }
     except: return None
 
@@ -675,6 +678,7 @@ with tab_a:
                                 show_details(row)
                 else:
                     st.info("스크랩된 기록이 없습니다.")
+
 
 
 
