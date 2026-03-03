@@ -379,23 +379,27 @@ def show_details(item):
                     st.markdown(content.replace('\n', '  \n'))
                     st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
             
-            if item.get("category") != "SCRAP":
+            # [기획 3] 일방향 참조 시스템
+            if item.get('category') != 'SCRAP':
                 conn = get_connection()
                 
-                # 특수문자나 홑따옴표로 인한 에러를 방지하는 안전한 검색 방식
-                search_keyword = f"%{item.get('title', '')}%"
-                sql_query = "SELECT * FROM archive WHERE category='SCRAP' AND (summary LIKE ? OR title LIKE ?)"
-                ref_df = pd.read_sql_query(sql_query, conn, params=(search_keyword, search_keyword))
+                # 1. 원본 제목에서 특수문자와 공백을 완전히 제거 (예: <블랙 메리 포핀스> -> 블랙메리포핀스)
+                import re
+                raw_title = str(item.get('title', ''))
+                clean_title = re.sub(r'[^가-힣a-zA-Z0-9]', '', raw_title)
                 
-                if not ref_df.empty:
-                    st.markdown("""<div style="display: inline-block; background-color: #555; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px;">🔗 관련 스크랩</div>""", unsafe_allow_html=True)
-                    for _, r in ref_df.iterrows():
-                        st.markdown(f"- [{r['venue']}] {r['title']} ({r['view_date']})")
-                if not ref_df.empty:
-                    st.markdown("""<div style="display: inline-block; background-color: #555; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px;">🔗 관련 스크랩</div>""", unsafe_allow_html=True)
-                    for _, r in ref_df.iterrows():
-                        st.markdown(f"- [{r['venue']}] {r['title']} ({r['view_date']})")
-
+                if clean_title: # 핵심 단어가 남아있을 때만 검색 실행
+                    search_keyword = f"%{clean_title}%"
+                    
+                    # 2. DB 안의 스크랩 데이터도 띄어쓰기를 무시(REPLACE)하고 검색하도록 설정
+                    sql_query = "SELECT * FROM archive WHERE category='SCRAP' AND (REPLACE(summary, ' ', '') LIKE ? OR REPLACE(title, ' ', '') LIKE ?)"
+                    ref_df = pd.read_sql_query(sql_query, conn, params=(search_keyword, search_keyword))
+                    
+                    if not ref_df.empty:
+                        st.markdown("""<div style="display: inline-block; background-color: #555; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px;">🔗 관련 스크랩</div>""", unsafe_allow_html=True)
+                        for _, r in ref_df.iterrows():
+                            st.markdown(f"- **[{r['venue']}]** {r['title']} ({r['view_date']})")
+                        st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
 
 # --- [5. 메인 화면] ---
 def get_base64(path):
@@ -653,4 +657,5 @@ with tab_a:
                                 show_details(row)
                 else:
                     st.info("스크랩된 기록이 없습니다.")
+
 
