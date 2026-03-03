@@ -404,16 +404,19 @@ def show_details(item):
                     search_keyword = f"%{core_keyword}%"
                     
                     # REPLACE로 스크랩 쪽의 띄어쓰기만 무시하고 검색
-                    # REPLACE로 스크랩 쪽의 띄어쓰기만 무시하고 검색
                     sql_query = "SELECT * FROM archive WHERE category='SCRAP' AND (REPLACE(summary, ' ', '') LIKE ? OR REPLACE(title, ' ', '') LIKE ?)"
                     ref_df = pd.read_sql_query(sql_query, conn, params=(search_keyword, search_keyword))
                     
                     if not ref_df.empty:
                         st.markdown("""<div style="display: inline-block; background-color: #555; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px;">🔗 관련 스크랩</div>""", unsafe_allow_html=True)
                         for _, r in ref_df.iterrows():
-                            # 단순 텍스트 대신 '버튼'으로 만들고, view_date(감상일) 대신 rel_date(공개일) 적용
-                            if st.button(f"👉 [{r['venue']}] {r['title']} ({r['rel_date']})", key=f"ref_{item['id']}_{r['id']}", use_container_width=True):
-                                show_details(r) # 버튼 클릭 시 해당 스크랩의 상세 팝업을 띄움
+                            # 팝업 위에 팝업을 띄울 수 없으므로, 클릭 시 아래로 펼쳐지는 Expander 사용
+                            with st.expander(f"👉 [{r['venue']}] {r['title']} ({r['rel_date']})"):
+                                st.write(f"**🍿 감상일:** {r['view_date']}")
+                                if r['summary']:
+                                    st.write(r['summary'].replace('\n', '  \n'))
+                                if r['note']:
+                                    st.markdown(f"**💬 감상:**<br>{r['note']}", unsafe_allow_html=True)
                         st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
 
 # --- [5. 메인 화면] ---
@@ -672,6 +675,7 @@ with tab_a:
                                 show_details(row)
                 else:
                     st.info("스크랩된 기록이 없습니다.")
+
 
 
 
