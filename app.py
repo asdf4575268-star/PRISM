@@ -257,19 +257,28 @@ def scrape_url(url):
         headers = {'User-Agent': 'Mozilla/5.0'}
         res = requests.get(url, headers=headers, timeout=5)
         res.encoding = 'utf-8'
-        html = res.text
-        title = re.search(r'property="og:title"\s+content="(.*?)"', html)
-        if not title: title = re.search(r'name="h:title"\s+content="(.*?)"', html)
-        if not title: title = re.search(r'<title>(.*?)</title>', html)
-        img = re.search(r'property="og:image"\s+content="(.*?)"', html)
-        site = re.search(r'property="og:site_name"\s+content="(.*?)"', html)
-        if not site: site = re.search(r'name="h:section"\s+content="(.*?)"', html)
-        desc = re.search(r'property="og:description"\s+content="(.*?)"', html)
+        html_text = res.text
+        
+        title = re.search(r'property="og:title"\s+content="(.*?)"', html_text)
+        if not title: title = re.search(r'name="h:title"\s+content="(.*?)"', html_text)
+        if not title: title = re.search(r'<title>(.*?)</title>', html_text)
+        
+        img = re.search(r'property="og:image"\s+content="(.*?)"', html_text)
+        
+        site = re.search(r'property="og:site_name"\s+content="(.*?)"', html_text)
+        if not site: site = re.search(r'name="h:section"\s+content="(.*?)"', html_text)
+        
+        desc = re.search(r'property="og:description"\s+content="(.*?)"', html_text)
+        
+        # 긁어온 텍스트
+        raw_title = title.group(1) if title else "제목 없음"
+        raw_summary = desc.group(1) if desc else ""
+        
         return {
-            "title": html.unescape(raw_title),
+            "title": html.unescape(raw_title),  # <--- 여기서 깨진 특수문자를 정상 기호(<, >, & 등)로 복원합니다.
             "img": img.group(1) if img else "",
             "venue": site.group(1) if site else "URL",
-            "summary": desc.group(1) if desc else ""
+            "summary": html.unescape(raw_summary) # 요약본도 같이 복원해줍니다.
         }
     except: return None
 
@@ -635,4 +644,3 @@ with tab_a:
                                 show_details(row)
                 else:
                     st.info("스크랩된 기록이 없습니다.")
-
