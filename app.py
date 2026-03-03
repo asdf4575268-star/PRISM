@@ -379,8 +379,7 @@ def show_details(item):
                     st.markdown(content.replace('\n', '  \n'))
                     st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
             
-            # [기획 3] 일방향 참조 시스템
-            if item.get('category') != 'SCRAP':
+           if item.get('category') != 'SCRAP':
                 conn = get_connection()
                 
                 # 1. 원본 제목에서 특수문자와 공백을 완전히 제거 (예: <블랙 메리 포핀스> -> 블랙메리포핀스)
@@ -657,5 +656,6 @@ with tab_a:
                                 show_details(row)
                 else:
                     st.info("스크랩된 기록이 없습니다.")
+
 
 
