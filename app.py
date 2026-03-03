@@ -5,9 +5,10 @@ import requests
 import pandas as pd
 from datetime import date, datetime
 import time
-import re 
+import re
 import xml.etree.ElementTree as ET
 from supabase import create_client, Client
+import base64
 
 # --- [1. 설정 및 API] ---
 favicon = Image.open("logo.png").resize((64, 64), Image.LANCZOS)
@@ -27,7 +28,6 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 # --- [2. DB 함수 및 속도 최적화 동기화 로직] ---
-# DB 커넥션 캐싱 (매번 연결하지 않도록 최적화)
 @st.cache_resource
 def get_connection():
     return sqlite3.connect(DB_NAME, check_same_thread=False)
@@ -38,15 +38,29 @@ def init_db():
                     (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
                      rel_date TEXT, venue TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, 
                      img_url TEXT, img_url2 TEXT, save_date TEXT, view_date TEXT)''')
+    
+    # SCRAP 전용 테이블 추가
+    conn.execute('''CREATE TABLE IF NOT EXISTS scraps 
+                    (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, url TEXT, memo TEXT, save_date TEXT)''')
     conn.commit()
 
 init_db()
 
-# 데이터 조회 결과 캐싱 (화면이 다시 그려질 때마다 DB를 읽지 않도록 방어)
 @st.cache_data(ttl=600)
 def get_all_data():
     conn = get_connection()
     return pd.read_sql_query("SELECT * FROM archive ORDER BY view_date DESC", conn)
+
+@st.cache_data(ttl=600)
+def get_all_scraps():
+    conn = get_connection()
+    return pd.read_sql_query("SELECT * FROM scraps ORDER BY save_date DESC", conn)
+
+def delete_scrap(scrap_id):
+    conn = get_connection()
+    conn.execute("DELETE FROM scraps WHERE id=?", (scrap_id,))
+    conn.commit()
+    st.cache_data.clear()
 
 def migrate_to_supabase():
     try:
@@ -79,7 +93,6 @@ def restore_from_supabase():
         conn = get_connection()
         cursor = conn.cursor()
         
-        # 중복 체크용 로컬 데이터셋 미리 만들기 (루프마다 DB 쿼리 방지)
         local_df = get_all_data()
         local_keys = set(zip(local_df['title'], local_df['view_date'])) if not local_df.empty else set()
         
@@ -93,12 +106,11 @@ def restore_from_supabase():
                 ))
         
         if to_insert:
-            # executemany로 한 번에 밀어넣기 (속도 대폭 향상)
             cursor.executemany("""INSERT INTO archive 
                 (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) 
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", to_insert)
             conn.commit()
-            st.cache_data.clear() # 새 데이터가 들어왔으므로 캐시 초기화
+            st.cache_data.clear() 
             
         st.session_state.sync_msg = ("success", f"✅ {len(to_insert)}개의 새로운 데이터를 복구했습니다!")
     except Exception as e:
@@ -266,7 +278,7 @@ def show_details(item):
                 conn.commit()
                 try: supabase.table("archive").delete().eq("title", item['title']).eq("view_date", item['view_date']).execute()
                 except: pass
-                st.cache_data.clear() # 삭제 후 리스트 갱신
+                st.cache_data.clear()
                 st.rerun()
         with t_col3:
             edit_mode = st.toggle("✏️ 수정", key=f"tog_{item['id']}")
@@ -317,7 +329,7 @@ def show_details(item):
                             "summary": n_sum, "brief": n_brief, "highlights": n_high, "note": n_note,
                             "view_date": str(n_view_date), "img_url": n_img, "img_url2": n_img2
                         }).eq("title", item['title']).eq("view_date", item['view_date']).execute()
-                        st.cache_data.clear() # 업데이트 후 리스트 갱신
+                        st.cache_data.clear()
                         st.success("✅ 수정 완료!")
                         time.sleep(0.5)
                         st.rerun()
@@ -350,11 +362,12 @@ def show_details(item):
 
 
 # --- [5. 메인 화면] ---
-import base64
-
 def get_base64(path):
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode()
+    try:
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    except FileNotFoundError:
+        return ""
 
 logo_base64 = get_base64("logo.png")
 
@@ -372,22 +385,29 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown(
-    f"""
-    <div class="header-wrap">
-        <img src="data:image/png;base64,{logo_base64}" width="90">
-        <h1>PRISM ARCHIVE</h1>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+if logo_base64:
+    st.markdown(
+        f"""
+        <div class="header-wrap">
+            <img src="data:image/png;base64,{logo_base64}" width="90">
+            <h1>PRISM ARCHIVE</h1>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+else:
+    st.markdown('<div class="header-wrap"><h1>PRISM ARCHIVE</h1></div>', unsafe_allow_html=True)
+
+# 탭 구성 (관리자 모드일 경우 SCRAP 탭 추가)
 if is_admin:
-    tab_w, tab_a = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
+    tab_w, tab_a, tab_s = st.tabs(["🖋️ WRITE", "📂 ARCHIVE", "📌 SCRAP"])
 else:
     tabs = st.tabs(["📂 ARCHIVE"])
     tab_a = tabs[0]
     tab_w = None
+    tab_s = None
 
+# --- [WRITE 탭] ---
 if is_admin and tab_w:
     with tab_w:
         category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"], horizontal=True)
@@ -457,7 +477,7 @@ if is_admin and tab_w:
                     conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], new_record["note"], new_record["img_url"], new_record["img_url2"], new_record["save_date"], new_record["view_date"]))
                     conn.commit()
                     supabase.table("archive").upsert(new_record).execute()
-                    st.cache_data.clear() # 기록 후 리스트 갱신
+                    st.cache_data.clear()
                     st.success("✅ 저장 완료!")
                     st.session_state.api_data = {}
                     time.sleep(0.8)
@@ -465,95 +485,146 @@ if is_admin and tab_w:
                 except Exception as e: st.error(f"❌ 오류: {e}")
 
 # --- [ARCHIVE 탭] ---
-with tab_a:
-    st.markdown("""<style>
-        /* 기본 틀: 포스터 비율 (1:1.4) */
-        .cal-img-box { 
-            position: relative; 
-            width: 100%; 
-            aspect-ratio: 1/1.4; 
-            overflow: hidden; 
-            border-radius: 8px; 
-            margin-top: 5px; 
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2); 
-            background: #1e1e1e;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
-        
-        /* 음악 카테고리 전용 스타일 */
-        .music-tab-style {
-            aspect-ratio: 1/1 !important;
-        }
-         
-        .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: yellow; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
-        .badge-date { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
-
-        /* [핵심] 가로 모드 및 넓은 화면 대응 CSS */
-        @media (min-width: 600px) {
-            [data-testid="stHorizontalBlock"] {
-                display: flex !important;
-                flex-wrap: nowrap !important;
-                gap: 10px !important;
+if tab_a:
+    with tab_a:
+        st.markdown("""<style>
+            /* 기본 틀: 포스터 비율 (1:1.4) */
+            .cal-img-box { 
+                position: relative; 
+                width: 100%; 
+                aspect-ratio: 1/1.4; 
+                overflow: hidden; 
+                border-radius: 8px; 
+                margin-top: 5px; 
+                box-shadow: 0 4px 8px rgba(0,0,0,0.2); 
+                background: #1e1e1e;
+                display: flex;
+                align-items: center;
+                justify-content: center;
             }
-            [data-testid="column"] {
-                flex: 1 1 0% !important;
-                min-width: 0 !important;
-            }
-        }
-    </style>""", unsafe_allow_html=True)
-
-    # 이 부분이 캐싱되어 탭을 전환하거나 다시 그릴 때마다 DB에서 데이터를 끌어오지 않게 됩니다.
-    all_df = get_all_data()
-
-    if not all_df.empty:
-        all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
-        cat_order = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
-        cat_emojis = {"BOOKS": "📚", "MUSIC": "🎧", "MOVIES": "🎞️", "SERIES": "📽️", "STAGE": "🎭"}
-        tab_titles = [f"📅 ALL ({len(all_df)})"] + [f"{cat_emojis[c]}{c} ({len(all_df[all_df['category'] == c])})" for c in cat_order]
-        sub_tabs = st.tabs(tab_titles)
-        grid_cols = 2 if is_mobile else 6
-
-        with sub_tabs[0]:
-            years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
-            year_options = {y: f"{y}({len(all_df[all_df['v_dt'].dt.year == y])})" for y in years}
-            sel_y = st.selectbox("📅 연도 선택", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
-            y_df = all_df[all_df['v_dt'].dt.year == sel_y]
+            .cal-img-box img { width: 100%; height: 100%; object-fit: cover; }
             
-            for m in range(12, 0, -1):
-                m_data = y_df[y_df['v_dt'].dt.month == m]
-                if not m_data.empty:
-                    st.subheader(f"🗓️ {m}월")
-                    items = m_data.to_dict('records')
-                    for i in range(0, len(items), grid_cols):
-                        cols = st.columns(grid_cols)
-                        for j in range(grid_cols):
-                            if i+j < len(items):
-                                row = items[i+j]
-                                img_style = 'style="height: auto; aspect-ratio: 1/1;"' if row["category"] == "MUSIC" else ""
-                                with cols[j]:
-                                    st.markdown(f'<div class="cal-img-box"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}" {img_style}></div>', unsafe_allow_html=True)
-                                    
-                                    short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
-                                    if st.button(short_title, key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
+            /* 음악 카테고리 전용 스타일 */
+            .music-tab-style {
+                aspect-ratio: 1/1 !important;
+            }
+             
+            .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: yellow; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
+            .badge-date { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; }
 
-        for idx, c_name in enumerate(cat_order):
-            with sub_tabs[idx + 1]:
-                c_data = all_df[all_df['category'] == c_name]
-                if c_data.empty: st.info(f"{c_name} 데이터 없음")
+            /* [핵심] 가로 모드 및 넓은 화면 대응 CSS */
+            @media (min-width: 600px) {
+                [data-testid="stHorizontalBlock"] {
+                    display: flex !important;
+                    flex-wrap: nowrap !important;
+                    gap: 10px !important;
+                }
+                [data-testid="column"] {
+                    flex: 1 1 0% !important;
+                    min-width: 0 !important;
+                }
+            }
+        </style>""", unsafe_allow_html=True)
+
+        all_df = get_all_data()
+
+        if not all_df.empty:
+            all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
+            cat_order = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
+            cat_emojis = {"BOOKS": "📚", "MUSIC": "🎧", "MOVIES": "🎞️", "SERIES": "📽️", "STAGE": "🎭"}
+            tab_titles = [f"📅 ALL ({len(all_df)})"] + [f"{cat_emojis[c]}{c} ({len(all_df[all_df['category'] == c])})" for c in cat_order]
+            sub_tabs = st.tabs(tab_titles)
+            grid_cols = 2 if is_mobile else 6
+
+            with sub_tabs[0]:
+                years = sorted(all_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
+                year_options = {y: f"{y}({len(all_df[all_df['v_dt'].dt.year == y])})" for y in years}
+                sel_y = st.selectbox("📅 연도 선택", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
+                y_df = all_df[all_df['v_dt'].dt.year == sel_y]
+                
+                for m in range(12, 0, -1):
+                    m_data = y_df[y_df['v_dt'].dt.month == m]
+                    if not m_data.empty:
+                        st.subheader(f"🗓️ {m}월")
+                        items = m_data.to_dict('records')
+                        for i in range(0, len(items), grid_cols):
+                            cols = st.columns(grid_cols)
+                            for j in range(grid_cols):
+                                if i+j < len(items):
+                                    row = items[i+j]
+                                    img_style = 'style="height: auto; aspect-ratio: 1/1;"' if row["category"] == "MUSIC" else ""
+                                    with cols[j]:
+                                        st.markdown(f'<div class="cal-img-box"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}" {img_style}></div>', unsafe_allow_html=True)
+                                        
+                                        short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
+                                        if st.button(short_title, key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
+
+            for idx, c_name in enumerate(cat_order):
+                with sub_tabs[idx + 1]:
+                    c_data = all_df[all_df['category'] == c_name]
+                    if c_data.empty: st.info(f"{c_name} 데이터 없음")
+                    else:
+                        items = c_data.to_dict('records')
+                        music_cls = "music-tab-style" if c_name == "MUSIC" else ""
+                        for i in range(0, len(items), grid_cols):
+                            cols = st.columns(grid_cols)
+                            for j in range(grid_cols):
+                                if i+j < len(items):
+                                    row = items[i+j]
+                                    with cols[j]:
+                                        img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
+                                        st.markdown(f'<div class="cal-img-box {music_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{img_u}"></div>', unsafe_allow_html=True)
+                                        
+                                        short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
+                                        if st.button(short_title, key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+
+# --- [SCRAP 탭] ---
+if is_admin and tab_s:
+    with tab_s:
+        st.markdown("### 📌 Quick Scrap")
+        with st.form("scrap_form", clear_on_submit=True):
+            s_col1, s_col2 = st.columns([0.4, 0.6])
+            with s_col1:
+                s_title = st.text_input("제목 (필수)", placeholder="기억할 제목을 입력하세요")
+                s_url = st.text_input("URL (선택)", placeholder="https://...")
+            with s_col2:
+                s_memo = st.text_area("메모", placeholder="간단한 내용을 적어주세요", height=100)
+            
+            if st.form_submit_button("스크랩 저장", use_container_width=True):
+                if s_title:
+                    conn = get_connection()
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    conn.execute("INSERT INTO scraps (title, url, memo, save_date) VALUES (?,?,?,?)",
+                                 (s_title, s_url, s_memo, now))
+                    conn.commit()
+                    
+                    try:
+                        supabase.table("scraps").upsert({"title": s_title, "url": s_url, "memo": s_memo, "save_date": now}).execute()
+                    except: pass
+                    
+                    st.cache_data.clear()
+                    st.success("스크랩 완료!")
+                    time.sleep(0.5)
+                    st.rerun()
                 else:
-                    items = c_data.to_dict('records')
-                    music_cls = "music-tab-style" if c_name == "MUSIC" else ""
-                    for i in range(0, len(items), grid_cols):
-                        cols = st.columns(grid_cols)
-                        for j in range(grid_cols):
-                            if i+j < len(items):
-                                row = items[i+j]
-                                with cols[j]:
-                                    img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
-                                    st.markdown(f'<div class="cal-img-box {music_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{img_u}"></div>', unsafe_allow_html=True)
-                                    
-                                    short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
-                                    if st.button(short_title, key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+                    st.error("제목을 입력해주세요.")
+
+        st.divider()
+        
+        scrap_df = get_all_scraps()
+        if not scrap_df.empty:
+            for _, s_row in scrap_df.iterrows():
+                with st.expander(f"📍 {s_row['title']} ({s_row['save_date'][:10]})"):
+                    if s_row['url']:
+                        st.link_button("🔗 링크 열기", s_row['url'])
+                    if s_row['memo']:
+                        st.write(s_row['memo'])
+                    
+                    if st.button("🗑️ 스크랩 삭제", key=f"del_scrap_{s_row['id']}"):
+                        delete_scrap(s_row['id'])
+                        try:
+                            supabase.table("scraps").delete().eq("title", s_row['title']).eq("save_date", s_row['save_date']).execute()
+                        except: pass
+                        st.rerun()
+        else:
+            st.info("저장된 스크랩이 없습니다.")
