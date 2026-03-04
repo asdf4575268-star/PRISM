@@ -316,15 +316,15 @@ def show_details(item):
                 n_venue = c2.text_input(v_label, value=str(item.get('venue', '')))
                 try: curr_view = pd.to_datetime(item.get('view_date')).date()
                 except: curr_view = date.today()
-                n_view_date = st.date_input("🍿 감상일 수정", value=curr_view)
-                n_sum = st.text_area("📖 개요", value=str(item.get('summary', '')), height=150)
-                n_brief = st.text_input("📝 요약", value=str(item.get('brief', '')))
-                n_high = st.text_area("✨ 인상 깊은 부분", value=str(item.get('highlights', '')), height=100)
-                
+                n_view_date = st.date_input("🍿 기록일 수정", value=curr_view) # 감상일 -> 기록일 뉘앙스로 변경
                 if cat != "SCRAP":
-                    n_note = st.text_area("🌈 PRISM", value=str(item.get('note', '')), height=100)
+                    n_note = st.text_area("🌈 PRISM", value=str(item.get('note', '')), height=150)
                 else:
                     n_note = str(item.get('note', ''))
+                    
+                n_brief = st.text_input("📝 요약", value=str(item.get('brief', '')))
+                n_high = st.text_area("✨ 인상 깊은 부분", value=str(item.get('highlights', '')), height=100)
+                n_sum = st.text_area("📖 BEHIND THE RECORD", value=str(item.get('summary', '')), height=100)
 
                 if st.form_submit_button("💾 저장", use_container_width=True):
                     try:
@@ -380,7 +380,13 @@ def show_details(item):
                     st.markdown(f"**[🔗 원본 기사 보러가기]({url})**")
                 sections = [("📝 요약", "brief", "#0E6245"), ("✨ 인상 깊은 부분", "highlights", "#7D5600")]
             else:
-                sections = [("📖 개요", "summary", "#444"), ("📝 요약", "brief", "#0E6245"), ("✨ 인상 깊은 부분", "highlights", "#7D5600"), ("🌈 PRISM", "note", "#1E425E")]
+                # 🌈 PRISM(note)을 맨 앞으로 빼고, 개요(summary)를 맨 뒤로 보냅니다.
+                sections = [
+                    ("🌈 MY PRISM (나만의 시선)", "note", "#1E425E"), 
+                    ("📝 요약", "brief", "#0E6245"), 
+                    ("✨ 인상 깊은 부분 (LYRICS 등)", "highlights", "#7D5600"), 
+                    ("📖 BEHIND THE RECORD (개요/제작 비화)", "summary", "#444")
+                ]
             
             for label, key, color in sections:
                 content = item.get(key)
@@ -519,9 +525,14 @@ if is_admin and tab_w:
                 rel_date = st.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
                 venue = st.text_input("📍 장소/플랫폼", value=data.get('venue', ''))
             with cr:
-                summary = st.text_area("📖 개요", value=data.get('summary', ''), height=100)
+                if category != "SCRAP":
+                    note = st.text_area("🌈 MY PRISM (나만의 시선)", height=150)
+                else:
+                    note = ""
+                
                 brief = st.text_input("📝 요약")
-                highlights = st.text_area("✨ 인상 깊은 부분", height=100)
+                highlights = st.text_area("✨ 인상 깊은 부분 (LYRICS 등)", height=100)
+                summary = st.text_area("📖 BEHIND THE RECORD (개요/제작 비화)", value=data.get('summary', ''), height=100)
                 
                 if category != "SCRAP":
                     note = st.text_area("🌈 PRISM", height=100)
@@ -687,5 +698,6 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
+
 
 
