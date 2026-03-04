@@ -380,12 +380,11 @@ def show_details(item):
                     st.markdown(f"**[🔗 원본 기사 보러가기]({url})**")
                 sections = [("📝 요약", "brief", "#0E6245"), ("✨ 인상 깊은 부분", "highlights", "#7D5600")]
             else:
-                # 변경된 부분: 입력은 기존대로 하되, 화면에 뿌려줄 때만 PRISM(note)을 가장 위로 올립니다.
                 sections = [
-                    ("🌈 MY PRISM (나만의 시선)", "note", "#1E425E"),
+                    ("📖 BEHIND THE RECORD", "summary", "#444"),
                     ("📝 요약", "brief", "#0E6245"),
-                    ("✨ 인상 깊은 부분 (LYRICS 등)", "highlights", "#7D5600"),
-                    ("📖 BEHIND THE RECORD (제작 비화/개요)", "summary", "#444")
+                    ("✨ 인상 깊은 부분", "highlights", "#7D5600"),
+                    ("🌈 PRISM", "note", "#1E425E")
                 ]
             
             for label, key, color in sections:
@@ -698,6 +697,7 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
+
 
 
 
