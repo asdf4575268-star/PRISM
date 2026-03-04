@@ -110,6 +110,9 @@ if "user_password" not in st.session_state:
     st.session_state.user_password = ""
 if "view_mode" not in st.session_state:
     st.session_state.view_mode = "PC"
+# [추가] 태그 필터링을 위한 세션 상태 초기화
+if "selected_tag" not in st.session_state:
+    st.session_state.selected_tag = None
 
 if st.session_state.user_password == st.secrets["ADMIN_PASSWORD"]:
     st.session_state.is_logged_in = True
@@ -549,6 +552,20 @@ with tab_a:
     all_df = get_all_data()
 
     if not all_df.empty:
+        # [추가] 통합 검색창 기능
+        search_query_archive = st.text_input("🔍 아카이브 통합 검색 (제목, 창작자, 내용 등 전체 검색)", key="global_search")
+        if search_query_archive:
+            mask = (
+                all_df['title'].str.contains(search_query_archive, case=False, na=False) |
+                all_df['creator'].str.contains(search_query_archive, case=False, na=False) |
+                all_df['summary'].str.contains(search_query_archive, case=False, na=False) |
+                all_df['note'].str.contains(search_query_archive, case=False, na=False) |
+                all_df['venue'].str.contains(search_query_archive, case=False, na=False)
+            )
+            all_df = all_df[mask]
+            st.markdown(f"**'{search_query_archive}'** 검색 결과: 총 **{len(all_df)}**건")
+            st.divider()
+
         all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
         main_df = all_df[all_df['category'] != "SCRAP"]
         scrap_df = all_df[all_df['category'] == "SCRAP"]
@@ -588,7 +605,7 @@ with tab_a:
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
                 c_data = main_df[main_df['category'] == c_name]
-                if c_data.empty: st.info(f"{c_name} 데이터 없음")
+                if c_data.empty: st.info(f"{c_name} 검색 결과 없음" if search_query_archive else f"{c_name} 데이터 없음")
                 else:
                     items = c_data.to_dict('records')
                     music_cls = "music-tab-style" if c_name == "MUSIC" else ""
@@ -617,31 +634,49 @@ with tab_a:
                         from collections import Counter
                         top_keywords = [k[0] for k in Counter(keywords).most_common(5)]
                         st.markdown("### 🏆 이번 주 핫 키워드")
+                        
+                        # [추가] 태그 버튼 클릭 시 동작하는 함수
+                        def toggle_tag(clicked_tag):
+                            if st.session_state.selected_tag == clicked_tag:
+                                st.session_state.selected_tag = None # 한 번 더 누르면 해제
+                            else:
+                                st.session_state.selected_tag = clicked_tag
+                                
                         cols = st.columns(len(top_keywords))
                         for i, kw in enumerate(top_keywords):
-                            cols[i].button(f"#{kw}", key=f"kw_{i}")
+                            # 선택된 태그는 'primary' 테마로 진하게 표시
+                            btn_type = "primary" if st.session_state.selected_tag == kw else "secondary"
+                            cols[i].button(f"#{kw}", key=f"kw_{i}", type=btn_type, on_click=toggle_tag, args=(kw,))
                         st.divider()
                         
-                    scrap_df['week'] = scrap_df['v_dt'].dt.isocalendar().week
-                    weeks = sorted(scrap_df['week'].dropna().unique(), reverse=True)
+                    # [추가] 선택된 태그가 있을 때 데이터 필터링 적용
+                    display_scrap_df = scrap_df.copy()
+                    if st.session_state.selected_tag:
+                        tag_mask = display_scrap_df['summary'].fillna('').str.contains(f"#{st.session_state.selected_tag}") | \
+                                   display_scrap_df['note'].fillna('').str.contains(f"#{st.session_state.selected_tag}")
+                        display_scrap_df = display_scrap_df[tag_mask]
+                        st.info(f"🏷️ '#{st.session_state.selected_tag}' 태그가 포함된 스크랩만 봅니다. (해제하려면 위의 버튼을 다시 누르세요)")
                     
-                    for w in weeks:
-                        w_data = scrap_df[scrap_df['week'] == w]
-                        st.subheader(f"🗓️ {w}주차 스크랩")
-                        for _, row in w_data.iterrows():
-                            # 요청하신 대로 요약(brief), 하이라이트(highlights)만 표시되는 스크랩 전용 화면
-                            with st.expander(f"👉 [{row['venue']}] {row['title']} ({row['view_date']})"):
-                                summary_text = str(row['summary'])
-                                if summary_text.startswith("http"):
-                                    url = summary_text.split('\n')[0]
-                                    st.markdown(f"**[🔗 원본 기사 보러가기]({url})**")
-                                
-                                if row['brief']: st.write(f"**📝 요약:** {row['brief']}")
-                                if row['highlights']: st.markdown(f"**✨ 인상 깊은 부분:**<br>{row['highlights'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
-                                
-                                if st.button("상세보기 / 수정", key=f"scr_btn_{row['id']}"):
-                                    show_details(row)
+                    if not display_scrap_df.empty:
+                        display_scrap_df['week'] = display_scrap_df['v_dt'].dt.isocalendar().week
+                        weeks = sorted(display_scrap_df['week'].dropna().unique(), reverse=True)
+                        
+                        for w in weeks:
+                            w_data = display_scrap_df[display_scrap_df['week'] == w]
+                            st.subheader(f"🗓️ {w}주차 스크랩")
+                            for _, row in w_data.iterrows():
+                                with st.expander(f"👉 [{row['venue']}] {row['title']} ({row['view_date']})"):
+                                    summary_text = str(row['summary'])
+                                    if summary_text.startswith("http"):
+                                        url = summary_text.split('\n')[0]
+                                        st.markdown(f"**[🔗 원본 기사 보러가기]({url})**")
+                                    
+                                    if row['brief']: st.write(f"**📝 요약:** {row['brief']}")
+                                    if row['highlights']: st.markdown(f"**✨ 인상 깊은 부분:**<br>{row['highlights'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
+                                    
+                                    if st.button("상세보기 / 수정", key=f"scr_btn_{row['id']}"):
+                                        show_details(row)
+                    else:
+                        st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
-                    st.info("스크랩된 기록이 없습니다.")
-
-
+                    st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
