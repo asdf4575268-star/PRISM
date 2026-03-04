@@ -524,14 +524,14 @@ if is_admin and tab_w:
                 rel_date = st.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
                 venue = st.text_input("📍 장소/플랫폼", value=data.get('venue', ''))
             with cr:
-                if category != "SCRAP":
-                    note = st.text_area("🌈 PRISM", height=150)
-                else:
-                    note = ""
-                
+                summary = st.text_area("📖 BEHIND THE RECORD (개요/제작 비화)", value=data.get('summary', ''), height=100)
                 brief = st.text_input("📝 요약")
                 highlights = st.text_area("✨ 인상 깊은 부분 (LYRICS 등)", height=100)
-                summary = st.text_area("📖 BEHIND THE RECORD (개요/제작 비화)", value=data.get('summary', ''), height=100)
+                
+                if category != "SCRAP":
+                    note = st.text_area("🌈 MY PRISM (나만의 시선)", height=150)
+                else:
+                    note = ""
                 
                 if category != "SCRAP":
                     note = st.text_area("🌈 PRISM", height=100)
@@ -697,6 +697,7 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
+
 
 
 
