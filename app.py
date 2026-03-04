@@ -291,20 +291,21 @@ def show_details(item):
             edit_mode = st.toggle("✏️ 수정", key=f"tog_{item['id']}")
         st.divider()
 
+    col_img, col_txt = st.columns([0.3, 0.7])
+
     if is_admin and edit_mode:
-        # [수정] 팝업 내부의 모든 입력 칸을 폼(form) 하나로 묶어버림
         with st.form(key=f"edit_form_{item['id']}"):
-            col_img, col_txt = st.columns([0.3, 0.7])
-            with col_img:
-                n_img = st.text_input("🖼️ 이미지 1 URL", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
-                n_img2 = st.text_input("🖼️ 이미지 2 URL", value=str(item.get('img_url2', '')), key=f"img2_in_{item['id']}")
+            col_img_form, col_txt_form = st.columns([0.3, 0.7])
+            with col_img_form:
+                n_img = st.text_input("🖼️ 이미지 URL", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
+                # 기존 img_url2를 영상 링크용으로 사용하도록 라벨 변경
+                n_img2 = st.text_input("🎬 관련 영상 URL", value=str(item.get('img_url2', '')), key=f"video_in_{item['id']}")
                 
-                # 기존 이미지는 보여주되, 입력창에 새 URL을 넣어도 저장하기 전까진 미리보기가 바뀌지 않음(안정성 확보)
                 old_img = str(item.get('img_url', ''))
                 if old_img and old_img.strip() and old_img != "None": 
                     st.image(old_img, use_container_width=True)
 
-            with col_txt:
+            with col_txt_form:
                 n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
                 n_creator = st.text_input("👤 창작자", value=str(item.get('creator', '')))
                 cat = item.get('category')
@@ -325,7 +326,6 @@ def show_details(item):
                 else:
                     n_note = str(item.get('note', ''))
 
-                # [수정] st.form 안에서는 무조건 st.form_submit_button을 사용해야 함
                 if st.form_submit_button("💾 저장", use_container_width=True):
                     try:
                         conn = get_connection()
@@ -341,7 +341,7 @@ def show_details(item):
                             supabase.table("archive").update({
                                 "title": n_title, "creator": n_creator, "rel_date": n_rel, "venue": n_venue,
                                 "summary": n_sum, "brief": n_brief, "highlights": n_high, "note": n_note,
-                                "view_date": str(n_view_date), "img_url": n_img, "img_url2": n_img2
+                                "view_date": str(n_view_date), "img_url": n_img, "img_url2": n_img2 # img_url2에 영상 링크 저장
                             }).eq("title", item['title']).eq("view_date", item['view_date']).execute()
                         except: pass
                         st.success("✅ 수정 완료!")
@@ -349,17 +349,12 @@ def show_details(item):
                         st.rerun()
                     except Exception as e: st.error(f"❌ 오류: {e}")
     else: 
-        col_img, col_txt = st.columns([0.3, 0.7])
         with col_img:
             img_url = item.get('img_url')
             if isinstance(img_url, str) and img_url.strip() and img_url != "None":
                 try: st.image(img_url, use_container_width=True)
-                except: st.warning("이미지 1 로드 실패")
-            
-            img_url2 = item.get('img_url2')
-            if isinstance(img_url2, str) and img_url2.strip() and img_url2 != "None":
-                try: st.image(img_url2, use_container_width=True)
-                except: st.warning("이미지 2 로드 실패")
+                except: st.warning("이미지 로드 실패")
+            # 팝업 보기 화면에서는 img_url2(두 번째 이미지) 렌더링을 제거하고 텍스트 하단에 영상으로 띄웁니다.
             
         with col_txt:
             st.markdown(f'# {item.get("title")}')
@@ -385,6 +380,16 @@ def show_details(item):
                     st.markdown(content.replace('\n', '  \n'))
                     st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
             
+            # [영상 재생 기능 추가] 텍스트가 끝난 직후 팝업창 내에 영상을 예쁘게 띄웁니다.
+            video_url = item.get('img_url2')
+            if isinstance(video_url, str) and video_url.strip() and video_url != "None":
+                st.markdown("""<div style="display: inline-block; background-color: #E50914; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px;">🎬 관련 영상</div>""", unsafe_allow_html=True)
+                try:
+                    st.video(video_url)
+                except:
+                    st.warning("영상을 불러올 수 없습니다. URL을 확인해 주세요.")
+                st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
+
             if item.get('category') != 'SCRAP':
                 conn = get_connection()
                 import re
@@ -499,13 +504,13 @@ if is_admin and tab_w:
         st.divider()
         data = st.session_state.get('api_data', {})
         
-        # [수정] WRITE 탭의 입력칸들도 모두 폼(form)으로 묶어버림
         with st.form(key="write_form"):
             cl, cr = st.columns([0.4, 0.6])
             with cl:
                 img_url_val = st.text_input("🖼️ 이미지 URL", value=data.get('img', ''))
+                # 작성 폼에도 영상 입력 칸을 명시적으로 추가
+                video_url_val = st.text_input("🎬 관련 영상 URL (유튜브 등)", value="")
                 
-                # 원본 이미지를 폼 안에서 정적으로 띄워줍니다 (새 URL을 넣어도 저장 전엔 안 바뀜)
                 api_img = data.get('img', '')
                 if api_img and api_img.strip() and api_img != "None":
                     st.image(api_img, use_container_width=True)
@@ -526,9 +531,9 @@ if is_admin and tab_w:
 
                 view_date = st.date_input("🍿 감상일", value=date.today())
                 
-                # [수정] 버튼도 st.form_submit_button으로 교체
                 if st.form_submit_button("✅ 기록 저장", use_container_width=True):
-                    new_record = {"category": str(category), "title": str(title).strip(), "creator": str(creator).strip(), "rel_date": str(rel_date), "venue": str(venue).strip(), "summary": str(summary).strip(), "brief": str(brief).strip(), "highlights": str(highlights).strip(), "note": str(note).strip(), "img_url": str(img_url_val).strip(), "img_url2": "", "save_date": str(date.today()), "view_date": str(view_date)}
+                    # img_url2 칸에 video_url_val 값을 저장
+                    new_record = {"category": str(category), "title": str(title).strip(), "creator": str(creator).strip(), "rel_date": str(rel_date), "venue": str(venue).strip(), "summary": str(summary).strip(), "brief": str(brief).strip(), "highlights": str(highlights).strip(), "note": str(note).strip(), "img_url": str(img_url_val).strip(), "img_url2": str(video_url_val).strip(), "save_date": str(date.today()), "view_date": str(view_date)}
                     try:
                         conn = get_connection()
                         conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], new_record["note"], new_record["img_url"], new_record["img_url2"], new_record["save_date"], new_record["view_date"]))
@@ -558,7 +563,7 @@ with tab_a:
     all_df = get_all_data()
 
     if not all_df.empty:
-        search_query_archive = st.text_input("🔍", key="global_search")
+        search_query_archive = st.text_input("🔍 아카이브 통합 검색 (제목, 창작자, 내용 등 전체 검색)", key="global_search")
         if search_query_archive:
             mask = (
                 all_df['title'].str.contains(search_query_archive, case=False, na=False) |
@@ -684,4 +689,3 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
-
