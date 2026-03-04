@@ -297,6 +297,7 @@ def show_details(item):
         with st.form(key=f"edit_form_{item['id']}"):
             col_img_form, col_txt_form = st.columns([0.3, 0.7])
             with col_img_form:
+                # 수정 화면에서도 영상 URL 편집이 가능하도록 설정
                 n_img = st.text_input("🖼️ 이미지 URL", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
                 n_img2 = st.text_input("🎬 관련 영상 URL", value=str(item.get('img_url2', '')), key=f"video_in_{item['id']}")
                 
@@ -348,28 +349,23 @@ def show_details(item):
                         st.rerun()
                     except Exception as e: st.error(f"❌ 오류: {e}")
     else: 
-        # [수정] 상세보기 뷰 화면
         with col_img:
-            # 1. 포스터 이미지 먼저 표시
             img_url = item.get('img_url')
             if isinstance(img_url, str) and img_url.strip() and img_url != "None":
                 try: st.image(img_url, use_container_width=True)
                 except: st.warning("이미지 로드 실패")
             
-            st.write("") # 간격 조정용 빈 줄
+            st.write("") 
 
-            # 2. [위치 수정] 관련 영상을 포스터 이미지 바로 아래에 배치
             video_url = item.get('img_url2')
             if isinstance(video_url, str) and video_url.strip() and video_url != "None":
                 st.markdown("""<div style="background-color: #E50914; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px; text-align: center; font-weight: bold;">🎬 관련 영상</div>""", unsafe_allow_html=True)
                 try:
-                    # 왼쪽 컬럼폭(0.3)에 맞춰 작게 나옵니다.
                     st.video(video_url)
                 except:
                     st.warning("영상을 불러올 수 없습니다.")
             
         with col_txt:
-            # 기존 텍스트 렌더링 로직은 유지
             st.markdown(f'# {item.get("title")}')
             if item.get("category") != "SCRAP":
                 st.write(f"**{item.get('creator')}**")
@@ -392,8 +388,6 @@ def show_details(item):
                     st.markdown(f"""<div style="display: inline-block; background-color: {color}; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px;">{label}</div>""", unsafe_allow_html=True)
                     st.markdown(content.replace('\n', '  \n'))
                     st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
-            
-            # [삭제] 텍스트 하단에 있던 st.video 로직을 위쪽 col_img 안으로 옮겼으므로 여기선 지웁니다.
 
             if item.get('category') != 'SCRAP':
                 conn = get_connection()
@@ -513,6 +507,7 @@ if is_admin and tab_w:
             cl, cr = st.columns([0.4, 0.6])
             with cl:
                 img_url_val = st.text_input("🖼️ 이미지 URL", value=data.get('img', ''))
+                # 신규 등록 시에도 영상 URL 편집 가능
                 video_url_val = st.text_input("🎬 관련 영상 URL (유튜브 등)", value="")
                 
                 api_img = data.get('img', '')
