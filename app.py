@@ -381,10 +381,10 @@ def show_details(item):
                 sections = [("📝 요약", "brief", "#0E6245"), ("✨ 인상 깊은 부분", "highlights", "#7D5600")]
             else:
                 sections = [
-                    ("📖 BEHIND THE RECORD", "summary", "#444"),
+                    ("🌈 PRISM", "note", "#1E425E"),
                     ("📝 요약", "brief", "#0E6245"),
                     ("✨ 인상 깊은 부분", "highlights", "#7D5600"),
-                    ("🌈 PRISM", "note", "#1E425E")
+                    ("📖 BEHIND THE RECORD", "summary", "#444")
                 ]
             
             for label, key, color in sections:
@@ -697,6 +697,7 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
+
 
 
 
