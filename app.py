@@ -297,9 +297,9 @@ def show_details(item):
         with st.form(key=f"edit_form_{item['id']}"):
             col_img_form, col_txt_form = st.columns([0.3, 0.7])
             with col_img_form:
+                # 수정 화면에서도 영상 URL 편집이 가능하도록 설정
                 n_img = st.text_input("🖼️ 이미지 URL", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
-                # 라벨을 좀 더 범용적으로 변경
-                n_img2 = st.text_input("🎬 관련 영상/음악/장면 메모", value=str(item.get('img_url2', '')), key=f"video_in_{item['id']}")
+                n_img2 = st.text_input("🎬 관련 영상 URL", value=str(item.get('img_url2', '')), key=f"video_in_{item['id']}")
                 
                 old_img = str(item.get('img_url', ''))
                 if old_img and old_img.strip() and old_img != "None": 
@@ -357,21 +357,13 @@ def show_details(item):
             
             st.write("") 
 
-            # [핵심 수정 로직] 영상 URL 혹은 일반 텍스트 판별
-            memo_content = item.get('img_url2', '')
-            if isinstance(memo_content, str) and memo_content.strip() and memo_content != "None":
-                st.markdown("""<div style="background-color: #E50914; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px; text-align: center; font-weight: bold;">🎬 관련 영상/메모</div>""", unsafe_allow_html=True)
-                
-                # URL 형식(http...)인 경우에만 비디오 플레이어 노출
-                if memo_content.startswith("http"):
-                    try:
-                        st.video(memo_content)
-                    except:
-                        # URL인데 재생이 안 되는 경우 텍스트로 표시
-                        st.info(f"🔗 {memo_content}")
-                else:
-                    # 일반 텍스트(노래 제목 등)인 경우 예쁘게 텍스트로 노출
-                    st.markdown(f"""<div style="background-color: #222; border: 1px solid #444; padding: 15px; border-radius: 8px; text-align: center; font-size: 0.95em; color: #fff; line-height: 1.6;">{memo_content}</div>""", unsafe_allow_html=True)
+            video_url = item.get('img_url2')
+            if isinstance(video_url, str) and video_url.strip() and video_url != "None":
+                st.markdown("""<div style="background-color: #E50914; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px; text-align: center; font-weight: bold;">🎬 관련 영상</div>""", unsafe_allow_html=True)
+                try:
+                    st.video(video_url)
+                except:
+                    st.warning("영상을 불러올 수 없습니다.")
             
         with col_txt:
             st.markdown(f'# {item.get("title")}')
@@ -515,8 +507,8 @@ if is_admin and tab_w:
             cl, cr = st.columns([0.4, 0.6])
             with cl:
                 img_url_val = st.text_input("🖼️ 이미지 URL", value=data.get('img', ''))
-                # 여기에도 라벨 변경
-                video_url_val = st.text_input("🎬 관련 영상 URL 또는 음악/장면 메모", value="")
+                # 신규 등록 시에도 영상 URL 편집 가능
+                video_url_val = st.text_input("🎬 관련 영상 URL (유튜브 등)", value="")
                 
                 api_img = data.get('img', '')
                 if api_img and api_img.strip() and api_img != "None":
