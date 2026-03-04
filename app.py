@@ -291,16 +291,20 @@ def show_details(item):
             edit_mode = st.toggle("✏️ 수정", key=f"tog_{item['id']}")
         st.divider()
 
-    col_img, col_txt = st.columns([0.3, 0.7])
-
     if is_admin and edit_mode:
-        with col_img:
-            n_img = st.text_input("🖼️ 이미지 1", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
-            n_img2 = st.text_input("🖼️ 이미지 2", value=str(item.get('img_url2', '')), key=f"img2_in_{item['id']}")
-            if n_img and n_img.strip() and n_img != "None": st.image(n_img, use_container_width=True)
+        # [수정] 팝업 내부의 모든 입력 칸을 폼(form) 하나로 묶어버림
+        with st.form(key=f"edit_form_{item['id']}"):
+            col_img, col_txt = st.columns([0.3, 0.7])
+            with col_img:
+                n_img = st.text_input("🖼️ 이미지 1 URL", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
+                n_img2 = st.text_input("🖼️ 이미지 2 URL", value=str(item.get('img_url2', '')), key=f"img2_in_{item['id']}")
+                
+                # 기존 이미지는 보여주되, 입력창에 새 URL을 넣어도 저장하기 전까진 미리보기가 바뀌지 않음(안정성 확보)
+                old_img = str(item.get('img_url', ''))
+                if old_img and old_img.strip() and old_img != "None": 
+                    st.image(old_img, use_container_width=True)
 
-        with col_txt:
-            with st.form(key=f"edit_form_{item['id']}"):
+            with col_txt:
                 n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
                 n_creator = st.text_input("👤 창작자", value=str(item.get('creator', '')))
                 cat = item.get('category')
@@ -316,13 +320,13 @@ def show_details(item):
                 n_brief = st.text_input("📝 요약", value=str(item.get('brief', '')))
                 n_high = st.text_area("✨ 인상 깊은 부분", value=str(item.get('highlights', '')), height=100)
                 
-                # [수정] 스크랩 카테고리일 때는 PRISM 수정창도 노출하지 않음
                 if cat != "SCRAP":
                     n_note = st.text_area("🌈 PRISM", value=str(item.get('note', '')), height=100)
                 else:
                     n_note = str(item.get('note', ''))
 
-                if st.form_submit_button("💾 저장"):
+                # [수정] st.form 안에서는 무조건 st.form_submit_button을 사용해야 함
+                if st.form_submit_button("💾 저장", use_container_width=True):
                     try:
                         conn = get_connection()
                         conn.execute("""UPDATE archive SET 
@@ -345,6 +349,7 @@ def show_details(item):
                         st.rerun()
                     except Exception as e: st.error(f"❌ 오류: {e}")
     else: 
+        col_img, col_txt = st.columns([0.3, 0.7])
         with col_img:
             img_url = item.get('img_url')
             if isinstance(img_url, str) and img_url.strip() and img_url != "None":
@@ -494,43 +499,50 @@ if is_admin and tab_w:
         st.divider()
         data = st.session_state.get('api_data', {})
         
-        cl, cr = st.columns([0.4, 0.6])
-        with cl:
-            img_url_val = st.text_input("🖼️ 이미지", value=data.get('img', ''))
-            if img_url_val and img_url_val.strip() and img_url_val != "None": st.image(img_url_val, use_container_width=True)
-            title = st.text_input("제목", value=data.get('title', ''))
-            creator = st.text_input("창작자 정보", value=data.get('creator', ''))
-            rel_date = st.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
-            venue = st.text_input("📍 장소/플랫폼", value=data.get('venue', ''))
-        with cr:
-            summary = st.text_area("📖 개요", value=data.get('summary', ''), height=100)
-            brief = st.text_input("📝 요약")
-            highlights = st.text_area("✨ 인상 깊은 부분", height=100)
-            
-            # [수정] 스크랩 카테고리일 경우 PRISM 입력창을 화면에서 아예 제거
-            if category != "SCRAP":
-                note = st.text_area("🌈 PRISM", height=100)
-            else:
-                note = ""
-
-            view_date = st.date_input("🍿 감상일", value=date.today())
-            
-            if st.button("✅ 기록 저장", use_container_width=True):
-                new_record = {"category": str(category), "title": str(title).strip(), "creator": str(creator).strip(), "rel_date": str(rel_date), "venue": str(venue).strip(), "summary": str(summary).strip(), "brief": str(brief).strip(), "highlights": str(highlights).strip(), "note": str(note).strip(), "img_url": str(img_url_val).strip(), "img_url2": "", "save_date": str(date.today()), "view_date": str(view_date)}
-                try:
-                    conn = get_connection()
-                    conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], new_record["note"], new_record["img_url"], new_record["img_url2"], new_record["save_date"], new_record["view_date"]))
-                    conn.commit()
-                    st.cache_data.clear() 
-                    try:
-                        supabase.table("archive").upsert(new_record).execute()
-                    except: pass
+        # [수정] WRITE 탭의 입력칸들도 모두 폼(form)으로 묶어버림
+        with st.form(key="write_form"):
+            cl, cr = st.columns([0.4, 0.6])
+            with cl:
+                img_url_val = st.text_input("🖼️ 이미지 URL", value=data.get('img', ''))
+                
+                # 원본 이미지를 폼 안에서 정적으로 띄워줍니다 (새 URL을 넣어도 저장 전엔 안 바뀜)
+                api_img = data.get('img', '')
+                if api_img and api_img.strip() and api_img != "None":
+                    st.image(api_img, use_container_width=True)
                     
-                    st.success("✅ 저장 완료!")
-                    st.session_state.api_data = {}
-                    time.sleep(0.8)
-                    st.rerun()
-                except Exception as e: st.error(f"❌ 오류: {e}")
+                title = st.text_input("제목", value=data.get('title', ''))
+                creator = st.text_input("창작자 정보", value=data.get('creator', ''))
+                rel_date = st.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
+                venue = st.text_input("📍 장소/플랫폼", value=data.get('venue', ''))
+            with cr:
+                summary = st.text_area("📖 개요", value=data.get('summary', ''), height=100)
+                brief = st.text_input("📝 요약")
+                highlights = st.text_area("✨ 인상 깊은 부분", height=100)
+                
+                if category != "SCRAP":
+                    note = st.text_area("🌈 PRISM", height=100)
+                else:
+                    note = ""
+
+                view_date = st.date_input("🍿 감상일", value=date.today())
+                
+                # [수정] 버튼도 st.form_submit_button으로 교체
+                if st.form_submit_button("✅ 기록 저장", use_container_width=True):
+                    new_record = {"category": str(category), "title": str(title).strip(), "creator": str(creator).strip(), "rel_date": str(rel_date), "venue": str(venue).strip(), "summary": str(summary).strip(), "brief": str(brief).strip(), "highlights": str(highlights).strip(), "note": str(note).strip(), "img_url": str(img_url_val).strip(), "img_url2": "", "save_date": str(date.today()), "view_date": str(view_date)}
+                    try:
+                        conn = get_connection()
+                        conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], new_record["note"], new_record["img_url"], new_record["img_url2"], new_record["save_date"], new_record["view_date"]))
+                        conn.commit()
+                        st.cache_data.clear() 
+                        try:
+                            supabase.table("archive").upsert(new_record).execute()
+                        except: pass
+                        
+                        st.success("✅ 저장 완료!")
+                        st.session_state.api_data = {}
+                        time.sleep(0.8)
+                        st.rerun()
+                    except Exception as e: st.error(f"❌ 오류: {e}")
 
 # --- [ARCHIVE 탭] ---
 with tab_a:
@@ -546,7 +558,7 @@ with tab_a:
     all_df = get_all_data()
 
     if not all_df.empty:
-        search_query_archive = st.text_input("🔍", key="global_search")
+        search_query_archive = st.text_input("🔍 아카이브 통합 검색 (제목, 창작자, 내용 등 전체 검색)", key="global_search")
         if search_query_archive:
             mask = (
                 all_df['title'].str.contains(search_query_archive, case=False, na=False) |
@@ -620,7 +632,6 @@ with tab_a:
                     week_scrap = scrap_df[scrap_df['v_dt'] >= current_week_start]
                     
                     keywords = []
-                    # [수정] 해시태그를 요약이나 인상 깊은 부분에 적어도 태그로 추출되도록 보강
                     for text in week_scrap['summary'].fillna('') + " " + week_scrap['note'].fillna('') + " " + week_scrap['brief'].fillna('') + " " + week_scrap['highlights'].fillna(''):
                         keywords.extend(re.findall(r"#(\w+)", str(text)))
                     
@@ -643,7 +654,6 @@ with tab_a:
                         
                     display_scrap_df = scrap_df.copy()
                     if st.session_state.selected_tag:
-                        # [수정] 태그 검색 범위도 요약/인상 깊은 부분까지 확대
                         tag_mask = display_scrap_df['summary'].fillna('').str.contains(f"#{st.session_state.selected_tag}") | \
                                    display_scrap_df['note'].fillna('').str.contains(f"#{st.session_state.selected_tag}") | \
                                    display_scrap_df['brief'].fillna('').str.contains(f"#{st.session_state.selected_tag}") | \
@@ -674,5 +684,3 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
-
-
