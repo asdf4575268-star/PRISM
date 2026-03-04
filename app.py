@@ -108,9 +108,6 @@ if "is_logged_in" not in st.session_state:
     st.session_state.is_logged_in = False
 if "user_password" not in st.session_state:
     st.session_state.user_password = ""
-if "view_mode" not in st.session_state:
-    st.session_state.view_mode = "PC"
-# [추가] 태그 필터링을 위한 세션 상태 초기화
 if "selected_tag" not in st.session_state:
     st.session_state.selected_tag = None
 
@@ -149,12 +146,6 @@ with st.sidebar:
         
         st.button("📤 Cloud Backup", on_click=migrate_to_supabase, use_container_width=True)
         st.button("📥 Cloud Restore", on_click=restore_from_supabase, use_container_width=True)
-
-    st.divider()
-    st.markdown("### 📱 화면 모드")
-    st.session_state.view_mode = st.radio("보기 옵션", ["PC", "Mobile"], horizontal=True, label_visibility="collapsed")
-
-is_mobile = st.session_state.view_mode == "Mobile"
 
 # --- [API 검색 함수들] ---
 def search_books(query):
@@ -269,7 +260,6 @@ def scrape_url(url):
         raw_title = title.group(1) if title else "제목 없음"
         raw_summary = desc.group(1) if desc else ""
         
-        # summary 맨 첫줄에 원본 URL 삽입
         combined_summary = f"{url}\n\n{html.unescape(raw_summary)}"
         
         return {
@@ -301,11 +291,8 @@ def show_details(item):
             edit_mode = st.toggle("✏️ 수정", key=f"tog_{item['id']}")
         st.divider()
 
-    if is_mobile:
-        col_img = st.container()
-        col_txt = st.container()
-    else:
-        col_img, col_txt = st.columns([0.3, 0.7])
+    # 모바일 분기 로직 제거: 항상 두 열로 고정 (Streamlit이 화면이 좁아지면 알아서 위아래로 쌓아줌)
+    col_img, col_txt = st.columns([0.3, 0.7])
 
     if is_admin and edit_mode:
         with col_img:
@@ -341,7 +328,7 @@ def show_details(item):
                                      (n_title, n_creator, n_rel, n_venue, 
                                       n_sum, n_brief, n_high, n_note, str(n_view_date), n_img, n_img2, item['id']))
                         conn.commit()
-                        st.cache_data.clear() # DB 업데이트 직후 캐시 비우기
+                        st.cache_data.clear() 
                         try:
                             supabase.table("archive").update({
                                 "title": n_title, "creator": n_creator, "rel_date": n_rel, "venue": n_venue,
@@ -373,7 +360,6 @@ def show_details(item):
             st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
             st.divider()
             
-            # [기획 4] 스크랩 카테고리일 경우 링크, 요약, 인상 깊은 부분만 노출
             if item.get("category") == "SCRAP":
                 summary_text = str(item.get('summary', ''))
                 if summary_text.startswith("http"):
@@ -390,7 +376,6 @@ def show_details(item):
                     st.markdown(content.replace('\n', '  \n'))
                     st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
             
-            # [기획 3] 일방향 참조 시스템
             if item.get('category') != 'SCRAP':
                 conn = get_connection()
                 import re
@@ -411,7 +396,6 @@ def show_details(item):
                     if not ref_df.empty:
                         st.markdown("""<div style="display: inline-block; background-color: #555; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px;">🔗 관련 스크랩</div>""", unsafe_allow_html=True)
                         for _, r in ref_df.iterrows():
-                            # 버튼 대신 아코디언 메뉴로 충돌 에러 방지
                             with st.expander(f"👉 [{r['venue']}] {r['title']} ({r['rel_date']})"):
                                 st.write(f"**🍿 감상일:** {r['view_date']}")
                                 summary_text = str(r['summary'])
@@ -452,7 +436,6 @@ else:
 
 if is_admin and tab_w:
     with tab_w:
-        # 카테고리 초기화 버그 방지를 위해 고유 key 적용
         category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"], horizontal=True, key="main_category_radio")
         search_query = st.text_input(f"🔍 {category} {'URL 입력' if category == 'SCRAP' else '검색'}")
         
@@ -506,7 +489,9 @@ if is_admin and tab_w:
 
         st.divider()
         data = st.session_state.get('api_data', {})
-        cl, cr = st.columns([0.4, 0.6]) if not is_mobile else (st.container(), st.container())
+        
+        # 모바일 분기 제거, 기본 열 셋업 유지
+        cl, cr = st.columns([0.4, 0.6])
         with cl:
             img_url_val = st.text_input("🖼️ 이미지", value=data.get('img', ''))
             if img_url_val and img_url_val.strip() and img_url_val != "None": st.image(img_url_val, use_container_width=True)
@@ -527,7 +512,7 @@ if is_admin and tab_w:
                     conn = get_connection()
                     conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], new_record["note"], new_record["img_url"], new_record["img_url2"], new_record["save_date"], new_record["view_date"]))
                     conn.commit()
-                    st.cache_data.clear() # DB 저장 즉시 캐시 초기화
+                    st.cache_data.clear() 
                     try:
                         supabase.table("archive").upsert(new_record).execute()
                     except: pass
@@ -552,8 +537,7 @@ with tab_a:
     all_df = get_all_data()
 
     if not all_df.empty:
-        # [추가] 통합 검색창 기능
-        search_query_archive = st.text_input("🔍 검색", key="global_search")
+        search_query_archive = st.text_input("🔍 아카이브 통합 검색 (제목, 창작자, 내용 등 전체 검색)", key="global_search")
         if search_query_archive:
             mask = (
                 all_df['title'].str.contains(search_query_archive, case=False, na=False) |
@@ -577,7 +561,8 @@ with tab_a:
         if is_admin: tab_titles.append(f"🔐 SCRAP ({len(scrap_df)})")
             
         sub_tabs = st.tabs(tab_titles)
-        grid_cols = 2 if is_mobile else 6
+        # 갤러리 그리드도 PC 기준으로 통일 (Streamlit이 모바일에서 자동으로 줄바꿈해줍니다)
+        grid_cols = 6
 
         with sub_tabs[0]:
             years = sorted(main_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
@@ -635,21 +620,18 @@ with tab_a:
                         top_keywords = [k[0] for k in Counter(keywords).most_common(5)]
                         st.markdown("### 🏆 이번 주 핫 키워드")
                         
-                        # [추가] 태그 버튼 클릭 시 동작하는 함수
                         def toggle_tag(clicked_tag):
                             if st.session_state.selected_tag == clicked_tag:
-                                st.session_state.selected_tag = None # 한 번 더 누르면 해제
+                                st.session_state.selected_tag = None
                             else:
                                 st.session_state.selected_tag = clicked_tag
                                 
                         cols = st.columns(len(top_keywords))
                         for i, kw in enumerate(top_keywords):
-                            # 선택된 태그는 'primary' 테마로 진하게 표시
                             btn_type = "primary" if st.session_state.selected_tag == kw else "secondary"
                             cols[i].button(f"#{kw}", key=f"kw_{i}", type=btn_type, on_click=toggle_tag, args=(kw,))
                         st.divider()
                         
-                    # [추가] 선택된 태그가 있을 때 데이터 필터링 적용
                     display_scrap_df = scrap_df.copy()
                     if st.session_state.selected_tag:
                         tag_mask = display_scrap_df['summary'].fillna('').str.contains(f"#{st.session_state.selected_tag}") | \
@@ -680,4 +662,3 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
-
