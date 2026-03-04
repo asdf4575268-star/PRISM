@@ -291,7 +291,6 @@ def show_details(item):
             edit_mode = st.toggle("✏️ 수정", key=f"tog_{item['id']}")
         st.divider()
 
-    # 모바일 분기 로직 제거: 항상 두 열로 고정 (Streamlit이 화면이 좁아지면 알아서 위아래로 쌓아줌)
     col_img, col_txt = st.columns([0.3, 0.7])
 
     if is_admin and edit_mode:
@@ -316,7 +315,12 @@ def show_details(item):
                 n_sum = st.text_area("📖 개요", value=str(item.get('summary', '')), height=150)
                 n_brief = st.text_input("📝 요약", value=str(item.get('brief', '')))
                 n_high = st.text_area("✨ 인상 깊은 부분", value=str(item.get('highlights', '')), height=100)
-                n_note = st.text_area("💬 감상", value=str(item.get('note', '')), height=100)
+                
+                # [수정] 스크랩 카테고리일 때는 PRISM 수정창도 노출하지 않음
+                if cat != "SCRAP":
+                    n_note = st.text_area("🌈 PRISM", value=str(item.get('note', '')), height=100)
+                else:
+                    n_note = str(item.get('note', ''))
 
                 if st.form_submit_button("💾 저장"):
                     try:
@@ -490,7 +494,6 @@ if is_admin and tab_w:
         st.divider()
         data = st.session_state.get('api_data', {})
         
-        # 모바일 분기 제거, 기본 열 셋업 유지
         cl, cr = st.columns([0.4, 0.6])
         with cl:
             img_url_val = st.text_input("🖼️ 이미지", value=data.get('img', ''))
@@ -503,7 +506,13 @@ if is_admin and tab_w:
             summary = st.text_area("📖 개요", value=data.get('summary', ''), height=100)
             brief = st.text_input("📝 요약")
             highlights = st.text_area("✨ 인상 깊은 부분", height=100)
-            note = st.text_area("🌈 PRISM", height=100)
+            
+            # [수정] 스크랩 카테고리일 경우 PRISM 입력창을 화면에서 아예 제거
+            if category != "SCRAP":
+                note = st.text_area("🌈 PRISM", height=100)
+            else:
+                note = ""
+
             view_date = st.date_input("🍿 감상일", value=date.today())
             
             if st.button("✅ 기록 저장", use_container_width=True):
@@ -537,7 +546,7 @@ with tab_a:
     all_df = get_all_data()
 
     if not all_df.empty:
-        search_query_archive = st.text_input("🔍", key="global_search")
+        search_query_archive = st.text_input("🔍 아카이브 통합 검색 (제목, 창작자, 내용 등 전체 검색)", key="global_search")
         if search_query_archive:
             mask = (
                 all_df['title'].str.contains(search_query_archive, case=False, na=False) |
@@ -561,7 +570,6 @@ with tab_a:
         if is_admin: tab_titles.append(f"🔐 SCRAP ({len(scrap_df)})")
             
         sub_tabs = st.tabs(tab_titles)
-        # 갤러리 그리드도 PC 기준으로 통일 (Streamlit이 모바일에서 자동으로 줄바꿈해줍니다)
         grid_cols = 6
 
         with sub_tabs[0]:
@@ -612,7 +620,8 @@ with tab_a:
                     week_scrap = scrap_df[scrap_df['v_dt'] >= current_week_start]
                     
                     keywords = []
-                    for text in week_scrap['summary'].fillna('') + " " + week_scrap['note'].fillna(''):
+                    # [수정] 해시태그를 요약이나 인상 깊은 부분에 적어도 태그로 추출되도록 보강
+                    for text in week_scrap['summary'].fillna('') + " " + week_scrap['note'].fillna('') + " " + week_scrap['brief'].fillna('') + " " + week_scrap['highlights'].fillna(''):
                         keywords.extend(re.findall(r"#(\w+)", str(text)))
                     
                     if keywords:
@@ -634,8 +643,11 @@ with tab_a:
                         
                     display_scrap_df = scrap_df.copy()
                     if st.session_state.selected_tag:
+                        # [수정] 태그 검색 범위도 요약/인상 깊은 부분까지 확대
                         tag_mask = display_scrap_df['summary'].fillna('').str.contains(f"#{st.session_state.selected_tag}") | \
-                                   display_scrap_df['note'].fillna('').str.contains(f"#{st.session_state.selected_tag}")
+                                   display_scrap_df['note'].fillna('').str.contains(f"#{st.session_state.selected_tag}") | \
+                                   display_scrap_df['brief'].fillna('').str.contains(f"#{st.session_state.selected_tag}") | \
+                                   display_scrap_df['highlights'].fillna('').str.contains(f"#{st.session_state.selected_tag}")
                         display_scrap_df = display_scrap_df[tag_mask]
                         st.info(f"🏷️ '#{st.session_state.selected_tag}' 태그가 포함된 스크랩만 봅니다. (해제하려면 위의 버튼을 다시 누르세요)")
                     
@@ -662,4 +674,3 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
-
