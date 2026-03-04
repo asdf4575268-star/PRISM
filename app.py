@@ -382,10 +382,10 @@ def show_details(item):
             else:
                 # 🌈 PRISM(note)을 맨 앞으로 빼고, 개요(summary)를 맨 뒤로 보냅니다.
                 sections = [
-                    ("🌈 MY PRISM (나만의 시선)", "note", "#1E425E"), 
+                    ("🌈 PRISM", "note", "#1E425E"), 
                     ("📝 요약", "brief", "#0E6245"), 
-                    ("✨ 인상 깊은 부분 (LYRICS 등)", "highlights", "#7D5600"), 
-                    ("📖 BEHIND THE RECORD (개요/제작 비화)", "summary", "#444")
+                    ("✨ 인상 깊은 부분", "highlights", "#7D5600"), 
+                    ("📖 BEHIND THE RECORD ", "summary", "#444")
                 ]
             
             for label, key, color in sections:
@@ -526,7 +526,7 @@ if is_admin and tab_w:
                 venue = st.text_input("📍 장소/플랫폼", value=data.get('venue', ''))
             with cr:
                 if category != "SCRAP":
-                    note = st.text_area("🌈 MY PRISM (나만의 시선)", height=150)
+                    note = st.text_area("🌈 PRISM", height=150)
                 else:
                     note = ""
                 
@@ -698,6 +698,7 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
+
 
 
 
