@@ -309,7 +309,7 @@ def show_details(item):
             col_img_form, col_txt_form = st.columns([0.3, 0.7])
             with col_img_form:
                 n_img = st.text_input("🖼️ 이미지 URL", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
-                n_img2 = st.text_input("🎬 관련 영상 주소 또는 음악/장면 메모", value=str(item.get('img_url2', '')), key=f"video_in_{item['id']}")
+                n_img2 = st.text_input("🎬 관련 영상(URL) 또는 제목/메모", value=str(item.get('img_url2', '')), key=f"video_in_{item['id']}")
                 
                 old_img = str(item.get('img_url', ''))
                 if old_img and old_img.strip() and old_img != "None": 
@@ -369,17 +369,18 @@ def show_details(item):
 
             memo_content = item.get('img_url2', '')
             if isinstance(memo_content, str) and memo_content.strip() and memo_content != "None":
-                st.markdown("""<div style="background-color: #E50914; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px; text-align: center; font-weight: bold;">🎬 관련 영상/메모</div>""", unsafe_allow_html=True)
-                
                 if memo_content.startswith("http"):
+                    # URL인 경우 '관련 영상'이라는 뱃지와 플레이어 표시
+                    st.markdown("""<div style="background-color: #E50914; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px; text-align: center; font-weight: bold;">🎬 관련 영상</div>""", unsafe_allow_html=True)
                     try:
                         st.video(memo_content)
                     except:
                         st.info(f"🔗 {memo_content}")
                 else:
+                    # 텍스트인 경우 그 글자 자체가 멋진 타이틀 뱃지로 변신!
                     st.markdown(f"""
-                        <div style="background-color: #1a1a1a; border-left: 4px solid #E50914; padding: 15px; border-radius: 4px; text-align: left; font-size: 0.95em; color: #eee; line-height: 1.5; font-style: italic;">
-                            "{memo_content}"
+                        <div style="background-color: #1a1a1a; border-left: 4px solid #E50914; padding: 10px 15px; border-radius: 4px; text-align: left; font-size: 0.95em; color: #fff; font-weight: bold; margin-bottom: 10px;">
+                            🎬 {memo_content}
                         </div>
                     """, unsafe_allow_html=True)
             
@@ -391,7 +392,7 @@ def show_details(item):
             st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
             st.divider()
             
-            # [수정] 조회 모드에서의 섹션 노출 순서를 변경했습니다.
+            # 조회 모드 노출 순서: 요약 -> PRISM -> 인상 깊은 부분 -> 개요 (Behind the records)
             if item.get("category") == "SCRAP":
                 summary_text = str(item.get('summary', ''))
                 if summary_text.startswith("http"):
@@ -402,7 +403,6 @@ def show_details(item):
                     ("✨ 인상 깊은 부분", "highlights", "#7D5600")
                 ]
             else:
-                # 일반 카테고리의 노출 순서: 요약 -> PRISM -> 인상 깊은 부분 -> 개요 (Behind the records)
                 sections = [
                     ("📝 요약 (한 줄 평)", "brief", "#0E6245"), 
                     ("🌈 PRISM", "note", "#1E425E"),
@@ -535,7 +535,7 @@ if is_admin and tab_w:
             cl, cr = st.columns([0.4, 0.6])
             with cl:
                 img_url_val = st.text_input("🖼️ 이미지 URL", value=data.get('img', ''))
-                video_url_val = st.text_input("🎬 관련 영상 주소 또는 음악/장면 메모", value="")
+                video_url_val = st.text_input("🎬 관련 영상(URL) 또는 제목/메모", value="")
                 
                 api_img = data.get('img', '')
                 if api_img and api_img.strip() and api_img != "None":
