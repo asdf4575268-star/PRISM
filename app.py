@@ -309,7 +309,7 @@ def show_details(item):
             col_img_form, col_txt_form = st.columns([0.3, 0.7])
             with col_img_form:
                 n_img = st.text_input("🖼️ 이미지 URL", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
-                n_img2 = st.text_input("🎬 관련 영상(URL) 또는 제목/메모", value=str(item.get('img_url2', '')), key=f"video_in_{item['id']}")
+                n_img2 = st.text_input("🎬 관련 영상 주소 또는 음악/장면 메모", value=str(item.get('img_url2', '')), key=f"video_in_{item['id']}")
                 
                 old_img = str(item.get('img_url', ''))
                 if old_img and old_img.strip() and old_img != "None": 
@@ -367,17 +367,38 @@ def show_details(item):
             
             st.write("") 
 
+            # --- [스마트 파싱 로직 적용] ---
             memo_content = item.get('img_url2', '')
             if isinstance(memo_content, str) and memo_content.strip() and memo_content != "None":
-                if memo_content.startswith("http"):
-                    # URL인 경우 '관련 영상'이라는 뱃지와 플레이어 표시
-                    st.markdown("""<div style="background-color: #E50914; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px; text-align: center; font-weight: bold;">🎬 관련 영상</div>""", unsafe_allow_html=True)
+                # 입력된 내용 안에 http로 시작하는 URL이 있는지 찾아냅니다.
+                url_match = re.search(r'(https?://[^\s]+)', memo_content)
+                
+                if url_match:
+                    # URL이 포함되어 있는 경우
+                    video_url = url_match.group(1)
+                    
+                    # URL 부분을 지우고 순수 텍스트(제목/메모)만 남깁니다. 슬래시(/)나 빈칸 등도 떼어냅니다.
+                    text_part = memo_content.replace(video_url, '').strip(' /|-')
+                    
+                    if text_part:
+                        # 텍스트가 있으면 그걸 타이틀로 달아줍니다!
+                        st.markdown(f"""
+                            <div style="background-color: #1a1a1a; border-left: 4px solid #E50914; padding: 10px 15px; border-radius: 4px; text-align: left; font-size: 0.95em; color: #fff; font-weight: bold; margin-bottom: 10px;">
+                                🎬 {text_part}
+                            </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        # 텍스트가 없고 주소만 달랑 있으면 기본 뱃지를 달아줍니다.
+                        st.markdown("""<div style="display: inline-block; background-color: #E50914; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px; font-weight: bold;">🎬 관련 영상</div>""", unsafe_allow_html=True)
+                    
+                    # 텍스트 아래에(또는 기본 뱃지 아래에) 파싱해낸 URL로 영상을 띄워줍니다.
                     try:
-                        st.video(memo_content)
+                        st.video(video_url)
                     except:
-                        st.info(f"🔗 {memo_content}")
+                        st.warning("영상을 불러올 수 없습니다.")
+                        
                 else:
-                    # 텍스트인 경우 그 글자 자체가 멋진 타이틀 뱃지로 변신!
+                    # 주소가 아예 없고 텍스트만 적혀있는 경우
                     st.markdown(f"""
                         <div style="background-color: #1a1a1a; border-left: 4px solid #E50914; padding: 10px 15px; border-radius: 4px; text-align: left; font-size: 0.95em; color: #fff; font-weight: bold; margin-bottom: 10px;">
                             🎬 {memo_content}
@@ -392,7 +413,6 @@ def show_details(item):
             st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
             st.divider()
             
-            # 조회 모드 노출 순서: 요약 -> PRISM -> 인상 깊은 부분 -> 개요 (Behind the records)
             if item.get("category") == "SCRAP":
                 summary_text = str(item.get('summary', ''))
                 if summary_text.startswith("http"):
@@ -535,7 +555,7 @@ if is_admin and tab_w:
             cl, cr = st.columns([0.4, 0.6])
             with cl:
                 img_url_val = st.text_input("🖼️ 이미지 URL", value=data.get('img', ''))
-                video_url_val = st.text_input("🎬 관련 영상(URL) 또는 제목/메모", value="")
+                video_url_val = st.text_input("🎬 관련 영상 주소 또는 음악/장면 메모", value="")
                 
                 api_img = data.get('img', '')
                 if api_img and api_img.strip() and api_img != "None":
