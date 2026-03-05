@@ -327,10 +327,9 @@ def show_details(item):
                 try: curr_view = pd.to_datetime(item.get('view_date')).date()
                 except: curr_view = date.today()
                 n_view_date = st.date_input("🍿 감상일 수정", value=curr_view)
+                n_sum = st.text_area("📖 개요", value=str(item.get('summary', '')), height=150)
                 n_brief = st.text_input("📝 요약", value=str(item.get('brief', '')))
                 n_high = st.text_area("✨ 인상 깊은 부분", value=str(item.get('highlights', '')), height=100)
-                n_sum = st.text_area("📖 개요", value=str(item.get('summary', '')), height=150)
-                
                 
                 if cat != "SCRAP":
                     n_note = st.text_area("🌈 PRISM", value=str(item.get('note', '')), height=100)
@@ -392,14 +391,24 @@ def show_details(item):
             st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
             st.divider()
             
+            # [수정] 조회 모드에서의 섹션 노출 순서를 변경했습니다.
             if item.get("category") == "SCRAP":
                 summary_text = str(item.get('summary', ''))
                 if summary_text.startswith("http"):
                     url = summary_text.split('\n')[0]
                     st.markdown(f"**[🔗 원본 기사 보러가기]({url})**")
-                sections = [("📝 요약", "brief", "#0E6245"), ("✨ 인상 깊은 부분", "highlights", "#7D5600")]
+                sections = [
+                    ("📝 요약 (한 줄 평)", "brief", "#0E6245"), 
+                    ("✨ 인상 깊은 부분", "highlights", "#7D5600")
+                ]
             else:
-                sections = [("📖 개요", "summary", "#444"), ("📝 요약", "brief", "#0E6245"), ("✨ 인상 깊은 부분", "highlights", "#7D5600"), ("🌈 PRISM", "note", "#1E425E")]
+                # 일반 카테고리의 노출 순서: 요약 -> PRISM -> 인상 깊은 부분 -> 개요 (Behind the records)
+                sections = [
+                    ("📝 요약 (한 줄 평)", "brief", "#0E6245"), 
+                    ("🌈 PRISM", "note", "#1E425E"),
+                    ("✨ 인상 깊은 부분", "highlights", "#7D5600"), 
+                    ("📖 개요 (Behind the records)", "summary", "#444")
+                ]
             
             for label, key, color in sections:
                 content = item.get(key)
@@ -579,7 +588,7 @@ with tab_a:
     all_df = get_all_data()
 
     if not all_df.empty:
-        search_query_archive = st.text_input("🔍", key="global_search")
+        search_query_archive = st.text_input("🔍 아카이브 통합 검색 (제목, 창작자, 내용 등 전체 검색)", key="global_search")
         if search_query_archive:
             mask = (
                 all_df['title'].str.contains(search_query_archive, case=False, na=False) |
@@ -705,5 +714,3 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
-
-
