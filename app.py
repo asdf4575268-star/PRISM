@@ -439,7 +439,6 @@ def show_details(item):
 
             if item.get('category') != 'SCRAP':
                 conn = get_connection()
-                import re
                 raw_title = str(item.get('title', ''))
                 title_no_brackets = re.sub(r'\[.*?\]|\(.*?\)|<.*?>', '', raw_title)
                 clean_text = re.sub(r'[^가-힣a-zA-Z0-9]', ' ', title_no_brackets)
@@ -734,3 +733,4 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
+
