@@ -101,6 +101,17 @@ def restore_from_supabase():
     except Exception as e:
         st.session_state.sync_msg = ("error", f"❌ 복구 실패: {e}")
 
+# --- [추가] 앱 시작 시 로컬 DB가 비어있으면 자동 복구 (Auto-Restore) ---
+@st.cache_resource
+def auto_sync_on_startup():
+    conn = get_connection()
+    count = conn.execute("SELECT COUNT(*) FROM archive").fetchone()[0]
+    if count == 0:
+        restore_from_supabase()
+    return True
+
+auto_sync_on_startup()
+
 # --- [3. 로그인 시스템 & 사이드바] ---
 DEV_MODE = False 
 
@@ -297,9 +308,8 @@ def show_details(item):
         with st.form(key=f"edit_form_{item['id']}"):
             col_img_form, col_txt_form = st.columns([0.3, 0.7])
             with col_img_form:
-                # 수정 화면에서도 영상 URL 편집이 가능하도록 설정
                 n_img = st.text_input("🖼️ 이미지 URL", value=str(item.get('img_url', '')), key=f"img_in_{item['id']}")
-                n_img2 = st.text_input("🎬 관련 영상 URL", value=str(item.get('img_url2', '')), key=f"video_in_{item['id']}")
+                n_img2 = st.text_input("🎬 관련 영상 주소 또는 음악/장면 메모", value=str(item.get('img_url2', '')), key=f"video_in_{item['id']}")
                 
                 old_img = str(item.get('img_url', ''))
                 if old_img and old_img.strip() and old_img != "None": 
@@ -316,15 +326,15 @@ def show_details(item):
                 n_venue = c2.text_input(v_label, value=str(item.get('venue', '')))
                 try: curr_view = pd.to_datetime(item.get('view_date')).date()
                 except: curr_view = date.today()
-                n_view_date = st.date_input("🍿 기록일 수정", value=curr_view) # 감상일 -> 기록일 뉘앙스로 변경
-                if cat != "SCRAP":
-                    n_note = st.text_area("🌈 PRISM", value=str(item.get('note', '')), height=150)
-                else:
-                    n_note = str(item.get('note', ''))
-                    
+                n_view_date = st.date_input("🍿 감상일 수정", value=curr_view)
+                n_sum = st.text_area("📖 개요", value=str(item.get('summary', '')), height=150)
                 n_brief = st.text_input("📝 요약", value=str(item.get('brief', '')))
                 n_high = st.text_area("✨ 인상 깊은 부분", value=str(item.get('highlights', '')), height=100)
-                n_sum = st.text_area("📖 BEHIND THE RECORD", value=str(item.get('summary', '')), height=100)
+                
+                if cat != "SCRAP":
+                    n_note = st.text_area("🌈 PRISM", value=str(item.get('note', '')), height=100)
+                else:
+                    n_note = str(item.get('note', ''))
 
                 if st.form_submit_button("💾 저장", use_container_width=True):
                     try:
@@ -357,13 +367,21 @@ def show_details(item):
             
             st.write("") 
 
-            video_url = item.get('img_url2')
-            if isinstance(video_url, str) and video_url.strip() and video_url != "None":
-                st.markdown("""<div style="background-color: #E50914; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px; text-align: center; font-weight: bold;">🎬 관련 영상</div>""", unsafe_allow_html=True)
-                try:
-                    st.video(video_url)
-                except:
-                    st.warning("영상을 불러올 수 없습니다.")
+            memo_content = item.get('img_url2', '')
+            if isinstance(memo_content, str) and memo_content.strip() and memo_content != "None":
+                st.markdown("""<div style="background-color: #E50914; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px; text-align: center; font-weight: bold;">🎬 관련 영상/메모</div>""", unsafe_allow_html=True)
+                
+                if memo_content.startswith("http"):
+                    try:
+                        st.video(memo_content)
+                    except:
+                        st.info(f"🔗 {memo_content}")
+                else:
+                    st.markdown(f"""
+                        <div style="background-color: #1a1a1a; border-left: 4px solid #E50914; padding: 15px; border-radius: 4px; text-align: left; font-size: 0.95em; color: #eee; line-height: 1.5; font-style: italic;">
+                            "{memo_content}"
+                        </div>
+                    """, unsafe_allow_html=True)
             
         with col_txt:
             st.markdown(f'# {item.get("title")}')
@@ -380,12 +398,7 @@ def show_details(item):
                     st.markdown(f"**[🔗 원본 기사 보러가기]({url})**")
                 sections = [("📝 요약", "brief", "#0E6245"), ("✨ 인상 깊은 부분", "highlights", "#7D5600")]
             else:
-                sections = [
-                    ("🌈 PRISM", "note", "#1E425E"),
-                    ("📝 요약", "brief", "#0E6245"),
-                    ("✨ 인상 깊은 부분", "highlights", "#7D5600"),
-                    ("📖 BEHIND THE RECORD", "summary", "#444")
-                ]
+                sections = [("📖 개요", "summary", "#444"), ("📝 요약", "brief", "#0E6245"), ("✨ 인상 깊은 부분", "highlights", "#7D5600"), ("🌈 PRISM", "note", "#1E425E")]
             
             for label, key, color in sections:
                 content = item.get(key)
@@ -512,8 +525,7 @@ if is_admin and tab_w:
             cl, cr = st.columns([0.4, 0.6])
             with cl:
                 img_url_val = st.text_input("🖼️ 이미지 URL", value=data.get('img', ''))
-                # 신규 등록 시에도 영상 URL 편집 가능
-                video_url_val = st.text_input("🎬 관련 영상 URL (유튜브 등)", value="")
+                video_url_val = st.text_input("🎬 관련 영상 주소 또는 음악/장면 메모", value="")
                 
                 api_img = data.get('img', '')
                 if api_img and api_img.strip() and api_img != "None":
@@ -524,15 +536,15 @@ if is_admin and tab_w:
                 rel_date = st.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
                 venue = st.text_input("📍 장소/플랫폼", value=data.get('venue', ''))
             with cr:
-                summary = st.text_area("📖 BEHIND THE RECORD(개요/제작 비화)", value=data.get('summary', ''), height=100)
+                summary = st.text_area("📖 개요", value=data.get('summary', ''), height=100)
                 brief = st.text_input("📝 요약")
                 highlights = st.text_area("✨ 인상 깊은 부분", height=100)
                 
                 if category != "SCRAP":
-                    note = st.text_area("🌈 PRISM", height=150)
+                    note = st.text_area("🌈 PRISM", height=100)
                 else:
                     note = ""
-                
+
                 view_date = st.date_input("🍿 감상일", value=date.today())
                 
                 if st.form_submit_button("✅ 기록 저장", use_container_width=True):
@@ -566,7 +578,7 @@ with tab_a:
     all_df = get_all_data()
 
     if not all_df.empty:
-        search_query_archive = st.text_input("🔍", key="global_search")
+        search_query_archive = st.text_input("🔍 아카이브 통합 검색 (제목, 창작자, 내용 등 전체 검색)", key="global_search")
         if search_query_archive:
             mask = (
                 all_df['title'].str.contains(search_query_archive, case=False, na=False) |
@@ -692,12 +704,3 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
-
-
-
-
-
-
-
-
-
