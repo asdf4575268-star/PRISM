@@ -145,6 +145,10 @@ if "selected_tag" not in st.session_state:
 if "show_form" not in st.session_state:
     st.session_state.show_form = False
 
+# 주간 달력을 위한 오프셋 변수 초기화
+if "week_offset" not in st.session_state:
+    st.session_state.week_offset = 0
+
 if st.session_state.user_password == st.secrets["ADMIN_PASSWORD"]:
     st.session_state.is_logged_in = True
 
@@ -646,7 +650,7 @@ if is_admin and tab_w:
                     s = scrape_url(search_query)
                     if s:
                         st.session_state.api_data = {'title': s['title'], 'creator': '', 'date': str(date.today()), 'img': s['img'], 'venue': s['venue'], 'summary': s['summary']}
-                        st.session_state.show_form = True # 폼 열기
+                        st.session_state.show_form = True 
                         st.rerun()
             elif category == "BOOKS":
                 res = search_books(search_query)
@@ -656,7 +660,7 @@ if is_admin and tab_w:
                     if st.button("✨ 가져오기"):
                         b = opts[sel]
                         st.session_state.api_data = {'title': b['title'], 'creator': ", ".join(b['authors']), 'date': b['datetime'][:10], 'img': b.get('thumbnail', '').replace("R120x174", "R400x0"), 'venue': b.get('publisher', ''), 'summary': b.get('contents', '')}
-                        st.session_state.show_form = True # 폼 열기
+                        st.session_state.show_form = True 
                         st.rerun()
             elif category == "MUSIC":
                 res = search_apple_music(search_query)
@@ -666,7 +670,7 @@ if is_admin and tab_w:
                     if st.button("✨ 가져오기"):
                         m = opts[sel]
                         st.session_state.api_data = {'title': m['title'], 'creator': m['creator'], 'date': m['date'], 'img': m['img'], 'summary': f"{m.get('url', '')}\n\n"}
-                        st.session_state.show_form = True # 폼 열기
+                        st.session_state.show_form = True 
                         st.rerun()
             elif category == "STAGE":
                 res = search_kopis(search_query)
@@ -677,7 +681,7 @@ if is_admin and tab_w:
                         s = opts[sel]
                         combined_creator = get_kopis_detail(s['id'])
                         st.session_state.api_data = {'title': s['title'], 'creator': combined_creator, 'date': s['date'], 'venue': s['venue'], 'img': s['img'], 'summary': f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id={s['id']}"}
-                        st.session_state.show_form = True # 폼 열기
+                        st.session_state.show_form = True 
                         st.rerun()
             else: 
                 res = search_tmdb(search_query, category)
@@ -690,17 +694,16 @@ if is_admin and tab_w:
                         s = opts[sel]
                         details = get_tmdb_details(s['id'], category)
                         st.session_state.api_data = {'title': s.get(t_key), 'creator': details['creator'], 'date': s.get(d_key), 'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", 'venue': details['venue'], 'summary': s.get('overview', '')}
-                        st.session_state.show_form = True # 폼 열기
+                        st.session_state.show_form = True 
                         st.rerun()
         else:
-            # 검색어가 없을 때 수동으로 입력할 수 있는 버튼 제공
             if not st.session_state.show_form:
                 if st.button("✏️ 검색 없이 직접 입력하기"):
                     st.session_state.api_data = {}
                     st.session_state.show_form = True
                     st.rerun()
 
-        # [2단계] 입력 폼 및 저장 방식 선택 (가져오기 또는 직접입력 버튼을 눌렀을 때만 보임)
+        # [2단계] 입력 폼 및 저장 방식 선택
         if st.session_state.show_form:
             st.divider()
             data = st.session_state.get('api_data', {})
@@ -733,7 +736,6 @@ if is_admin and tab_w:
                     view_date = st.date_input("🍿 감상 완료일 / 예정일", value=date.today())
                     
                     st.markdown("<br>", unsafe_allow_html=True)
-                    # 버튼 3개 배치
                     col_btn1, col_btn2, col_btn3 = st.columns([0.4, 0.4, 0.2])
                     
                     submit_archive = col_btn1.form_submit_button("✅ 아카이브에 저장 (완료)", use_container_width=True)
@@ -759,7 +761,7 @@ if is_admin and tab_w:
                                 
                                 st.success("✅ 아카이브 저장 완료!")
                                 st.session_state.api_data = {}
-                                st.session_state.show_form = False # 폼 닫기
+                                st.session_state.show_form = False 
                                 time.sleep(0.8)
                                 st.rerun()
                             except Exception as e: st.error(f"❌ 오류: {e}")
@@ -785,89 +787,132 @@ if is_admin and tab_w:
     
                             st.success("🗓️ 일정표에 추가되었습니다!")
                             st.session_state.api_data = {}
-                            st.session_state.show_form = False # 폼 닫기
+                            st.session_state.show_form = False 
                             time.sleep(0.8)
                             st.rerun()
                         else: st.warning("제목을 입력해 주세요.")
 
         st.divider()
         
-        # [3단계] 월별 예정 리스트 (PLAN) 출력 영역
-        st.markdown("### 🗓️ 다가오는 일정표 (PLAN)")
-        st.caption("※ 체크박스를 선택하면 일정이 '아카이브'로 자동 이동되며, '상세/수정'을 눌러 기록 정보를 미리 볼 수 있습니다!")
+        # [3단계] 7일 가로 배치 (그리드 달력 형태) 출력 영역
+        st.markdown("### 🗓️ 주간 일정표 (PLAN)")
+        st.caption("※ '✅' 버튼을 누르면 아카이브로 이동하고, '🔍' 버튼을 누르면 상세 내용을 수정/확인할 수 있습니다.")
         
+        # 주간 이동 컨트롤 UI
+        col_l, col_c, col_r = st.columns([0.1, 0.8, 0.1])
+        with col_l:
+            if st.button("⬅️ 이전 주", use_container_width=True):
+                st.session_state.week_offset -= 1
+                st.rerun()
+                
+        # 이번 주 기준 날짜 계산
+        today = pd.Timestamp(date.today())
+        this_monday = today - pd.Timedelta(days=today.weekday())
+        view_monday = this_monday + pd.Timedelta(weeks=st.session_state.week_offset)
+        view_sunday = view_monday + pd.Timedelta(days=6)
+        
+        with col_c:
+            st.markdown(f"<h4 style='text-align: center; margin-top:0;'>📅 {view_monday.strftime('%Y.%m.%d')} ~ {view_sunday.strftime('%Y.%m.%d')}</h4>", unsafe_allow_html=True)
+            
+        with col_r:
+            if st.button("다음 주 ➡️", use_container_width=True):
+                st.session_state.week_offset += 1
+                st.rerun()
+                
         conn = get_connection()
         plan_df = pd.read_sql_query("SELECT * FROM plan ORDER BY plan_date ASC", conn)
         
         if not plan_df.empty:
             plan_df['p_dt'] = pd.to_datetime(plan_df['plan_date'])
-            months = plan_df['p_dt'].dt.to_period('M').unique()
             
-            cat_emojis = {"BOOKS": "📚", "MUSIC": "🎧", "MOVIES": "🎞️", "SERIES": "📽️", "STAGE": "🎭", "SCRAP": "📰"}
+        cat_emojis = {"BOOKS": "📚", "MUSIC": "🎧", "MOVIES": "🎞️", "SERIES": "📽️", "STAGE": "🎭", "SCRAP": "📰"}
+        weekdays = ["월", "화", "수", "목", "금", "토", "일"]
+        
+        # 가로 7칸 달력 렌더링
+        cal_cols = st.columns(7)
+        for i in range(7):
+            curr_date = view_monday + pd.Timedelta(days=i)
+            is_today = curr_date.date() == date.today()
             
-            for m in months:
-                st.markdown(f"<h4 style='color: #E50914; margin-top: 15px;'>📅 {m.year}년 {m.month}월</h4>", unsafe_allow_html=True)
-                m_data = plan_df[plan_df['p_dt'].dt.to_period('M') == m]
+            # 오늘 날짜는 특별하게 강조
+            day_color = "#E50914" if is_today else "#E2E2E2"
+            bg_color = "rgba(229, 9, 20, 0.15)" if is_today else "#2A2A2A"
+            
+            with cal_cols[i]:
+                # 1. 날짜 및 요일 헤더 박스
+                st.markdown(f"""
+                <div style='text-align: center; background-color: {bg_color}; padding: 10px 0; border-radius: 8px; margin-bottom: 12px;'>
+                    <span style='color: {day_color}; font-weight: bold; font-size: 1.1em;'>{curr_date.strftime('%m.%d')}</span><br>
+                    <span style='color: {day_color}; font-size: 0.9em;'>{weekdays[i]}</span>
+                </div>
+                """, unsafe_allow_html=True)
                 
-                for _, row in m_data.iterrows():
-                    # 레이아웃 비율: 체크박스(5%), 내용(80%), 상세/수정 버튼(15%)
-                    col1, col2, col3 = st.columns([0.05, 0.8, 0.15])
-                    with col1:
-                        if st.checkbox("", key=f"plan_unified_{row['id']}"):
-                            conn = get_connection()
-                            today_str = str(date.today())
-                            
-                            try:
-                                rich_data = json.loads(row['memo'])
-                            except:
-                                rich_data = {"creator": "", "rel_date": "", "venue": "", "summary": "", "brief": "", "highlights": "", "note": row['memo'], "img_url": "", "img_url2": ""}
-                            
-                            new_archive_record = {
-                                "category": row['category'],
-                                "title": row['title'],
-                                "creator": rich_data.get("creator", ""),
-                                "rel_date": rich_data.get("rel_date", ""),
-                                "venue": rich_data.get("venue", ""),
-                                "summary": rich_data.get("summary", ""),
-                                "brief": rich_data.get("brief", ""),
-                                "highlights": rich_data.get("highlights", ""),
-                                "note": rich_data.get("note", ""),
-                                "img_url": rich_data.get("img_url", ""),
-                                "img_url2": rich_data.get("img_url2", ""),
-                                "save_date": today_str,
-                                "view_date": row['plan_date']
-                            }
-                            
-                            conn.execute("""INSERT INTO archive 
-                                (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) 
-                                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", 
-                                (new_archive_record['category'], new_archive_record['title'], new_archive_record['creator'], new_archive_record['rel_date'], new_archive_record['venue'], new_archive_record['summary'], new_archive_record['brief'], new_archive_record['highlights'], new_archive_record['note'], new_archive_record['img_url'], new_archive_record['img_url2'], new_archive_record['save_date'], new_archive_record['view_date']))
-                            conn.execute("DELETE FROM plan WHERE id=?", (row['id'],))
-                            conn.commit()
-                            st.cache_data.clear()
-                            
-                            try:
-                                supabase.table("archive").upsert(new_archive_record).execute()
-                                supabase.table("plan").delete().eq("title", row['title']).eq("plan_date", row['plan_date']).execute()
-                            except: pass
-
-                            st.success(f"🎉 '{row['title']}' 기록이 아카이브로 온전히 넘어갔습니다!")
-                            time.sleep(0.8)
-                            st.rerun()
-                    with col2:
+                # 2. 해당 날짜 일정 필터링
+                day_data = plan_df[plan_df['p_dt'].dt.date == curr_date.date()] if not plan_df.empty else pd.DataFrame()
+                
+                if day_data.empty:
+                    st.markdown("<div style='text-align: center; color:#666; font-size:0.8em; margin-top: 20px;'>일정 없음</div>", unsafe_allow_html=True)
+                else:
+                    # 3. 일정 카드 출력
+                    for _, row in day_data.iterrows():
                         emoji = cat_emojis.get(row['category'], "📌")
-                        day_str = str(row['plan_date'])[5:]
-                        try:
-                            display_memo = json.loads(row['memo']).get('note', '')
-                        except:
-                            display_memo = row['memo']
-                        st.markdown(f"<div style='margin-bottom: 5px; padding-top: 3px;'><b>{day_str}</b> | {emoji} <b>{row['title']}</b> <span style='color:#888; font-size:0.9em; margin-left:10px;'>{display_memo}</span></div>", unsafe_allow_html=True)
-                    
-                    with col3:
-                        if st.button("상세/수정", key=f"btn_p_{row['id']}", use_container_width=True):
-                            show_plan_details(row)
-        else:
-            st.info("등록된 일정이 없습니다. 검색 후 '일정표에 추가' 버튼을 눌러 기대되는 작품이나 볼거리를 추가해 보세요!")
+                        
+                        st.markdown(f"""
+                        <div style='background-color: #1a1a1a; padding: 10px; border-radius: 6px; border-left: 4px solid #E50914; margin-bottom: 5px; min-height: 50px;'>
+                            <div style='font-size: 0.85em; font-weight: bold; line-height: 1.3;'>{emoji} {row['title']}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # 카드 하단 액션 버튼
+                        btn_col1, btn_col2 = st.columns(2)
+                        with btn_col1:
+                            if st.button("✅", key=f"done_cal_{row['id']}", help="아카이브로 완료 이동", use_container_width=True):
+                                conn = get_connection()
+                                today_str = str(date.today())
+                                
+                                try:
+                                    rich_data = json.loads(row['memo'])
+                                except:
+                                    rich_data = {"creator": "", "rel_date": "", "venue": "", "summary": "", "brief": "", "highlights": "", "note": row['memo'], "img_url": "", "img_url2": ""}
+                                
+                                new_archive_record = {
+                                    "category": row['category'],
+                                    "title": row['title'],
+                                    "creator": rich_data.get("creator", ""),
+                                    "rel_date": rich_data.get("rel_date", ""),
+                                    "venue": rich_data.get("venue", ""),
+                                    "summary": rich_data.get("summary", ""),
+                                    "brief": rich_data.get("brief", ""),
+                                    "highlights": rich_data.get("highlights", ""),
+                                    "note": rich_data.get("note", ""),
+                                    "img_url": rich_data.get("img_url", ""),
+                                    "img_url2": rich_data.get("img_url2", ""),
+                                    "save_date": today_str,
+                                    "view_date": row['plan_date']
+                                }
+                                
+                                conn.execute("""INSERT INTO archive 
+                                    (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) 
+                                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", 
+                                    (new_archive_record['category'], new_archive_record['title'], new_archive_record['creator'], new_archive_record['rel_date'], new_archive_record['venue'], new_archive_record['summary'], new_archive_record['brief'], new_archive_record['highlights'], new_archive_record['note'], new_archive_record['img_url'], new_archive_record['img_url2'], new_archive_record['save_date'], new_archive_record['view_date']))
+                                conn.execute("DELETE FROM plan WHERE id=?", (row['id'],))
+                                conn.commit()
+                                st.cache_data.clear()
+                                
+                                try:
+                                    supabase.table("archive").upsert(new_archive_record).execute()
+                                    supabase.table("plan").delete().eq("title", row['title']).eq("plan_date", row['plan_date']).execute()
+                                except: pass
+
+                                st.success(f"🎉 '{row['title']}' 완료!")
+                                time.sleep(0.5)
+                                st.rerun()
+                                
+                        with btn_col2:
+                            if st.button("🔍", key=f"dtl_cal_{row['id']}", help="상세보기 및 수정", use_container_width=True):
+                                show_plan_details(row)
+                        
+                        st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
 
 # --- [ARCHIVE 탭] ---
 with tab_a:
