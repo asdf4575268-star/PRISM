@@ -1060,7 +1060,7 @@ with tab_a:
                         for w in weeks:
                             w_data = display_scrap_df[display_scrap_df['year_week'] == w]
                             y_str, w_str = w.split('-')
-                            st.subheader(f"🗓️ {y_str}-{int(w_str)}주차 스크랩")
+                            st.subheader(f"🗓️ {y_str}-{int(w_str)}주차")
                             for _, row in w_data.iterrows():
                                 with st.expander(f"👉 [{row['venue']}] {row['title']} ({row['view_date']})"):
                                     summary_text = str(row['summary'])
@@ -1077,5 +1077,6 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
+
 
 
