@@ -630,7 +630,7 @@ st.markdown(
 )
 
 if is_admin:
-    tab_w, tab_a = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
+    tab_w, tab_a = st.tabs(["🖋️ WRITE & PLAN", "📂 ARCHIVE"])
 else:
     tabs = st.tabs(["📂 ARCHIVE"])
     tab_a = tabs[0]
@@ -640,7 +640,7 @@ else:
 if is_admin and tab_w:
     with tab_w:
         # [1단계] 카테고리 & 검색
-        st.markdown("### 🔍 SEARCH")
+        st.markdown("### 🔍 작품 검색 / 일정 불러오기")
         category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"], horizontal=True, key="main_category_radio")
         search_query = st.text_input(f"🔍 {category} {'URL 입력' if category == 'SCRAP' else '검색 (결과 선택 후 가져오기 클릭)'}")
         
@@ -698,7 +698,7 @@ if is_admin and tab_w:
                         st.rerun()
         else:
             if not st.session_state.show_form:
-                if st.button("✏️ 직접 입력"):
+                if st.button("✏️ 검색 없이 직접 입력하기"):
                     st.session_state.api_data = {}
                     st.session_state.show_form = True
                     st.rerun()
@@ -707,7 +707,7 @@ if is_admin and tab_w:
         if st.session_state.show_form:
             st.divider()
             data = st.session_state.get('api_data', {})
-            st.markdown("### 📝 WRITE")
+            st.markdown("### 📝 기록 및 일정 작성")
             
             with st.form(key="unified_form"):
                 cl, cr = st.columns([0.4, 0.6])
@@ -729,17 +729,17 @@ if is_admin and tab_w:
                     highlights = st.text_area("✨ 인상 깊은 부분", height=100)
                     
                     if category != "SCRAP":
-                        note = st.text_area("🌈 PRISM", height=100)
+                        note = st.text_area("🌈 PRISM (또는 일정 메모)", height=100)
                     else:
                         note = ""
     
-                    view_date = st.date_input("🍿 감상 완료/예정일", value=date.today())
+                    view_date = st.date_input("🍿 감상 완료일 / 예정일", value=date.today())
                     
                     st.markdown("<br>", unsafe_allow_html=True)
                     col_btn1, col_btn2, col_btn3 = st.columns([0.4, 0.4, 0.2])
                     
-                    submit_archive = col_btn1.form_submit_button("✅ 아카이브 저장", use_container_width=True)
-                    submit_plan = col_btn2.form_submit_button("🗓️ 일정 추가", use_container_width=True)
+                    submit_archive = col_btn1.form_submit_button("✅ 아카이브에 저장 (완료)", use_container_width=True)
+                    submit_plan = col_btn2.form_submit_button("🗓️ 일정표에 추가 (계획)", use_container_width=True)
                     cancel_btn = col_btn3.form_submit_button("❌ 닫기", use_container_width=True)
                     
                     if cancel_btn:
@@ -795,12 +795,13 @@ if is_admin and tab_w:
         st.divider()
         
         # [3단계] 7일 가로 배치 (그리드 달력 형태) 출력 영역
-        st.markdown("### 🗓️ PLAN")
+        st.markdown("### 🗓️ 주간 일정표 (PLAN)")
+        st.caption("※ '✅' 버튼을 누르면 아카이브로 이동하고, '🔍' 버튼을 누르면 상세 내용을 수정/확인할 수 있습니다.")
         
         # 주간 이동 컨트롤 UI
         col_l, col_c, col_r = st.columns([0.1, 0.8, 0.1])
         with col_l:
-            if st.button("⬅️", use_container_width=True):
+            if st.button("⬅️ 이전 주", use_container_width=True):
                 st.session_state.week_offset -= 1
                 st.rerun()
                 
@@ -814,7 +815,7 @@ if is_admin and tab_w:
             st.markdown(f"<h4 style='text-align: center; margin-top:0;'>📅 {view_monday.strftime('%Y.%m.%d')} ~ {view_sunday.strftime('%Y.%m.%d')}</h4>", unsafe_allow_html=True)
             
         with col_r:
-            if st.button("➡️", use_container_width=True):
+            if st.button("다음 주 ➡️", use_container_width=True):
                 st.session_state.week_offset += 1
                 st.rerun()
                 
@@ -833,9 +834,9 @@ if is_admin and tab_w:
             curr_date = view_monday + pd.Timedelta(days=i)
             is_today = curr_date.date() == date.today()
             
-            # 오늘 날짜는 특별하게 강조
-            day_color = "#E50914" if is_today else "#E2E2E2"
-            bg_color = "rgba(229, 9, 20, 0.15)" if is_today else "#2A2A2A"
+            # 오늘 날짜는 파란색 하이라이트, 나머지는 투명/기본색 처리
+            day_color = "#3399FF" if is_today else "#E2E2E2"
+            bg_color = "rgba(51, 153, 255, 0.15)" if is_today else "transparent"
             
             with cal_cols[i]:
                 # 1. 날짜 및 요일 헤더 박스
@@ -852,15 +853,31 @@ if is_admin and tab_w:
                 if day_data.empty:
                     st.markdown("<div style='text-align: center; color:#666; font-size:0.8em; margin-top: 20px;'>일정 없음</div>", unsafe_allow_html=True)
                 else:
-                    # 3. 일정 카드 출력
+                    # 3. 일정 카드 출력 (포스터 사진 우선)
                     for _, row in day_data.iterrows():
                         emoji = cat_emojis.get(row['category'], "📌")
                         
-                        st.markdown(f"""
-                        <div style='background-color: #1a1a1a; padding: 10px; border-radius: 6px; border-left: 4px solid #E50914; margin-bottom: 5px; min-height: 50px;'>
-                            <div style='font-size: 0.85em; font-weight: bold; line-height: 1.3;'>{emoji} {row['title']}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        try:
+                            rich_data = json.loads(row['memo'])
+                            img_url = rich_data.get('img_url', '')
+                        except:
+                            img_url = ""
+
+                        # 사진이 있는 경우 포스터 렌더링
+                        if img_url and img_url.strip() and img_url != "None":
+                            st.markdown(f"""
+                            <div style='position: relative; width: 100%; aspect-ratio: 1/1.4; border-radius: 6px; overflow: hidden; margin-bottom: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); background-color: #2A2A2A; display: flex; align-items: center; justify-content: center;'>
+                                <img src="{img_url}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'">
+                                <div style="position: absolute; top: 4px; left: 4px; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px; font-size: 12px;">{emoji}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        else:
+                            # 사진이 없는 경우 텍스트 박스로 대체
+                            st.markdown(f"""
+                            <div style='background-color: #2A2A2A; padding: 10px; border-radius: 6px; border-left: 4px solid #3399FF; margin-bottom: 5px; min-height: 80px; display: flex; align-items: center; justify-content: center; text-align: center;'>
+                                <div style='font-size: 0.85em; font-weight: bold; line-height: 1.3;'>{emoji}<br>{row['title']}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
                         
                         # 카드 하단 액션 버튼
                         btn_col1, btn_col2 = st.columns(2)
@@ -1053,5 +1070,3 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
-
-
