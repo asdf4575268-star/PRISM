@@ -638,7 +638,7 @@ if is_admin and tab_w:
         # [1단계] 카테고리 & 검색
         st.write("### 🔍 SEARCH")
         category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"], horizontal=True, key="main_category_radio")
-        search_query = st.text_input(f"🔍 {category} {'URL 입력' if category == 'SCRAP' else '검색 (결과 선택 후 가져오기 클릭)'}")
+        search_query = st.text_input(f"🔍 {category} {'URL 입력' if category == 'SCRAP' else '검색'}")
         
         if search_query:
             if category == "SCRAP":
@@ -1008,4 +1008,5 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
+
 
