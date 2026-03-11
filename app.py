@@ -671,7 +671,6 @@ if is_admin and tab_w:
         
         # [3단계] 월별 예정 리스트 (PLAN) 출력 영역
         st.write("### 🗓️PLAN")
-        st.caption("※ 체크박스를 선택하면 일정이 '아카이브'로 자동 이동되며, 저장해둔 사진과 정보도 함께 복원됩니다!")
         
         conn = get_connection()
         plan_df = pd.read_sql_query("SELECT * FROM plan ORDER BY plan_date ASC", conn)
@@ -889,6 +888,7 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
+
 
 
 
