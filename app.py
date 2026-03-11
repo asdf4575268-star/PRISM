@@ -11,6 +11,7 @@ from supabase import create_client, Client
 import base64
 import html
 import json
+import calendar
 
 # --- [1. Settings & API] ---
 favicon = Image.open("logo.png").resize((64, 64), Image.LANCZOS)
@@ -1108,6 +1109,7 @@ with tab_a:
                         st.info("No scraps found for this tag/search.")
                 else:
                     st.info("No scraps available.")
+
 
 
 
