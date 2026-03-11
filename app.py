@@ -853,7 +853,7 @@ if is_admin and tab_w:
         
         with col_c:
             iso_year, iso_week, _ = view_monday.isocalendar()
-            st.markdown(f"<h4 style='text-align: center; margin-top:0;'>📅 Week {iso_year}, {iso_week} <span style='font-size:0.75em; color:#aaa;'>({view_monday.strftime('%m.%d')} ~ {view_sunday.strftime('%m.%d')})</span></h4>", unsafe_allow_html=True)
+            st.markdown(f"<h4 style='text-align: center; margin-top:0;'>📅 {iso_year}, Week{iso_week},  <span style='font-size:0.75em; color:#aaa;'>({view_monday.strftime('%m.%d')} ~ {view_sunday.strftime('%m.%d')})</span></h4>", unsafe_allow_html=True)
             
         with col_r:
             if st.button("➡️", use_container_width=True):
@@ -1107,6 +1107,7 @@ with tab_a:
                         st.info("No scraps found for this tag/search.")
                 else:
                     st.info("No scraps available.")
+
 
 
 
