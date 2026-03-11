@@ -451,7 +451,7 @@ else:
 if is_admin and tab_w:
     with tab_w:
         category = st.radio("📂 카테고리", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"], horizontal=True, key="main_category_radio")
-        search_query = st.text_input(f"🔍 {category} 검색 (SCRAP은 URL 입력)")
+        search_query = st.text_input(f"🔍 {category} 검색")
         
         if search_query:
             if category == "SCRAP":
@@ -753,4 +753,5 @@ with tab_a:
                                     if st.button("상세보기 / 수정", key=f"scr_btn_{row['id']}"): show_details(row)
                     else: st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else: st.info("스크랩 기록이 없습니다.")
+
 
