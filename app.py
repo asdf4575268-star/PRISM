@@ -450,7 +450,6 @@ else:
 # --- [WRITE 탭] ---
 if is_admin and tab_w:
     with tab_w:
-        st.markdown("### 🔍 검색")
         category = st.radio("📂 카테고리", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"], horizontal=True, key="main_category_radio")
         search_query = st.text_input(f"🔍 {category} 검색 (SCRAP은 URL 입력)")
         
@@ -514,7 +513,6 @@ if is_admin and tab_w:
 
         if st.session_state.show_form:
             st.divider()
-            st.markdown("### 📝 쓰기")
             cl, cr = st.columns([0.4, 0.6])
             with cl:
                 img_url_val = st.text_input("🖼️ 이미지 URL", key="f_img")
@@ -652,7 +650,7 @@ with tab_a:
     all_df = get_all_data()
 
     if not all_df.empty:
-        search_query_archive = st.text_input("🔍 아카이브 통합 검색", key="global_search")
+        search_query_archive = st.text_input("🔍", key="global_search")
         if search_query_archive:
             mask = (all_df['title'].str.contains(search_query_archive, case=False, na=False) | all_df['creator'].str.contains(search_query_archive, case=False, na=False) | all_df['summary'].str.contains(search_query_archive, case=False, na=False) | all_df['note'].str.contains(search_query_archive, case=False, na=False) | all_df['venue'].str.contains(search_query_archive, case=False, na=False))
             all_df = all_df[mask]; st.markdown(f"**'{search_query_archive}'** 검색 결과: 총 **{len(all_df)}**건"); st.divider()
@@ -662,8 +660,8 @@ with tab_a:
         cat_order = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
         cat_emojis = {"BOOKS": "📚", "MUSIC": "🎧", "MOVIES": "🎞️", "SERIES": "📽️", "STAGE": "🎭"}
         
-        tab_titles = [f"📅 전체 ({len(main_df)})"] + [f"{cat_emojis[c]}{c} ({len(main_df[main_df['category'] == c])})" for c in cat_order]
-        if is_admin: tab_titles.append(f"🔐 스크랩 ({len(scrap_df)})")
+        tab_titles = [f"📅 ALL ({len(main_df)})"] + [f"{cat_emojis[c]}{c} ({len(main_df[main_df['category'] == c])})" for c in cat_order]
+        if is_admin: tab_titles.append(f"🔐 SCRAP ({len(scrap_df)})")
         sub_tabs = st.tabs(tab_titles)
         grid_cols = 6
 
@@ -671,7 +669,7 @@ with tab_a:
             years = sorted(main_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
             if years:
                 year_options = {y: f"{y}({len(main_df[main_df['v_dt'].dt.year == y])})" for y in years}
-                sel_y = st.selectbox("📅 연도 선택", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
+                sel_y = st.selectbox("📅 선택", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
                 y_df = main_df[main_df['v_dt'].dt.year == sel_y]
                 
                 for m in range(12, 0, -1):
@@ -720,7 +718,6 @@ with tab_a:
                     if keywords:
                         from collections import Counter
                         top_keywords = [k[0] for k in Counter(keywords).most_common(5)]
-                        st.markdown("### 🏆 이번 주 핫 키워드")
                         def toggle_tag(clicked_tag):
                             if st.session_state.selected_tag == clicked_tag: st.session_state.selected_tag = None
                             else: st.session_state.selected_tag = clicked_tag
@@ -756,3 +753,4 @@ with tab_a:
                                     if st.button("상세보기 / 수정", key=f"scr_btn_{row['id']}"): show_details(row)
                     else: st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else: st.info("스크랩 기록이 없습니다.")
+
