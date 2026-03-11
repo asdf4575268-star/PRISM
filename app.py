@@ -34,12 +34,10 @@ def get_connection():
 
 def init_db():
     conn = get_connection()
-    # 기존 archive 테이블
     conn.execute('''CREATE TABLE IF NOT EXISTS archive 
                     (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
                      rel_date TEXT, venue TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, 
                      img_url TEXT, img_url2 TEXT, save_date TEXT, view_date TEXT)''')
-    # [추가] plan(일정표) 테이블 생성
     conn.execute('''CREATE TABLE IF NOT EXISTS plan 
                     (id INTEGER PRIMARY KEY AUTOINCREMENT, plan_date TEXT, category TEXT, title TEXT, memo TEXT)''')
     conn.commit()
@@ -55,53 +53,71 @@ def migrate_to_supabase():
     try:
         conn = get_connection()
         conn.row_factory = sqlite3.Row
-        local_data = conn.execute("SELECT * FROM archive").fetchall()
         
-        if not local_data:
-            st.session_state.sync_msg = ("warning", "로컬 데이터가 없습니다.")
-            return
-
-        upload_list = [dict(row) for row in local_data]
-        for d in upload_list:
-            if 'id' in d: del d['id']
+        # 아카이브 백업
+        local_data = conn.execute("SELECT * FROM archive").fetchall()
+        if local_data:
+            upload_list = [dict(row) for row in local_data]
+            for d in upload_list:
+                if 'id' in d: del d['id']
+            supabase.table("archive").upsert(upload_list).execute() 
             
-        supabase.table("archive").upsert(upload_list).execute() 
-        st.session_state.sync_msg = ("success", f"✅ {len(upload_list)}개 데이터 클라우드 백업 완료!")
+        # 플랜 백업
+        local_plan = conn.execute("SELECT * FROM plan").fetchall()
+        if local_plan:
+            plan_upload = [dict(row) for row in local_plan]
+            for p in plan_upload:
+                if 'id' in p: del p['id']
+            supabase.table("plan").upsert(plan_upload).execute()
+
+        st.session_state.sync_msg = ("success", f"✅ 클라우드 백업 완료!")
     except Exception as e:
         st.session_state.sync_msg = ("error", f"❌ 백업 실패: {e}")
 
 def restore_from_supabase():
     try:
-        res = supabase.table("archive").select("*").execute()
-        cloud_data = res.data if hasattr(res, 'data') else res
-        
-        if not cloud_data:
-            st.session_state.sync_msg = ("warning", "클라우드가 비어있습니다.")
-            return
-
         conn = get_connection()
         cursor = conn.cursor()
+        
+        # 아카이브 복구
+        res = supabase.table("archive").select("*").execute()
+        cloud_data = res.data if hasattr(res, 'data') else res
         
         local_df = get_all_data()
         local_keys = set(zip(local_df['title'], local_df['view_date'])) if not local_df.empty else set()
         
         to_insert = []
-        for row in cloud_data:
-            if (row['title'], row['view_date']) not in local_keys:
-                to_insert.append((
-                    row['category'], row['title'], row['creator'], row['rel_date'], 
-                    row['venue'], row['summary'], row.get('brief', ''), row.get('highlights', ''), 
-                    row['note'], row.get('img_url'), row.get('img_url2'), row['save_date'], row['view_date']
-                ))
+        if cloud_data:
+            for row in cloud_data:
+                if (row['title'], row['view_date']) not in local_keys:
+                    to_insert.append((
+                        row['category'], row['title'], row['creator'], row['rel_date'], 
+                        row['venue'], row['summary'], row.get('brief', ''), row.get('highlights', ''), 
+                        row['note'], row.get('img_url'), row.get('img_url2'), row['save_date'], row['view_date']
+                    ))
+            if to_insert:
+                cursor.executemany("""INSERT INTO archive 
+                    (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) 
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", to_insert)
         
-        if to_insert:
-            cursor.executemany("""INSERT INTO archive 
-                (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) 
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", to_insert)
-            conn.commit()
-            st.cache_data.clear() 
-            
-        st.session_state.sync_msg = ("success", f"✅ {len(to_insert)}개의 새로운 데이터를 복구했습니다!")
+        # 플랜 복구
+        res_p = supabase.table("plan").select("*").execute()
+        cloud_plan = res_p.data if hasattr(res_p, 'data') else res_p
+        
+        local_plan_df = pd.read_sql_query("SELECT * FROM plan", conn)
+        local_plan_keys = set(zip(local_plan_df['title'], local_plan_df['plan_date'])) if not local_plan_df.empty else set()
+        
+        plan_insert = []
+        if cloud_plan:
+            for rp in cloud_plan:
+                if (rp['title'], rp['plan_date']) not in local_plan_keys:
+                    plan_insert.append((rp['plan_date'], rp['category'], rp['title'], rp['memo']))
+            if plan_insert:
+                cursor.executemany("INSERT INTO plan (plan_date, category, title, memo) VALUES (?,?,?,?)", plan_insert)
+
+        conn.commit()
+        st.cache_data.clear() 
+        st.session_state.sync_msg = ("success", f"✅ 데이터를 복구했습니다!")
     except Exception as e:
         st.session_state.sync_msg = ("error", f"❌ 복구 실패: {e}")
 
@@ -482,7 +498,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- [수정] 탭 구성에 PLAN 추가 ---
 if is_admin:
     tab_w, tab_a, tab_p = st.tabs(["🖋️ WRITE", "📂 ARCHIVE", "🗓️ PLAN"])
 else:
@@ -611,6 +626,11 @@ if is_admin and tab_p:
                     conn.execute("INSERT INTO plan (plan_date, category, title, memo) VALUES (?,?,?,?)", 
                                  (str(p_date), p_cat, p_title, p_memo))
                     conn.commit()
+                    
+                    try:
+                        supabase.table("plan").upsert({"plan_date": str(p_date), "category": p_cat, "title": p_title, "memo": p_memo}).execute()
+                    except: pass
+
                     st.success("새로운 일정이 추가되었습니다!")
                     time.sleep(0.5)
                     st.rerun()
@@ -619,7 +639,7 @@ if is_admin and tab_p:
 
         st.divider()
         st.markdown("### 🗓️ 월별 예정 리스트")
-        st.caption("※ 체크박스를 선택하면 일정이 '아카이브'로 자동 이동됩니다. (현재 일정 데이터는 로컬에만 저장됩니다)")
+        st.caption("※ 체크박스를 선택하면 일정이 '아카이브'로 자동 이동됩니다.")
         
         conn = get_connection()
         plan_df = pd.read_sql_query("SELECT * FROM plan ORDER BY plan_date ASC", conn)
@@ -637,20 +657,43 @@ if is_admin and tab_p:
                 for _, row in m_data.iterrows():
                     col1, col2 = st.columns([0.05, 0.95])
                     with col1:
-                        # 체크박스가 눌리는 순간 자동 이동 처리
+                        # [클라우드 안전 자동 이동 로직]
                         if st.checkbox("", key=f"plan_{row['id']}"):
                             conn = get_connection()
                             today_str = str(date.today())
-                            # 아카이브 테이블로 데이터 복사
+                            
+                            new_archive_record = {
+                                "category": row['category'],
+                                "title": row['title'],
+                                "creator": "",
+                                "rel_date": "",
+                                "venue": "",
+                                "summary": "",
+                                "brief": "",
+                                "highlights": "",
+                                "note": row['memo'],
+                                "img_url": "",
+                                "img_url2": "",
+                                "save_date": today_str,
+                                "view_date": today_str
+                            }
+                            
+                            # 1. 로컬 아카이브 추가 및 플랜 삭제
                             conn.execute("""INSERT INTO archive 
                                 (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) 
-                                VALUES (?,?,'','','','','','',?,'','',?,?)""", 
-                                (row['category'], row['title'], row['memo'], today_str, today_str))
-                            # 기존 일정표에서는 삭제
+                                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", 
+                                (new_archive_record['category'], new_archive_record['title'], new_archive_record['creator'], new_archive_record['rel_date'], new_archive_record['venue'], new_archive_record['summary'], new_archive_record['brief'], new_archive_record['highlights'], new_archive_record['note'], new_archive_record['img_url'], new_archive_record['img_url2'], new_archive_record['save_date'], new_archive_record['view_date']))
                             conn.execute("DELETE FROM plan WHERE id=?", (row['id'],))
                             conn.commit()
                             st.cache_data.clear()
-                            st.success(f"'{row['title']}' 일정이 아카이브로 이동되었습니다!")
+                            
+                            # 2. 클라우드 아카이브 추가 및 플랜 삭제
+                            try:
+                                supabase.table("archive").upsert(new_archive_record).execute()
+                                supabase.table("plan").delete().eq("title", row['title']).eq("plan_date", row['plan_date']).execute()
+                            except: pass
+
+                            st.success(f"'{row['title']}' 일정이 아카이브로 안전하게 이동되었습니다!")
                             time.sleep(0.5)
                             st.rerun()
                     with col2:
@@ -659,7 +702,6 @@ if is_admin and tab_p:
                         st.markdown(f"<div style='margin-bottom: 5px;'><b>{day_str}</b> | {emoji} <b>{row['title']}</b> <span style='color:#888; font-size:0.9em; margin-left:10px;'>{row['memo']}</span></div>", unsafe_allow_html=True)
         else:
             st.info("등록된 일정이 없습니다. 기대되는 작품이나 볼거리를 추가해 보세요!")
-
 
 # --- [ARCHIVE 탭] ---
 with tab_a:
