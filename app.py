@@ -736,8 +736,8 @@ if is_admin and tab_w:
                     st.markdown("<br>", unsafe_allow_html=True)
                     col_btn1, col_btn2, col_btn3 = st.columns([0.4, 0.4, 0.2])
                     
-                    submit_archive = col_btn1.form_submit_button("✅ 아카이브에 저장 (완료)", use_container_width=True)
                     submit_plan = col_btn2.form_submit_button("🗓️ 일정표에 추가 (계획)", use_container_width=True)
+                    submit_archive = col_btn1.form_submit_button("✅ 아카이브에 저장 (완료)", use_container_width=True)
                     cancel_btn = col_btn3.form_submit_button("❌ 닫기", use_container_width=True)
                     
                     if cancel_btn:
@@ -1067,5 +1067,6 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 일정 메모이 없습니다.")
+
 
 
