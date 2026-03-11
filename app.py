@@ -840,7 +840,7 @@ if is_admin and tab_w:
 
         st.divider()
                
-        col_l, col_c, col_r = st.columns([0.3, 0.4, 0.3])
+        col_l, col_c, col_r = st.columns([0.1, 0.8, 0.1])
         with col_l:
             if st.button("⬅️", use_container_width=True):
                 st.session_state.week_offset -= 1
@@ -1107,6 +1107,7 @@ with tab_a:
                         st.info("No scraps found for this tag/search.")
                 else:
                     st.info("No scraps available.")
+
 
 
 
