@@ -798,7 +798,7 @@ if is_admin and tab_w:
         # 주간 이동 컨트롤 UI
         col_l, col_c, col_r = st.columns([0.1, 0.8, 0.1])
         with col_l:
-            if st.button("⬅️ 이전 주", use_container_width=True):
+            if st.button("⬅️", use_container_width=True):
                 st.session_state.week_offset -= 1
                 st.rerun()
                 
@@ -812,7 +812,7 @@ if is_admin and tab_w:
             st.markdown(f"<h4 style='text-align: center; margin-top:0;'>📅 {view_monday.strftime('%Y.%m.%d')} ~ {view_sunday.strftime('%Y.%m.%d')}</h4>", unsafe_allow_html=True)
             
         with col_r:
-            if st.button("다음 주 ➡️", use_container_width=True):
+            if st.button("➡️", use_container_width=True):
                 st.session_state.week_offset += 1
                 st.rerun()
                 
@@ -1067,6 +1067,7 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 일정 메모이 없습니다.")
+
 
 
 
