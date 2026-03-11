@@ -309,7 +309,7 @@ def scrape_url(url):
     except: return None
 
 # --- [4. 팝업 상세 보기] ---
-@st.dialog("📋 아카이브 기록", width="large")
+@st.dialog("📋 WRITE", width="large")
 def show_details(item):
     if hasattr(item, 'to_dict'): item = item.to_dict()
     
@@ -539,9 +539,9 @@ def show_plan_details(item):
                 n_sum = st.text_area("📖 개요", value=str(rich_data.get('summary', '')), height=150)
                 n_brief = st.text_input("📝 요약", value=str(rich_data.get('brief', '')))
                 n_high = st.text_area("✨ 인상 깊은 부분", value=str(rich_data.get('highlights', '')), height=100)
-                n_note = st.text_area("🌈 일정 메모", value=str(rich_data.get('note', '')), height=100)
+                n_note = st.text_area("🌈 PRISM", value=str(rich_data.get('note', '')), height=100)
 
-                if st.form_submit_button("💾 일정 수정", use_container_width=True):
+                if st.form_submit_button("💾 수정", use_container_width=True):
                     try:
                         new_rich = {
                             "creator": n_creator.strip(), "rel_date": n_rel.strip(), "venue": n_venue.strip(),
@@ -560,7 +560,7 @@ def show_plan_details(item):
                                 "title": n_title, "plan_date": str(n_plan_date), "memo": memo_payload
                             }).eq("title", item['title']).eq("plan_date", item['plan_date']).execute()
                         except: pass
-                        st.success("✅ 일정 수정 완료!")
+                        st.success("✅ 수정 완료!")
                         time.sleep(0.5)
                         st.rerun()
                     except Exception as e: st.error(f"❌ 오류: {e}")
@@ -596,7 +596,7 @@ def show_plan_details(item):
             
             sections = [
                 ("📝 요약 (한 줄 평)", "brief", "#0E6245"), 
-                ("🌈 일정 메모", "note", "#1E425E"),
+                ("🌈 PRISM", "note", "#1E425E"),
                 ("✨ 인상 깊은 부분", "highlights", "#7D5600"), 
                 ("📖 개요", "summary", "#444")
             ]
@@ -706,7 +706,6 @@ if is_admin and tab_w:
         if st.session_state.show_form:
             st.divider()
             data = st.session_state.get('api_data', {})
-            st.markdown("### 📝 기록 및 일정 작성")
             
             with st.form(key="unified_form"):
                 cl, cr = st.columns([0.4, 0.6])
@@ -728,7 +727,7 @@ if is_admin and tab_w:
                     highlights = st.text_area("✨ 인상 깊은 부분", height=100)
                     
                     if category != "SCRAP":
-                        note = st.text_area("🌈 PRISM (또는 일정 메모)", height=100)
+                        note = st.text_area("🌈 PRISM", height=100)
                     else:
                         note = ""
     
@@ -1067,5 +1066,6 @@ with tab_a:
                     else:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
-                    st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
+                    st.info("스크랩 검색 결과가 없거나 일정 메모이 없습니다.")
+
 
