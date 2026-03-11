@@ -637,7 +637,6 @@ else:
 # --- [WRITE Tab] ---
 if is_admin and tab_w:
     with tab_w:
-        st.markdown("### 🔍 SEARCH")
         category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"], horizontal=True, key="main_category_radio")
         search_query = st.text_input(f"🔍 Search {category}")
         
@@ -1110,4 +1109,5 @@ with tab_a:
                         st.info("No scraps found for this tag/search.")
                 else:
                     st.info("No scraps available.")
+
 
