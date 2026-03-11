@@ -640,9 +640,8 @@ else:
 if is_admin and tab_w:
     with tab_w:
         # [1단계] 카테고리 & 검색
-        st.markdown("### 🔍 작품 검색 / 일정 불러오기")
         category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"], horizontal=True, key="main_category_radio")
-        search_query = st.text_input(f"🔍 {category} {'URL 입력' if category == 'SCRAP' else '검색 (결과 선택 후 가져오기 클릭)'}")
+        search_query = st.text_input(f"🔍 {category} {'URL 입력' if category == 'SCRAP' else '검색'}")
         
         if search_query:
             if category == "SCRAP":
@@ -698,7 +697,7 @@ if is_admin and tab_w:
                         st.rerun()
         else:
             if not st.session_state.show_form:
-                if st.button("✏️ 검색 없이 직접 입력하기"):
+                if st.button("✏️ 직접 입력"):
                     st.session_state.api_data = {}
                     st.session_state.show_form = True
                     st.rerun()
@@ -795,8 +794,7 @@ if is_admin and tab_w:
         st.divider()
         
         # [3단계] 7일 가로 배치 (그리드 달력 형태) 출력 영역
-        st.markdown("### 🗓️ 주간 일정표 (PLAN)")
-        st.caption("※ '✅' 버튼을 누르면 아카이브로 이동하고, '🔍' 버튼을 누르면 상세 내용을 수정/확인할 수 있습니다.")
+        st.markdown("🗓️ WEEKLY PLAN")
         
         # 주간 이동 컨트롤 UI
         col_l, col_c, col_r = st.columns([0.1, 0.8, 0.1])
@@ -944,7 +942,7 @@ with tab_a:
     all_df = get_all_data()
 
     if not all_df.empty:
-        search_query_archive = st.text_input("🔍 아카이브 통합 검색 (제목, 창작자, 내용 등 전체 검색)", key="global_search")
+        search_query_archive = st.text_input("🔍 search", key="global_search")
         if search_query_archive:
             mask = (
                 all_df['title'].str.contains(search_query_archive, case=False, na=False) |
@@ -974,7 +972,7 @@ with tab_a:
             years = sorted(main_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
             if years:
                 year_options = {y: f"{y}({len(main_df[main_df['v_dt'].dt.year == y])})" for y in years}
-                sel_y = st.selectbox("📅 연도 선택", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
+                sel_y = st.selectbox("📅 select", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
                 y_df = main_df[main_df['v_dt'].dt.year == sel_y]
                 
                 for m in range(12, 0, -1):
@@ -1070,3 +1068,4 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
+
