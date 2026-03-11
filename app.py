@@ -133,7 +133,7 @@ def auto_sync_on_startup():
 
 auto_sync_on_startup()
 
-# --- [3. 로그인 시스템 & 사이드바] ---
+# --- [3. 로그인 시스템 및 Session State 초기화] ---
 DEV_MODE = False 
 
 if "is_logged_in" not in st.session_state:
@@ -144,10 +144,16 @@ if "selected_tag" not in st.session_state:
     st.session_state.selected_tag = None
 if "show_form" not in st.session_state:
     st.session_state.show_form = False
-
-# 주간 달력을 위한 오프셋 변수 초기화
 if "week_offset" not in st.session_state:
     st.session_state.week_offset = 0
+
+# 새로고침 시 데이터 날아감 방지를 위한 입력폼 키(Key) 강제 초기화
+form_keys = ['f_title', 'f_creator', 'f_date', 'f_venue', 'f_img', 'f_summary', 'f_video', 'f_brief', 'f_highlights', 'f_note']
+for k in form_keys:
+    if k not in st.session_state:
+        st.session_state[k] = ""
+if 'f_view_date' not in st.session_state:
+    st.session_state.f_view_date = date.today()
 
 if st.session_state.user_password == st.secrets["ADMIN_PASSWORD"]:
     st.session_state.is_logged_in = True
@@ -642,14 +648,20 @@ if is_admin and tab_w:
         # [1단계] 카테고리 & 검색
         st.markdown("### 🔍 SEARCH")
         category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"], horizontal=True, key="main_category_radio")
-        search_query = st.text_input(f"🔍 {category} {'URL 입력' if category == 'SCRAP' else '검색'}")
+        search_query = st.text_input(f"🔍 {category} {'URL 입력' if category == 'SCRAP' else '검색 (결과 선택 후 가져오기 클릭)'}")
         
+        # 검색 결과 가져오기 로직 (Session State 연동)
         if search_query:
             if category == "SCRAP":
                 if st.button("✨ 가져오기"):
                     s = scrape_url(search_query)
                     if s:
-                        st.session_state.api_data = {'title': s['title'], 'creator': '', 'date': str(date.today()), 'img': s['img'], 'venue': s['venue'], 'summary': s['summary']}
+                        st.session_state.f_title = s['title']
+                        st.session_state.f_creator = ''
+                        st.session_state.f_date = str(date.today())
+                        st.session_state.f_img = s['img']
+                        st.session_state.f_venue = s['venue']
+                        st.session_state.f_summary = s['summary']
                         st.session_state.show_form = True 
                         st.rerun()
             elif category == "BOOKS":
@@ -659,7 +671,12 @@ if is_admin and tab_w:
                     sel = st.selectbox("결과 선택", list(opts.keys()))
                     if st.button("✨ 가져오기"):
                         b = opts[sel]
-                        st.session_state.api_data = {'title': b['title'], 'creator': ", ".join(b['authors']), 'date': b['datetime'][:10], 'img': b.get('thumbnail', '').replace("R120x174", "R400x0"), 'venue': b.get('publisher', ''), 'summary': b.get('contents', '')}
+                        st.session_state.f_title = b['title']
+                        st.session_state.f_creator = ", ".join(b['authors'])
+                        st.session_state.f_date = b['datetime'][:10]
+                        st.session_state.f_img = b.get('thumbnail', '').replace("R120x174", "R400x0")
+                        st.session_state.f_venue = b.get('publisher', '')
+                        st.session_state.f_summary = b.get('contents', '')
                         st.session_state.show_form = True 
                         st.rerun()
             elif category == "MUSIC":
@@ -669,7 +686,12 @@ if is_admin and tab_w:
                     sel = st.selectbox("결과 선택", list(opts.keys()))
                     if st.button("✨ 가져오기"):
                         m = opts[sel]
-                        st.session_state.api_data = {'title': m['title'], 'creator': m['creator'], 'date': m['date'], 'img': m['img'], 'summary': f"{m.get('url', '')}\n\n"}
+                        st.session_state.f_title = m['title']
+                        st.session_state.f_creator = m['creator']
+                        st.session_state.f_date = m['date']
+                        st.session_state.f_img = m['img']
+                        st.session_state.f_venue = m['venue']
+                        st.session_state.f_summary = f"{m.get('url', '')}\n\n"
                         st.session_state.show_form = True 
                         st.rerun()
             elif category == "STAGE":
@@ -680,7 +702,12 @@ if is_admin and tab_w:
                     if st.button("✨ 가져오기"):
                         s = opts[sel]
                         combined_creator = get_kopis_detail(s['id'])
-                        st.session_state.api_data = {'title': s['title'], 'creator': combined_creator, 'date': s['date'], 'venue': s['venue'], 'img': s['img'], 'summary': f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id={s['id']}"}
+                        st.session_state.f_title = s['title']
+                        st.session_state.f_creator = combined_creator
+                        st.session_state.f_date = s['date']
+                        st.session_state.f_img = s['img']
+                        st.session_state.f_venue = s['venue']
+                        st.session_state.f_summary = f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id={s['id']}"
                         st.session_state.show_form = True 
                         st.rerun()
             else: 
@@ -693,104 +720,135 @@ if is_admin and tab_w:
                     if st.button("✨ 가져오기"):
                         s = opts[sel]
                         details = get_tmdb_details(s['id'], category)
-                        st.session_state.api_data = {'title': s.get(t_key), 'creator': details['creator'], 'date': s.get(d_key), 'img': f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", 'venue': details['venue'], 'summary': s.get('overview', '')}
+                        st.session_state.f_title = s.get(t_key, '')
+                        st.session_state.f_creator = details['creator']
+                        st.session_state.f_date = s.get(d_key, '')
+                        st.session_state.f_img = f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}"
+                        st.session_state.f_venue = details['venue']
+                        st.session_state.f_summary = s.get('overview', '')
                         st.session_state.show_form = True 
                         st.rerun()
         else:
             if not st.session_state.show_form:
                 if st.button("✏️ 직접 입력"):
-                    st.session_state.api_data = {}
+                    for k in form_keys:
+                        st.session_state[k] = ""
+                    st.session_state.f_view_date = date.today()
                     st.session_state.show_form = True
                     st.rerun()
 
-        # [2단계] 입력 폼 및 저장 방식 선택
+        # [2단계] 입력 폼 및 저장 방식 선택 (st.form 제거, Session State 실시간 반영 적용)
         if st.session_state.show_form:
             st.divider()
-            data = st.session_state.get('api_data', {})
             st.markdown("### 📝 WRITE")
             
-            with st.form(key="unified_form"):
-                cl, cr = st.columns([0.4, 0.6])
-                with cl:
-                    img_url_val = st.text_input("🖼️ 이미지 URL", value=data.get('img', ''))
-                    video_url_val = st.text_input("🎬 관련 영상(URL) 또는 제목/메모", value="")
+            cl, cr = st.columns([0.4, 0.6])
+            with cl:
+                img_url_val = st.text_input("🖼️ 이미지 URL", key="f_img")
+                video_url_val = st.text_input("🎬 관련 영상(URL) 또는 제목/메모", key="f_video")
+                
+                if st.session_state.f_img and st.session_state.f_img.strip() and st.session_state.f_img != "None":
+                    st.image(st.session_state.f_img, use_container_width=True)
                     
-                    api_img = data.get('img', '')
-                    if api_img and api_img.strip() and api_img != "None":
-                        st.image(api_img, use_container_width=True)
-                        
-                    title = st.text_input("제목", value=data.get('title', ''))
-                    creator = st.text_input("창작자 정보", value=data.get('creator', ''))
-                    rel_date = st.text_input("📅 작품 날짜", value=data.get('date', str(date.today())))
-                    venue = st.text_input("📍 장소/플랫폼", value=data.get('venue', ''))
-                with cr:
-                    summary = st.text_area("📖 개요", value=data.get('summary', ''), height=100)
-                    brief = st.text_input("📝 요약 (한 줄 평)")
-                    highlights = st.text_area("✨ 인상 깊은 부분", height=100)
-                    
-                    if category != "SCRAP":
-                        note = st.text_area("🌈 PRISM", height=100)
-                    else:
-                        note = ""
+                title = st.text_input("제목", key="f_title")
+                creator = st.text_input("창작자 정보", key="f_creator")
+                rel_date = st.text_input("📅 작품 날짜", key="f_date")
+                venue = st.text_input("📍 장소/플랫폼", key="f_venue")
+                
+            with cr:
+                summary = st.text_area("📖 개요", height=100, key="f_summary")
+                brief = st.text_input("📝 요약 (한 줄 평)", key="f_brief")
+                highlights = st.text_area("✨ 인상 깊은 부분", height=100, key="f_highlights")
+                
+                if category != "SCRAP":
+                    note = st.text_area("🌈 PRISM", height=100, key="f_note")
+                else:
+                    st.session_state.f_note = ""
     
-                    view_date = st.date_input("🍿 감상 완료/예정일", value=date.today())
-                    
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    col_btn1, col_btn2, col_btn3 = st.columns([0.4, 0.4, 0.2])
-                    
-                    submit_archive = col_btn1.form_submit_button("✅ 아카이브 저장", use_container_width=True)
-                    submit_plan = col_btn2.form_submit_button("🗓️ 일정 추가", use_container_width=True)
-                    cancel_btn = col_btn3.form_submit_button("❌ 닫기", use_container_width=True)
-                    
-                    if cancel_btn:
-                        st.session_state.api_data = {}
-                        st.session_state.show_form = False
-                        st.rerun()
+                view_date = st.date_input("🍿 감상 완료/예정일", key="f_view_date")
+                
+                st.markdown("<br>", unsafe_allow_html=True)
+                col_btn1, col_btn2, col_btn3 = st.columns([0.4, 0.4, 0.2])
+                
+                submit_archive = col_btn1.button("✅ 아카이브 저장", use_container_width=True)
+                submit_plan = col_btn2.button("🗓️ 일정 추가", use_container_width=True)
+                cancel_btn = col_btn3.button("❌ 닫기", use_container_width=True)
+                
+                if cancel_btn:
+                    for k in form_keys:
+                        st.session_state[k] = ""
+                    st.session_state.f_view_date = date.today()
+                    st.session_state.show_form = False
+                    st.rerun()
 
-                    if submit_archive:
-                        if title.strip():
-                            new_record = {"category": str(category), "title": str(title).strip(), "creator": str(creator).strip(), "rel_date": str(rel_date), "venue": str(venue).strip(), "summary": str(summary).strip(), "brief": str(brief).strip(), "highlights": str(highlights).strip(), "note": str(note).strip(), "img_url": str(img_url_val).strip(), "img_url2": str(video_url_val).strip(), "save_date": str(date.today()), "view_date": str(view_date)}
-                            try:
-                                conn = get_connection()
-                                conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], new_record["note"], new_record["img_url"], new_record["img_url2"], new_record["save_date"], new_record["view_date"]))
-                                conn.commit()
-                                st.cache_data.clear() 
-                                try:
-                                    supabase.table("archive").upsert(new_record).execute()
-                                except: pass
-                                
-                                st.success("✅ 아카이브 저장 완료!")
-                                st.session_state.api_data = {}
-                                st.session_state.show_form = False 
-                                time.sleep(0.8)
-                                st.rerun()
-                            except Exception as e: st.error(f"❌ 오류: {e}")
-                        else: st.warning("제목을 입력해 주세요.")
-                    
-                    if submit_plan:
-                        if title.strip():
-                            rich_data = {
-                                "creator": str(creator).strip(), "rel_date": str(rel_date), "venue": str(venue).strip(),
-                                "summary": str(summary).strip(), "brief": str(brief).strip(), "highlights": str(highlights).strip(),
-                                "note": str(note).strip(), "img_url": str(img_url_val).strip(), "img_url2": str(video_url_val).strip()
-                            }
-                            memo_payload = json.dumps(rich_data, ensure_ascii=False)
-                            
+                if submit_archive:
+                    if st.session_state.f_title.strip():
+                        new_record = {
+                            "category": str(category), 
+                            "title": st.session_state.f_title.strip(), 
+                            "creator": st.session_state.f_creator.strip(), 
+                            "rel_date": st.session_state.f_date.strip(), 
+                            "venue": st.session_state.f_venue.strip(), 
+                            "summary": st.session_state.f_summary.strip(), 
+                            "brief": st.session_state.f_brief.strip(), 
+                            "highlights": st.session_state.f_highlights.strip(), 
+                            "note": st.session_state.f_note.strip(), 
+                            "img_url": st.session_state.f_img.strip(), 
+                            "img_url2": st.session_state.f_video.strip(), 
+                            "save_date": str(date.today()), 
+                            "view_date": str(st.session_state.f_view_date)
+                        }
+                        try:
                             conn = get_connection()
-                            conn.execute("INSERT INTO plan (plan_date, category, title, memo) VALUES (?,?,?,?)", 
-                                         (str(view_date), str(category), str(title).strip(), memo_payload))
+                            conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], new_record["note"], new_record["img_url"], new_record["img_url2"], new_record["save_date"], new_record["view_date"]))
                             conn.commit()
-                            
+                            st.cache_data.clear() 
                             try:
-                                supabase.table("plan").upsert({"plan_date": str(view_date), "category": str(category), "title": str(title).strip(), "memo": memo_payload}).execute()
+                                supabase.table("archive").upsert(new_record).execute()
                             except: pass
-    
-                            st.success("🗓️ 일정표에 추가되었습니다!")
-                            st.session_state.api_data = {}
+                            
+                            for k in form_keys:
+                                st.session_state[k] = ""
+                            st.session_state.f_view_date = date.today()
                             st.session_state.show_form = False 
+                            st.success("✅ 아카이브 저장 완료!")
                             time.sleep(0.8)
                             st.rerun()
-                        else: st.warning("제목을 입력해 주세요.")
+                        except Exception as e: st.error(f"❌ 오류: {e}")
+                    else: st.warning("제목을 입력해 주세요.")
+                
+                if submit_plan:
+                    if st.session_state.f_title.strip():
+                        rich_data = {
+                            "creator": st.session_state.f_creator.strip(), 
+                            "rel_date": st.session_state.f_date.strip(), 
+                            "venue": st.session_state.f_venue.strip(),
+                            "summary": st.session_state.f_summary.strip(), 
+                            "brief": st.session_state.f_brief.strip(), 
+                            "highlights": st.session_state.f_highlights.strip(),
+                            "note": st.session_state.f_note.strip(), 
+                            "img_url": st.session_state.f_img.strip(), 
+                            "img_url2": st.session_state.f_video.strip()
+                        }
+                        memo_payload = json.dumps(rich_data, ensure_ascii=False)
+                        
+                        conn = get_connection()
+                        conn.execute("INSERT INTO plan (plan_date, category, title, memo) VALUES (?,?,?,?)", 
+                                     (str(st.session_state.f_view_date), str(category), st.session_state.f_title.strip(), memo_payload))
+                        conn.commit()
+                        
+                        try:
+                            supabase.table("plan").upsert({"plan_date": str(st.session_state.f_view_date), "category": str(category), "title": st.session_state.f_title.strip(), "memo": memo_payload}).execute()
+                        except: pass
+
+                        for k in form_keys:
+                            st.session_state[k] = ""
+                        st.session_state.f_view_date = date.today()
+                        st.session_state.show_form = False 
+                        st.success("🗓️ 일정표에 추가되었습니다!")
+                        time.sleep(0.8)
+                        st.rerun()
+                    else: st.warning("제목을 입력해 주세요.")
 
         st.divider()
         
@@ -946,7 +1004,7 @@ with tab_a:
     all_df = get_all_data()
 
     if not all_df.empty:
-        search_query_archive = st.text_input("🔍 Search", key="global_search")
+        search_query_archive = st.text_input("🔍 아카이브 통합 검색 (제목, 창작자, 내용 등 전체 검색)", key="global_search")
         if search_query_archive:
             mask = (
                 all_df['title'].str.contains(search_query_archive, case=False, na=False) |
@@ -976,7 +1034,7 @@ with tab_a:
             years = sorted(main_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
             if years:
                 year_options = {y: f"{y}({len(main_df[main_df['v_dt'].dt.year == y])})" for y in years}
-                sel_y = st.selectbox("📅 select", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
+                sel_y = st.selectbox("📅 연도 선택", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
                 y_df = main_df[main_df['v_dt'].dt.year == sel_y]
                 
                 for m in range(12, 0, -1):
@@ -1026,7 +1084,7 @@ with tab_a:
                     if keywords:
                         from collections import Counter
                         top_keywords = [k[0] for k in Counter(keywords).most_common(5)]
-                        st.markdown("🏆 주간 키워드")
+                        st.markdown("### 🏆 이번 주 핫 키워드")
                         
                         def toggle_tag(clicked_tag):
                             if st.session_state.selected_tag == clicked_tag:
@@ -1060,7 +1118,7 @@ with tab_a:
                         for w in weeks:
                             w_data = display_scrap_df[display_scrap_df['year_week'] == w]
                             y_str, w_str = w.split('-')
-                            st.subheader(f"🗓️ {y_str}-{int(w_str)}주차")
+                            st.subheader(f"🗓️ {y_str}-{int(w_str)}주차 스크랩")
                             for _, row in w_data.iterrows():
                                 with st.expander(f"👉 [{row['venue']}] {row['title']} ({row['view_date']})"):
                                     summary_text = str(row['summary'])
@@ -1077,8 +1135,3 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
-
-
-
-
-
