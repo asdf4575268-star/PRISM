@@ -636,7 +636,7 @@ else:
 if is_admin and tab_w:
     with tab_w:
         # [1단계] 카테고리 & 검색
-        st.markdown("### 🔍 작품 검색 / 일정 불러오기")
+        st.write("### 🔍 SEARCH")
         category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"], horizontal=True, key="main_category_radio")
         search_query = st.text_input(f"🔍 {category} {'URL 입력' if category == 'SCRAP' else '검색 (결과 선택 후 가져오기 클릭)'}")
         
@@ -704,7 +704,7 @@ if is_admin and tab_w:
         if st.session_state.show_form:
             st.divider()
             data = st.session_state.get('api_data', {})
-            st.markdown("### 📝 기록 및 일정 작성")
+            st.write("### 📝 WRITE&PLAN")
             
             with st.form(key="unified_form"):
                 cl, cr = st.columns([0.4, 0.6])
@@ -726,7 +726,7 @@ if is_admin and tab_w:
                     highlights = st.text_area("✨ 인상 깊은 부분", height=100)
                     
                     if category != "SCRAP":
-                        note = st.text_area("🌈 PRISM (또는 일정 메모)", height=100)
+                        note = st.text_area("🌈 PRISM", height=100)
                     else:
                         note = ""
     
@@ -736,8 +736,8 @@ if is_admin and tab_w:
                     # 버튼 3개 배치
                     col_btn1, col_btn2, col_btn3 = st.columns([0.4, 0.4, 0.2])
                     
-                    submit_archive = col_btn1.form_submit_button("✅ 아카이브에 저장 (완료)", use_container_width=True)
-                    submit_plan = col_btn2.form_submit_button("🗓️ 일정표에 추가 (계획)", use_container_width=True)
+                    submit_plan = col_btn2.form_submit_button("🗓️ 일정 추가", use_container_width=True)
+                    submit_archive = col_btn1.form_submit_button("✅ 아카이브 저장", use_container_width=True)
                     cancel_btn = col_btn3.form_submit_button("❌ 닫기", use_container_width=True)
                     
                     if cancel_btn:
@@ -793,8 +793,7 @@ if is_admin and tab_w:
         st.divider()
         
         # [3단계] 월별 예정 리스트 (PLAN) 출력 영역
-        st.markdown("### 🗓️ 다가오는 일정표 (PLAN)")
-        st.caption("※ 체크박스를 선택하면 일정이 '아카이브'로 자동 이동되며, '상세/수정'을 눌러 기록 정보를 미리 볼 수 있습니다!")
+        st.write("### 🗓️ PLAN")
         
         conn = get_connection()
         plan_df = pd.read_sql_query("SELECT * FROM plan ORDER BY plan_date ASC", conn)
@@ -1009,3 +1008,4 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
+
