@@ -309,7 +309,7 @@ def scrape_url(url):
     except: return None
 
 # --- [4. 팝업 상세 보기] ---
-@st.dialog("📋 WRITE", width="large")
+@st.dialog("📋 아카이브 기록", width="large")
 def show_details(item):
     if hasattr(item, 'to_dict'): item = item.to_dict()
     
@@ -539,9 +539,9 @@ def show_plan_details(item):
                 n_sum = st.text_area("📖 개요", value=str(rich_data.get('summary', '')), height=150)
                 n_brief = st.text_input("📝 요약", value=str(rich_data.get('brief', '')))
                 n_high = st.text_area("✨ 인상 깊은 부분", value=str(rich_data.get('highlights', '')), height=100)
-                n_note = st.text_area("🌈 PRISM", value=str(rich_data.get('note', '')), height=100)
+                n_note = st.text_area("🌈 일정 메모", value=str(rich_data.get('note', '')), height=100)
 
-                if st.form_submit_button("💾 수정", use_container_width=True):
+                if st.form_submit_button("💾 일정 수정", use_container_width=True):
                     try:
                         new_rich = {
                             "creator": n_creator.strip(), "rel_date": n_rel.strip(), "venue": n_venue.strip(),
@@ -560,7 +560,7 @@ def show_plan_details(item):
                                 "title": n_title, "plan_date": str(n_plan_date), "memo": memo_payload
                             }).eq("title", item['title']).eq("plan_date", item['plan_date']).execute()
                         except: pass
-                        st.success("✅ 수정 완료!")
+                        st.success("✅ 일정 수정 완료!")
                         time.sleep(0.5)
                         st.rerun()
                     except Exception as e: st.error(f"❌ 오류: {e}")
@@ -596,7 +596,7 @@ def show_plan_details(item):
             
             sections = [
                 ("📝 요약 (한 줄 평)", "brief", "#0E6245"), 
-                ("🌈 PRISM", "note", "#1E425E"),
+                ("🌈 일정 메모", "note", "#1E425E"),
                 ("✨ 인상 깊은 부분", "highlights", "#7D5600"), 
                 ("📖 개요", "summary", "#444")
             ]
@@ -630,7 +630,7 @@ st.markdown(
 )
 
 if is_admin:
-    tab_w, tab_a = st.tabs(["🖋️ WRITE & PLAN", "📂 ARCHIVE"])
+    tab_w, tab_a = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
 else:
     tabs = st.tabs(["📂 ARCHIVE"])
     tab_a = tabs[0]
@@ -640,8 +640,9 @@ else:
 if is_admin and tab_w:
     with tab_w:
         # [1단계] 카테고리 & 검색
+        st.markdown("### 🔍 SEARCH")
         category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"], horizontal=True, key="main_category_radio")
-        search_query = st.text_input(f"🔍 {category} {'URL 입력' if category == 'SCRAP' else '검색'}")
+        search_query = st.text_input(f"🔍 {category} {'URL 입력' if category == 'SCRAP' else '검색 (결과 선택 후 가져오기 클릭)'}")
         
         if search_query:
             if category == "SCRAP":
@@ -706,6 +707,7 @@ if is_admin and tab_w:
         if st.session_state.show_form:
             st.divider()
             data = st.session_state.get('api_data', {})
+            st.markdown("### 📝 WRITE")
             
             with st.form(key="unified_form"):
                 cl, cr = st.columns([0.4, 0.6])
@@ -731,13 +733,13 @@ if is_admin and tab_w:
                     else:
                         note = ""
     
-                    view_date = st.date_input("🍿 감상 완료일 / 예정일", value=date.today())
+                    view_date = st.date_input("🍿 감상 완료/예정일", value=date.today())
                     
                     st.markdown("<br>", unsafe_allow_html=True)
                     col_btn1, col_btn2, col_btn3 = st.columns([0.4, 0.4, 0.2])
                     
-                    submit_plan = col_btn1.form_submit_button("🗓️ 일정 추가", use_container_width=True)
-                    submit_archive = col_btn2.form_submit_button("✅ 아카이브 저장", use_container_width=True)
+                    submit_archive = col_btn1.form_submit_button("✅ 아카이브 저장", use_container_width=True)
+                    submit_plan = col_btn2.form_submit_button("🗓️ 일정 추가", use_container_width=True)
                     cancel_btn = col_btn3.form_submit_button("❌ 닫기", use_container_width=True)
                     
                     if cancel_btn:
@@ -793,7 +795,7 @@ if is_admin and tab_w:
         st.divider()
         
         # [3단계] 7일 가로 배치 (그리드 달력 형태) 출력 영역
-        st.markdown("🗓️ WEEKLY PLAN")
+        st.markdown("### 🗓️ PLAN")
         
         # 주간 이동 컨트롤 UI
         col_l, col_c, col_r = st.columns([0.1, 0.8, 0.1])
@@ -802,7 +804,7 @@ if is_admin and tab_w:
                 st.session_state.week_offset -= 1
                 st.rerun()
                 
-        # 이번 주 기준 날짜 계산
+        # 이번 주 기준 날짜 계산 (월요일=0, 일요일=6 설정 완료됨)
         today = pd.Timestamp(date.today())
         this_monday = today - pd.Timedelta(days=today.weekday())
         view_monday = this_monday + pd.Timedelta(weeks=st.session_state.week_offset)
@@ -823,6 +825,7 @@ if is_admin and tab_w:
             plan_df['p_dt'] = pd.to_datetime(plan_df['plan_date'])
             
         cat_emojis = {"BOOKS": "📚", "MUSIC": "🎧", "MOVIES": "🎞️", "SERIES": "📽️", "STAGE": "🎭", "SCRAP": "📰"}
+        # 월요일(0)을 시작으로 배열 선언되어 주간 달력에 완벽하게 대응
         weekdays = ["월", "화", "수", "목", "금", "토", "일"]
         
         # 가로 7칸 달력 렌더링
@@ -941,7 +944,7 @@ with tab_a:
     all_df = get_all_data()
 
     if not all_df.empty:
-        search_query_archive = st.text_input("🔍 search", key="global_search")
+        search_query_archive = st.text_input("🔍 아카이브 통합 검색 (제목, 창작자, 내용 등 전체 검색)", key="global_search")
         if search_query_archive:
             mask = (
                 all_df['title'].str.contains(search_query_archive, case=False, na=False) |
@@ -971,7 +974,7 @@ with tab_a:
             years = sorted(main_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
             if years:
                 year_options = {y: f"{y}({len(main_df[main_df['v_dt'].dt.year == y])})" for y in years}
-                sel_y = st.selectbox("📅 select", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
+                sel_y = st.selectbox("📅 연도 선택", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
                 y_df = main_df[main_df['v_dt'].dt.year == sel_y]
                 
                 for m in range(12, 0, -1):
@@ -1066,9 +1069,4 @@ with tab_a:
                     else:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
-                    st.info("스크랩 검색 결과가 없거나 일정 메모이 없습니다.")
-
-
-
-
-
+                    st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
