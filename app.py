@@ -639,7 +639,7 @@ if is_admin and tab_w:
     with tab_w:
         st.markdown("### 🔍 SEARCH")
         category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"], horizontal=True, key="main_category_radio")
-        search_query = st.text_input(f"🔍 Search {category} (URL for SCRAP)")
+        search_query = st.text_input(f"🔍 Search {category}")
         
         if search_query:
             if category == "SCRAP":
@@ -845,7 +845,7 @@ if is_admin and tab_w:
         
         col_l, col_c, col_r = st.columns([0.1, 0.8, 0.1])
         with col_l:
-            if st.button("⬅️ Prev", use_container_width=True):
+            if st.button("⬅️", use_container_width=True):
                 st.session_state.week_offset -= 1
                 st.rerun()
                 
@@ -859,7 +859,7 @@ if is_admin and tab_w:
             st.markdown(f"<h4 style='text-align: center; margin-top:0;'>📅 Week {iso_week}, {iso_year} <span style='font-size:0.75em; color:#aaa;'>({view_monday.strftime('%m.%d')} ~ {view_sunday.strftime('%m.%d')})</span></h4>", unsafe_allow_html=True)
             
         with col_r:
-            if st.button("Next ➡️", use_container_width=True):
+            if st.button("➡️", use_container_width=True):
                 st.session_state.week_offset += 1
                 st.rerun()
                 
@@ -980,7 +980,7 @@ with tab_a:
     all_df = get_all_data()
 
     if not all_df.empty:
-        search_query_archive = st.text_input("🔍 Search Archive", key="global_search")
+        search_query_archive = st.text_input("🔍 Search", key="global_search")
         if search_query_archive:
             mask = (
                 all_df['title'].str.contains(search_query_archive, case=False, na=False) |
@@ -1110,3 +1110,4 @@ with tab_a:
                         st.info("No scraps found for this tag/search.")
                 else:
                     st.info("No scraps available.")
+
