@@ -707,7 +707,7 @@ if is_admin and tab_w:
         if st.session_state.show_form:
             st.divider()
             data = st.session_state.get('api_data', {})
-            st.markdown("### 📝 기록 및 일정 작성")
+            st.markdown("### 📝 WRITE")
             
             with st.form(key="unified_form"):
                 cl, cr = st.columns([0.4, 0.6])
@@ -729,11 +729,11 @@ if is_admin and tab_w:
                     highlights = st.text_area("✨ 인상 깊은 부분", height=100)
                     
                     if category != "SCRAP":
-                        note = st.text_area("🌈 PRISM (또는 일정 메모)", height=100)
+                        note = st.text_area("🌈 PRISM", height=100)
                     else:
                         note = ""
     
-                    view_date = st.date_input("🍿 감상 완료일 / 예정일", value=date.today())
+                    view_date = st.date_input("🍿 감상 완료/예정일", value=date.today())
                     
                     st.markdown("<br>", unsafe_allow_html=True)
                     col_btn1, col_btn2, col_btn3 = st.columns([0.4, 0.4, 0.2])
@@ -795,13 +795,12 @@ if is_admin and tab_w:
         st.divider()
         
         # [3단계] 7일 가로 배치 (그리드 달력 형태) 출력 영역
-        st.markdown("### 🗓️ 주간 일정표 (PLAN)")
-        st.caption("※ '✅' 버튼을 누르면 아카이브로 이동하고, '🔍' 버튼을 누르면 상세 내용을 수정/확인할 수 있습니다.")
+        st.markdown("### 🗓️ PLAN")
         
         # 주간 이동 컨트롤 UI
         col_l, col_c, col_r = st.columns([0.1, 0.8, 0.1])
         with col_l:
-            if st.button("⬅️ 이전 주", use_container_width=True):
+            if st.button("⬅️", use_container_width=True):
                 st.session_state.week_offset -= 1
                 st.rerun()
                 
@@ -815,7 +814,7 @@ if is_admin and tab_w:
             st.markdown(f"<h4 style='text-align: center; margin-top:0;'>📅 {view_monday.strftime('%Y.%m.%d')} ~ {view_sunday.strftime('%Y.%m.%d')}</h4>", unsafe_allow_html=True)
             
         with col_r:
-            if st.button("다음 주 ➡️", use_container_width=True):
+            if st.button("➡️", use_container_width=True):
                 st.session_state.week_offset += 1
                 st.rerun()
                 
@@ -1054,3 +1053,4 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
+
