@@ -1026,7 +1026,7 @@ with tab_a:
                     if keywords:
                         from collections import Counter
                         top_keywords = [k[0] for k in Counter(keywords).most_common(5)]
-                        st.markdown("### 🏆 weekly keyword")
+                        st.markdown("🏆 주간 키워드")
                         
                         def toggle_tag(clicked_tag):
                             if st.session_state.selected_tag == clicked_tag:
@@ -1077,6 +1077,7 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
+
 
 
 
