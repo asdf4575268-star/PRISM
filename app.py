@@ -811,7 +811,9 @@ if is_admin and tab_w:
         view_sunday = view_monday + pd.Timedelta(days=6)
         
         with col_c:
-            st.markdown(f"<h4 style='text-align: center; margin-top:0;'>📅 {view_monday.strftime('%Y.%m.%d')} ~ {view_sunday.strftime('%Y.%m.%d')}</h4>", unsafe_allow_html=True)
+            # 주차 표시를 202X-X주차 형식으로 적용
+            iso_year, iso_week, _ = view_monday.isocalendar()
+            st.markdown(f"<h4 style='text-align: center; margin-top:0;'>📅 {iso_year}-{iso_week}주차 <span style='font-size:0.75em; color:#aaa;'>({view_monday.strftime('%m.%d')} ~ {view_sunday.strftime('%m.%d')})</span></h4>", unsafe_allow_html=True)
             
         with col_r:
             if st.button("➡️", use_container_width=True):
@@ -1048,12 +1050,17 @@ with tab_a:
                         st.info(f"🏷️ '#{st.session_state.selected_tag}' 태그가 포함된 스크랩만 봅니다. (해제하려면 위의 버튼을 다시 누르세요)")
                     
                     if not display_scrap_df.empty:
-                        display_scrap_df['week'] = display_scrap_df['v_dt'].dt.isocalendar().week
-                        weeks = sorted(display_scrap_df['week'].dropna().unique(), reverse=True)
+                        # ISO 캘린더 기준으로 연도와 주차를 추출하여 202X-X주차 형식으로 적용
+                        display_scrap_df['iso_year'] = display_scrap_df['v_dt'].dt.isocalendar().year
+                        display_scrap_df['iso_week'] = display_scrap_df['v_dt'].dt.isocalendar().week
+                        display_scrap_df['year_week'] = display_scrap_df['iso_year'].astype(str) + "-" + display_scrap_df['iso_week'].astype(str).str.zfill(2)
+                        
+                        weeks = sorted(display_scrap_df['year_week'].dropna().unique(), reverse=True)
                         
                         for w in weeks:
-                            w_data = display_scrap_df[display_scrap_df['week'] == w]
-                            st.subheader(f"🗓️ {w}주차 스크랩")
+                            w_data = display_scrap_df[display_scrap_df['year_week'] == w]
+                            y_str, w_str = w.split('-')
+                            st.subheader(f"🗓️ {y_str}-{int(w_str)}주차 스크랩")
                             for _, row in w_data.iterrows():
                                 with st.expander(f"👉 [{row['venue']}] {row['title']} ({row['view_date']})"):
                                     summary_text = str(row['summary'])
