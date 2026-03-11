@@ -305,7 +305,7 @@ def scrape_url(url):
     except: return None
 
 # --- [4. 팝업 상세 보기] ---
-@st.dialog("📋 기록", width="large")
+@st.dialog("📋 아카이브 기록", width="large")
 def show_details(item):
     if hasattr(item, 'to_dict'): item = item.to_dict()
     
@@ -480,6 +480,130 @@ def show_details(item):
                                 if r['highlights']: st.markdown(f"**✨ 인상 깊은 부분:**<br>{r['highlights'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
                         st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
 
+# --- [추가] 플랜(일정표) 전용 팝업 상세/수정 창 ---
+@st.dialog("🗓️ 일정 상세 정보", width="large")
+def show_plan_details(item):
+    if hasattr(item, 'to_dict'): item = item.to_dict()
+    
+    # JSON 파싱하여 숨겨진 정보 가져오기
+    try:
+        rich_data = json.loads(item['memo'])
+    except:
+        rich_data = {"creator": "", "rel_date": "", "venue": "", "summary": "", "brief": "", "highlights": "", "note": item.get('memo', ''), "img_url": "", "img_url2": ""}
+
+    edit_mode = False
+    if is_admin:
+        t_col1, t_col2, t_col3 = st.columns([0.3, 0.4, 0.3])
+        with t_col1:
+            if st.button("🗑️ 삭제", key=f"del_plan_{item['id']}", use_container_width=True):
+                conn = get_connection()
+                conn.execute("DELETE FROM plan WHERE id=?", (item['id'],))
+                conn.commit()
+                st.cache_data.clear()
+                try: supabase.table("plan").delete().eq("title", item['title']).eq("plan_date", item['plan_date']).execute()
+                except: pass
+                st.rerun()
+        with t_col3:
+            edit_mode = st.toggle("✏️ 수정", key=f"tog_plan_{item['id']}")
+        st.divider()
+
+    col_img, col_txt = st.columns([0.3, 0.7])
+
+    if is_admin and edit_mode:
+        with st.form(key=f"edit_plan_form_{item['id']}"):
+            col_img_form, col_txt_form = st.columns([0.3, 0.7])
+            with col_img_form:
+                n_img = st.text_input("🖼️ 이미지 URL", value=str(rich_data.get('img_url', '')), key=f"p_img_in_{item['id']}")
+                n_img2 = st.text_input("🎬 관련 영상(URL) 또는 제목/메모", value=str(rich_data.get('img_url2', '')), key=f"p_vid_in_{item['id']}")
+                
+                old_img = str(rich_data.get('img_url', ''))
+                if old_img and old_img.strip() and old_img != "None": 
+                    st.image(old_img, use_container_width=True)
+
+            with col_txt_form:
+                n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
+                n_creator = st.text_input("👤 창작자", value=str(rich_data.get('creator', '')))
+                
+                c1, c2 = st.columns(2)
+                n_rel = c1.text_input("📅 작품 날짜", value=str(rich_data.get('rel_date', '')))
+                n_venue = c2.text_input("📍 장소", value=str(rich_data.get('venue', '')))
+                
+                try: curr_plan = pd.to_datetime(item.get('plan_date')).date()
+                except: curr_plan = date.today()
+                n_plan_date = st.date_input("🗓️ 예정일 수정", value=curr_plan)
+                
+                n_sum = st.text_area("📖 개요", value=str(rich_data.get('summary', '')), height=150)
+                n_brief = st.text_input("📝 요약", value=str(rich_data.get('brief', '')))
+                n_high = st.text_area("✨ 인상 깊은 부분", value=str(rich_data.get('highlights', '')), height=100)
+                n_note = st.text_area("🌈 일정 메모", value=str(rich_data.get('note', '')), height=100)
+
+                if st.form_submit_button("💾 일정 수정", use_container_width=True):
+                    try:
+                        new_rich = {
+                            "creator": n_creator.strip(), "rel_date": n_rel.strip(), "venue": n_venue.strip(),
+                            "summary": n_sum.strip(), "brief": n_brief.strip(), "highlights": n_high.strip(),
+                            "note": n_note.strip(), "img_url": n_img.strip(), "img_url2": n_img2.strip()
+                        }
+                        memo_payload = json.dumps(new_rich, ensure_ascii=False)
+                        
+                        conn = get_connection()
+                        conn.execute("UPDATE plan SET title=?, plan_date=?, memo=? WHERE id=?", 
+                                     (n_title, str(n_plan_date), memo_payload, item['id']))
+                        conn.commit()
+                        st.cache_data.clear()
+                        try:
+                            supabase.table("plan").update({
+                                "title": n_title, "plan_date": str(n_plan_date), "memo": memo_payload
+                            }).eq("title", item['title']).eq("plan_date", item['plan_date']).execute()
+                        except: pass
+                        st.success("✅ 일정 수정 완료!")
+                        time.sleep(0.5)
+                        st.rerun()
+                    except Exception as e: st.error(f"❌ 오류: {e}")
+    else: 
+        with col_img:
+            img_url = rich_data.get('img_url')
+            if isinstance(img_url, str) and img_url.strip() and img_url != "None":
+                try: st.image(img_url, use_container_width=True)
+                except: st.warning("이미지 로드 실패")
+            
+            st.write("") 
+            memo_content = rich_data.get('img_url2', '')
+            if isinstance(memo_content, str) and memo_content.strip() and memo_content != "None":
+                url_match = re.search(r'(https?://[^\s]+)', memo_content)
+                if url_match:
+                    video_url = url_match.group(1)
+                    text_part = memo_content.replace(video_url, '').strip(' /|-')
+                    if text_part:
+                        st.markdown(f"""<div style="background-color: #1a1a1a; border-left: 4px solid #E50914; padding: 10px 15px; border-radius: 4px; text-align: left; font-size: 0.95em; color: #fff; font-weight: bold; margin-bottom: 10px;">🎬 {text_part}</div>""", unsafe_allow_html=True)
+                    else:
+                        st.markdown("""<div style="display: inline-block; background-color: #E50914; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px; font-weight: bold;">🎬 관련 영상</div>""", unsafe_allow_html=True)
+                    try: st.video(video_url)
+                    except: pass
+                else:
+                    st.markdown(f"""<div style="background-color: #1a1a1a; border-left: 4px solid #E50914; padding: 10px 15px; border-radius: 4px; text-align: left; font-size: 0.95em; color: #fff; font-weight: bold; margin-bottom: 10px;">🎬 {memo_content}</div>""", unsafe_allow_html=True)
+            
+        with col_txt:
+            st.markdown(f'# {item.get("title")}')
+            st.write(f"**{rich_data.get('creator', '')}**")
+            st.write(f"**📅 {rich_data.get('rel_date', '')} | 📍 {rich_data.get('venue', '')}**")
+            st.markdown(f'<p style="color: #E50914; font-weight: bold; font-size: 1.1em;">🗓️ 예정일: {item.get("plan_date")}</p>', unsafe_allow_html=True)
+            st.divider()
+            
+            sections = [
+                ("📝 요약 (한 줄 평)", "brief", "#0E6245"), 
+                ("🌈 일정 메모", "note", "#1E425E"),
+                ("✨ 인상 깊은 부분", "highlights", "#7D5600"), 
+                ("📖 개요", "summary", "#444")
+            ]
+            
+            for label, key, color in sections:
+                content = rich_data.get(key)
+                if content:
+                    st.markdown(f"""<div style="display: inline-block; background-color: {color}; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px;">{label}</div>""", unsafe_allow_html=True)
+                    st.markdown(content.replace('\n', '  \n'))
+                    st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
+
 # --- [5. 메인 화면] ---
 def get_base64(path):
     try:
@@ -512,9 +636,9 @@ else:
 if is_admin and tab_w:
     with tab_w:
         # [1단계] 카테고리 & 검색
-        st.write("### 🔍")
+        st.markdown("### 🔍 작품 검색 / 일정 불러오기")
         category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"], horizontal=True, key="main_category_radio")
-        search_query = st.text_input(f"🔍 {category} {'URL 입력' if category == 'SCRAP' else '검색'}")
+        search_query = st.text_input(f"🔍 {category} {'URL 입력' if category == 'SCRAP' else '검색 (결과 선택 후 가져오기 클릭)'}")
         
         if search_query:
             if category == "SCRAP":
@@ -612,8 +736,8 @@ if is_admin and tab_w:
                     # 버튼 3개 배치
                     col_btn1, col_btn2, col_btn3 = st.columns([0.4, 0.4, 0.2])
                     
-                    submit_archive = col_btn1.form_submit_button("✅ 아카이브 저장", use_container_width=True)
-                    submit_plan = col_btn2.form_submit_button("🗓️ 일정 추가", use_container_width=True)
+                    submit_archive = col_btn1.form_submit_button("✅ 아카이브에 저장 (완료)", use_container_width=True)
+                    submit_plan = col_btn2.form_submit_button("🗓️ 일정표에 추가 (계획)", use_container_width=True)
                     cancel_btn = col_btn3.form_submit_button("❌ 닫기", use_container_width=True)
                     
                     if cancel_btn:
@@ -643,7 +767,6 @@ if is_admin and tab_w:
                     
                     if submit_plan:
                         if title.strip():
-                            # API로 가져온 풍부한 정보들을 JSON 형태로 묶어서 memo에 몰래 저장합니다.
                             rich_data = {
                                 "creator": str(creator).strip(), "rel_date": str(rel_date), "venue": str(venue).strip(),
                                 "summary": str(summary).strip(), "brief": str(brief).strip(), "highlights": str(highlights).strip(),
@@ -670,7 +793,8 @@ if is_admin and tab_w:
         st.divider()
         
         # [3단계] 월별 예정 리스트 (PLAN) 출력 영역
-        st.write("### 🗓️PLAN")
+        st.markdown("### 🗓️ 다가오는 일정표 (PLAN)")
+        st.caption("※ 체크박스를 선택하면 일정이 '아카이브'로 자동 이동되며, '상세/수정'을 눌러 기록 정보를 미리 볼 수 있습니다!")
         
         conn = get_connection()
         plan_df = pd.read_sql_query("SELECT * FROM plan ORDER BY plan_date ASC", conn)
@@ -686,18 +810,16 @@ if is_admin and tab_w:
                 m_data = plan_df[plan_df['p_dt'].dt.to_period('M') == m]
                 
                 for _, row in m_data.iterrows():
-                    col1, col2 = st.columns([0.05, 0.95])
+                    # 레이아웃 비율: 체크박스(5%), 내용(80%), 상세/수정 버튼(15%)
+                    col1, col2, col3 = st.columns([0.05, 0.8, 0.15])
                     with col1:
-                        # [클라우드 안전 자동 이동 및 데이터 복원 로직]
                         if st.checkbox("", key=f"plan_unified_{row['id']}"):
                             conn = get_connection()
                             today_str = str(date.today())
                             
-                            # JSON 파싱 시도 (풍부한 데이터 복원)
                             try:
                                 rich_data = json.loads(row['memo'])
                             except:
-                                # 예전 방식의 단순 텍스트 메모인 경우 처리
                                 rich_data = {"creator": "", "rel_date": "", "venue": "", "summary": "", "brief": "", "highlights": "", "note": row['memo'], "img_url": "", "img_url2": ""}
                             
                             new_archive_record = {
@@ -713,10 +835,9 @@ if is_admin and tab_w:
                                 "img_url": rich_data.get("img_url", ""),
                                 "img_url2": rich_data.get("img_url2", ""),
                                 "save_date": today_str,
-                                "view_date": row['plan_date'] # 완료일은 원래 예정했던 날짜로 우선 세팅
+                                "view_date": row['plan_date']
                             }
                             
-                            # 1. 로컬 아카이브 추가 및 플랜 삭제
                             conn.execute("""INSERT INTO archive 
                                 (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) 
                                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", 
@@ -725,7 +846,6 @@ if is_admin and tab_w:
                             conn.commit()
                             st.cache_data.clear()
                             
-                            # 2. 클라우드 아카이브 추가 및 플랜 삭제
                             try:
                                 supabase.table("archive").upsert(new_archive_record).execute()
                                 supabase.table("plan").delete().eq("title", row['title']).eq("plan_date", row['plan_date']).execute()
@@ -736,15 +856,16 @@ if is_admin and tab_w:
                             st.rerun()
                     with col2:
                         emoji = cat_emojis.get(row['category'], "📌")
-                        day_str = str(row['plan_date'])[5:] # MM-DD 형태
-                        
-                        # 텍스트 메모만 화면에 살짝 보이도록 처리
+                        day_str = str(row['plan_date'])[5:]
                         try:
                             display_memo = json.loads(row['memo']).get('note', '')
                         except:
                             display_memo = row['memo']
-                            
                         st.markdown(f"<div style='margin-bottom: 5px; padding-top: 3px;'><b>{day_str}</b> | {emoji} <b>{row['title']}</b> <span style='color:#888; font-size:0.9em; margin-left:10px;'>{display_memo}</span></div>", unsafe_allow_html=True)
+                    
+                    with col3:
+                        if st.button("상세/수정", key=f"btn_p_{row['id']}", use_container_width=True):
+                            show_plan_details(row)
         else:
             st.info("등록된 일정이 없습니다. 검색 후 '일정표에 추가' 버튼을 눌러 기대되는 작품이나 볼거리를 추가해 보세요!")
 
@@ -762,7 +883,7 @@ with tab_a:
     all_df = get_all_data()
 
     if not all_df.empty:
-        search_query_archive = st.text_input("🔍", key="global_search")
+        search_query_archive = st.text_input("🔍 아카이브 통합 검색 (제목, 창작자, 내용 등 전체 검색)", key="global_search")
         if search_query_archive:
             mask = (
                 all_df['title'].str.contains(search_query_archive, case=False, na=False) |
@@ -888,7 +1009,3 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
-
-
-
-
