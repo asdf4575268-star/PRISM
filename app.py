@@ -34,10 +34,14 @@ def get_connection():
 
 def init_db():
     conn = get_connection()
+    # 기존 archive 테이블
     conn.execute('''CREATE TABLE IF NOT EXISTS archive 
                     (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
                      rel_date TEXT, venue TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, 
                      img_url TEXT, img_url2 TEXT, save_date TEXT, view_date TEXT)''')
+    # [추가] plan(일정표) 테이블 생성
+    conn.execute('''CREATE TABLE IF NOT EXISTS plan 
+                    (id INTEGER PRIMARY KEY AUTOINCREMENT, plan_date TEXT, category TEXT, title TEXT, memo TEXT)''')
     conn.commit()
 
 init_db()
@@ -101,7 +105,7 @@ def restore_from_supabase():
     except Exception as e:
         st.session_state.sync_msg = ("error", f"❌ 복구 실패: {e}")
 
-# --- [추가] 앱 시작 시 로컬 DB가 비어있으면 자동 복구 (Auto-Restore) ---
+# --- 앱 시작 시 로컬 DB가 비어있으면 자동 복구 (Auto-Restore) ---
 @st.cache_resource
 def auto_sync_on_startup():
     conn = get_connection()
@@ -367,7 +371,6 @@ def show_details(item):
             
             st.write("") 
 
-            # --- [스마트 파싱 로직 적용] ---
             memo_content = item.get('img_url2', '')
             if isinstance(memo_content, str) and memo_content.strip() and memo_content != "None":
                 url_match = re.search(r'(https?://[^\s]+)', memo_content)
@@ -405,7 +408,6 @@ def show_details(item):
             st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
             st.divider()
             
-            # 조회 모드 노출 순서: 요약 -> PRISM -> 인상 깊은 부분 -> 개요 (Behind the records)
             if item.get("category") == "SCRAP":
                 summary_text = str(item.get('summary', ''))
                 if summary_text.startswith("http"):
@@ -432,7 +434,6 @@ def show_details(item):
 
             if item.get('category') != 'SCRAP':
                 conn = get_connection()
-                # 주의: 여기서 import re 를 삭제했습니다!
                 raw_title = str(item.get('title', ''))
                 title_no_brackets = re.sub(r'\[.*?\]|\(.*?\)|<.*?>', '', raw_title)
                 clean_text = re.sub(r'[^가-힣a-zA-Z0-9]', ' ', title_no_brackets)
@@ -481,13 +482,15 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# --- [수정] 탭 구성에 PLAN 추가 ---
 if is_admin:
-    tab_w, tab_a = st.tabs(["🖋️ WRITE", "📂 ARCHIVE"])
+    tab_w, tab_a, tab_p = st.tabs(["🖋️ WRITE", "📂 ARCHIVE", "🗓️ PLAN"])
 else:
     tabs = st.tabs(["📂 ARCHIVE"])
     tab_a = tabs[0]
-    tab_w = None
+    tab_w = tab_p = None
 
+# --- [WRITE 탭] ---
 if is_admin and tab_w:
     with tab_w:
         category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"], horizontal=True, key="main_category_radio")
@@ -586,6 +589,77 @@ if is_admin and tab_w:
                         time.sleep(0.8)
                         st.rerun()
                     except Exception as e: st.error(f"❌ 오류: {e}")
+
+# --- [PLAN 탭] ---
+if is_admin and tab_p:
+    with tab_p:
+        st.markdown("### 📝 새로운 일정 추가")
+        with st.form("plan_form"):
+            c1, c2, c3 = st.columns([0.2, 0.3, 0.5])
+            with c1:
+                p_cat = st.selectbox("카테고리", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"])
+            with c2:
+                p_date = st.date_input("예정일", value=date.today())
+            with c3:
+                p_title = st.text_input("제목 (어떤 작품/일정인가요?)")
+            
+            p_memo = st.text_input("간단한 메모 (선택)")
+            
+            if st.form_submit_button("✅ 일정 등록", use_container_width=True):
+                if p_title.strip():
+                    conn = get_connection()
+                    conn.execute("INSERT INTO plan (plan_date, category, title, memo) VALUES (?,?,?,?)", 
+                                 (str(p_date), p_cat, p_title, p_memo))
+                    conn.commit()
+                    st.success("새로운 일정이 추가되었습니다!")
+                    time.sleep(0.5)
+                    st.rerun()
+                else:
+                    st.warning("제목을 입력해 주세요.")
+
+        st.divider()
+        st.markdown("### 🗓️ 월별 예정 리스트")
+        st.caption("※ 체크박스를 선택하면 일정이 '아카이브'로 자동 이동됩니다. (현재 일정 데이터는 로컬에만 저장됩니다)")
+        
+        conn = get_connection()
+        plan_df = pd.read_sql_query("SELECT * FROM plan ORDER BY plan_date ASC", conn)
+        
+        if not plan_df.empty:
+            plan_df['p_dt'] = pd.to_datetime(plan_df['plan_date'])
+            months = plan_df['p_dt'].dt.to_period('M').unique()
+            
+            cat_emojis = {"BOOKS": "📚", "MUSIC": "🎧", "MOVIES": "🎞️", "SERIES": "📽️", "STAGE": "🎭", "SCRAP": "📰"}
+            
+            for m in months:
+                st.markdown(f"<h4 style='color: #E50914; margin-top: 15px;'>📅 {m.year}년 {m.month}월</h4>", unsafe_allow_html=True)
+                m_data = plan_df[plan_df['p_dt'].dt.to_period('M') == m]
+                
+                for _, row in m_data.iterrows():
+                    col1, col2 = st.columns([0.05, 0.95])
+                    with col1:
+                        # 체크박스가 눌리는 순간 자동 이동 처리
+                        if st.checkbox("", key=f"plan_{row['id']}"):
+                            conn = get_connection()
+                            today_str = str(date.today())
+                            # 아카이브 테이블로 데이터 복사
+                            conn.execute("""INSERT INTO archive 
+                                (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) 
+                                VALUES (?,?,'','','','','','',?,'','',?,?)""", 
+                                (row['category'], row['title'], row['memo'], today_str, today_str))
+                            # 기존 일정표에서는 삭제
+                            conn.execute("DELETE FROM plan WHERE id=?", (row['id'],))
+                            conn.commit()
+                            st.cache_data.clear()
+                            st.success(f"'{row['title']}' 일정이 아카이브로 이동되었습니다!")
+                            time.sleep(0.5)
+                            st.rerun()
+                    with col2:
+                        emoji = cat_emojis.get(row['category'], "📌")
+                        day_str = str(row['plan_date'])[5:] # MM-DD 형태
+                        st.markdown(f"<div style='margin-bottom: 5px;'><b>{day_str}</b> | {emoji} <b>{row['title']}</b> <span style='color:#888; font-size:0.9em; margin-left:10px;'>{row['memo']}</span></div>", unsafe_allow_html=True)
+        else:
+            st.info("등록된 일정이 없습니다. 기대되는 작품이나 볼거리를 추가해 보세요!")
+
 
 # --- [ARCHIVE 탭] ---
 with tab_a:
