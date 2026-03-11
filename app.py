@@ -511,7 +511,7 @@ else:
 if is_admin and tab_w:
     with tab_w:
         # [1단계] 카테고리 & 검색
-        st.markdown("### 🔍 작품 검색 / 일정 불러오기")
+        st.markdown("### 🔍")
         category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"], horizontal=True, key="main_category_radio")
         search_query = st.text_input(f"🔍 {category} {'URL 입력' if category == 'SCRAP' else '검색 (결과 선택 후 가져오기 클릭)'}")
         
@@ -599,9 +599,9 @@ if is_admin and tab_w:
                 col_btn1, col_btn2 = st.columns(2)
                 
                 # 버튼 1: 아카이브에 바로 저장
-                submit_archive = col_btn1.form_submit_button("✅ 아카이브에 저장 (완료된 기록)", use_container_width=True)
+                submit_archive = col_btn1.form_submit_button("✅ 아카이브 저장", use_container_width=True)
                 # 버튼 2: 플랜(일정표)에 저장
-                submit_plan = col_btn2.form_submit_button("🗓️ 일정표에 추가 (앞으로의 계획)", use_container_width=True)
+                submit_plan = col_btn2.form_submit_button("🗓️ 일정표 추가", use_container_width=True)
                 
                 if submit_archive:
                     if title.strip():
@@ -615,7 +615,7 @@ if is_admin and tab_w:
                                 supabase.table("archive").upsert(new_record).execute()
                             except: pass
                             
-                            st.success("✅ 아카이브 저장 완료!")
+                            st.success("✅저장 완료!")
                             st.session_state.api_data = {}
                             time.sleep(0.8)
                             st.rerun()
@@ -651,7 +651,7 @@ if is_admin and tab_w:
         st.divider()
         
         # [3단계] 월별 예정 리스트 (PLAN) 출력 영역
-        st.markdown("### 🗓️ 다가오는 일정표 (PLAN)")
+        st.markdown("### 🗓️ PLAN")
         st.caption("※ 체크박스를 선택하면 일정이 '아카이브'로 자동 이동되며, 저장해둔 사진과 정보도 함께 복원됩니다!")
         
         conn = get_connection()
@@ -870,3 +870,4 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
+
