@@ -719,7 +719,7 @@ if is_admin and tab_w:
                         st.rerun()
         else:
             if not st.session_state.show_form:
-                if st.button("✏️ Manual Input"):
+                if st.button("✏️"):
                     for k in form_keys:
                         st.session_state[k] = ""
                     st.session_state.f_view_date = date.today()
@@ -1013,7 +1013,8 @@ with tab_a:
                 for m in range(12, 0, -1):
                     m_data = y_df[y_df['v_dt'].dt.month == m]
                     if not m_data.empty:
-                        st.subheader(f"🗓️ Month {m}")
+                        month_name = calendar.month_name[m][:3]
+                        st.subheader(f"🗓️ {month_name}")
                         items = m_data.to_dict('records')
                         for i in range(0, len(items), grid_cols):
                             cols = st.columns(grid_cols)
@@ -1107,6 +1108,7 @@ with tab_a:
                         st.info("No scraps found for this tag/search.")
                 else:
                     st.info("No scraps available.")
+
 
 
 
