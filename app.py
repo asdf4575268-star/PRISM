@@ -839,10 +839,8 @@ if is_admin and tab_w:
                     else: st.warning("Please enter a title.")
 
         st.divider()
-        
-        st.markdown("### 🗓️ PLAN")
-        
-        col_l, col_c, col_r = st.columns([0.1, 0.8, 0.1])
+               
+        col_l, col_c, col_r = st.columns([0.3, 0.4, 0.3])
         with col_l:
             if st.button("⬅️", use_container_width=True):
                 st.session_state.week_offset -= 1
@@ -855,7 +853,7 @@ if is_admin and tab_w:
         
         with col_c:
             iso_year, iso_week, _ = view_monday.isocalendar()
-            st.markdown(f"<h4 style='text-align: center; margin-top:0;'>📅 Week {iso_week}, {iso_year} <span style='font-size:0.75em; color:#aaa;'>({view_monday.strftime('%m.%d')} ~ {view_sunday.strftime('%m.%d')})</span></h4>", unsafe_allow_html=True)
+            st.markdown(f"<h4 style='text-align: center; margin-top:0;'>📅 Week {iso_year}, {iso_week} <span style='font-size:0.75em; color:#aaa;'>({view_monday.strftime('%m.%d')} ~ {view_sunday.strftime('%m.%d')})</span></h4>", unsafe_allow_html=True)
             
         with col_r:
             if st.button("➡️", use_container_width=True):
@@ -1109,5 +1107,6 @@ with tab_a:
                         st.info("No scraps found for this tag/search.")
                 else:
                     st.info("No scraps available.")
+
 
 
