@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 from supabase import create_client, Client
 import base64
 import html
+import json
 
 # --- [1. 설정 및 API] ---
 favicon = Image.open("logo.png").resize((64, 64), Image.LANCZOS)
@@ -498,18 +499,21 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# --- [수정] 탭 구성 (WRITE와 PLAN을 하나로 통합) ---
 if is_admin:
-    tab_w, tab_a, tab_p = st.tabs(["🖋️ WRITE", "📂 ARCHIVE", "🗓️ PLAN"])
+    tab_w, tab_a = st.tabs(["🖋️ WRITE & PLAN", "📂 ARCHIVE"])
 else:
     tabs = st.tabs(["📂 ARCHIVE"])
     tab_a = tabs[0]
-    tab_w = tab_p = None
+    tab_w = None
 
-# --- [WRITE 탭] ---
+# --- [WRITE & PLAN 통합 탭] ---
 if is_admin and tab_w:
     with tab_w:
+        # [1단계] 카테고리 & 검색
+        st.markdown("### 🔍 작품 검색 / 일정 불러오기")
         category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"], horizontal=True, key="main_category_radio")
-        search_query = st.text_input(f"🔍 {category} {'URL 입력' if category == 'SCRAP' else '검색'}")
+        search_query = st.text_input(f"🔍 {category} {'URL 입력' if category == 'SCRAP' else '검색 (결과 선택 후 가져오기 클릭)'}")
         
         if search_query:
             if category == "SCRAP":
@@ -560,9 +564,12 @@ if is_admin and tab_w:
                         st.rerun()
 
         st.divider()
-        data = st.session_state.get('api_data', {})
         
-        with st.form(key="write_form"):
+        # [2단계] 입력 폼 및 저장 방식 선택
+        data = st.session_state.get('api_data', {})
+        st.markdown("### 📝 기록 및 일정 작성")
+        
+        with st.form(key="unified_form"):
             cl, cr = st.columns([0.4, 0.6])
             with cl:
                 img_url_val = st.text_input("🖼️ 이미지 URL", value=data.get('img', ''))
@@ -578,68 +585,74 @@ if is_admin and tab_w:
                 venue = st.text_input("📍 장소/플랫폼", value=data.get('venue', ''))
             with cr:
                 summary = st.text_area("📖 개요", value=data.get('summary', ''), height=100)
-                brief = st.text_input("📝 요약")
+                brief = st.text_input("📝 요약 (한 줄 평)")
                 highlights = st.text_area("✨ 인상 깊은 부분", height=100)
                 
                 if category != "SCRAP":
-                    note = st.text_area("🌈 PRISM", height=100)
+                    note = st.text_area("🌈 PRISM (또는 일정 메모)", height=100)
                 else:
                     note = ""
 
-                view_date = st.date_input("🍿 감상일", value=date.today())
+                view_date = st.date_input("🍿 감상 완료일 / 예정일", value=date.today())
                 
-                if st.form_submit_button("✅ 기록 저장", use_container_width=True):
-                    new_record = {"category": str(category), "title": str(title).strip(), "creator": str(creator).strip(), "rel_date": str(rel_date), "venue": str(venue).strip(), "summary": str(summary).strip(), "brief": str(brief).strip(), "highlights": str(highlights).strip(), "note": str(note).strip(), "img_url": str(img_url_val).strip(), "img_url2": str(video_url_val).strip(), "save_date": str(date.today()), "view_date": str(view_date)}
-                    try:
-                        conn = get_connection()
-                        conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], new_record["note"], new_record["img_url"], new_record["img_url2"], new_record["save_date"], new_record["view_date"]))
-                        conn.commit()
-                        st.cache_data.clear() 
+                st.markdown("<br>", unsafe_allow_html=True)
+                col_btn1, col_btn2 = st.columns(2)
+                
+                # 버튼 1: 아카이브에 바로 저장
+                submit_archive = col_btn1.form_submit_button("✅ 아카이브에 저장 (완료된 기록)", use_container_width=True)
+                # 버튼 2: 플랜(일정표)에 저장
+                submit_plan = col_btn2.form_submit_button("🗓️ 일정표에 추가 (앞으로의 계획)", use_container_width=True)
+                
+                if submit_archive:
+                    if title.strip():
+                        new_record = {"category": str(category), "title": str(title).strip(), "creator": str(creator).strip(), "rel_date": str(rel_date), "venue": str(venue).strip(), "summary": str(summary).strip(), "brief": str(brief).strip(), "highlights": str(highlights).strip(), "note": str(note).strip(), "img_url": str(img_url_val).strip(), "img_url2": str(video_url_val).strip(), "save_date": str(date.today()), "view_date": str(view_date)}
                         try:
-                            supabase.table("archive").upsert(new_record).execute()
-                        except: pass
+                            conn = get_connection()
+                            conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], new_record["note"], new_record["img_url"], new_record["img_url2"], new_record["save_date"], new_record["view_date"]))
+                            conn.commit()
+                            st.cache_data.clear() 
+                            try:
+                                supabase.table("archive").upsert(new_record).execute()
+                            except: pass
+                            
+                            st.success("✅ 아카이브 저장 완료!")
+                            st.session_state.api_data = {}
+                            time.sleep(0.8)
+                            st.rerun()
+                        except Exception as e: st.error(f"❌ 오류: {e}")
+                    else: st.warning("제목을 입력해 주세요.")
+                
+                if submit_plan:
+                    if title.strip():
+                        # API로 가져온 풍부한 정보들을 JSON 형태로 묶어서 memo에 몰래 저장합니다.
+                        # (나중에 체크박스 누를 때 이 데이터를 풀어서 아카이브에 온전히 넣기 위함)
+                        rich_data = {
+                            "creator": str(creator).strip(), "rel_date": str(rel_date), "venue": str(venue).strip(),
+                            "summary": str(summary).strip(), "brief": str(brief).strip(), "highlights": str(highlights).strip(),
+                            "note": str(note).strip(), "img_url": str(img_url_val).strip(), "img_url2": str(video_url_val).strip()
+                        }
+                        memo_payload = json.dumps(rich_data, ensure_ascii=False)
                         
-                        st.success("✅ 저장 완료!")
+                        conn = get_connection()
+                        conn.execute("INSERT INTO plan (plan_date, category, title, memo) VALUES (?,?,?,?)", 
+                                     (str(view_date), str(category), str(title).strip(), memo_payload))
+                        conn.commit()
+                        
+                        try:
+                            supabase.table("plan").upsert({"plan_date": str(view_date), "category": str(category), "title": str(title).strip(), "memo": memo_payload}).execute()
+                        except: pass
+
+                        st.success("🗓️ 일정표에 추가되었습니다!")
                         st.session_state.api_data = {}
                         time.sleep(0.8)
                         st.rerun()
-                    except Exception as e: st.error(f"❌ 오류: {e}")
-
-# --- [PLAN 탭] ---
-if is_admin and tab_p:
-    with tab_p:
-        st.markdown("### 📝 새로운 일정 추가")
-        with st.form("plan_form"):
-            c1, c2, c3 = st.columns([0.2, 0.3, 0.5])
-            with c1:
-                p_cat = st.selectbox("카테고리", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"])
-            with c2:
-                p_date = st.date_input("예정일", value=date.today())
-            with c3:
-                p_title = st.text_input("제목 (어떤 작품/일정인가요?)")
-            
-            p_memo = st.text_input("간단한 메모 (선택)")
-            
-            if st.form_submit_button("✅ 일정 등록", use_container_width=True):
-                if p_title.strip():
-                    conn = get_connection()
-                    conn.execute("INSERT INTO plan (plan_date, category, title, memo) VALUES (?,?,?,?)", 
-                                 (str(p_date), p_cat, p_title, p_memo))
-                    conn.commit()
-                    
-                    try:
-                        supabase.table("plan").upsert({"plan_date": str(p_date), "category": p_cat, "title": p_title, "memo": p_memo}).execute()
-                    except: pass
-
-                    st.success("새로운 일정이 추가되었습니다!")
-                    time.sleep(0.5)
-                    st.rerun()
-                else:
-                    st.warning("제목을 입력해 주세요.")
+                    else: st.warning("제목을 입력해 주세요.")
 
         st.divider()
-        st.markdown("### 🗓️ 월별 예정 리스트")
-        st.caption("※ 체크박스를 선택하면 일정이 '아카이브'로 자동 이동됩니다.")
+        
+        # [3단계] 월별 예정 리스트 (PLAN) 출력 영역
+        st.markdown("### 🗓️ 다가오는 일정표 (PLAN)")
+        st.caption("※ 체크박스를 선택하면 일정이 '아카이브'로 자동 이동되며, 저장해둔 사진과 정보도 함께 복원됩니다!")
         
         conn = get_connection()
         plan_df = pd.read_sql_query("SELECT * FROM plan ORDER BY plan_date ASC", conn)
@@ -657,25 +670,32 @@ if is_admin and tab_p:
                 for _, row in m_data.iterrows():
                     col1, col2 = st.columns([0.05, 0.95])
                     with col1:
-                        # [클라우드 안전 자동 이동 로직]
-                        if st.checkbox("", key=f"plan_{row['id']}"):
+                        # [클라우드 안전 자동 이동 및 데이터 복원 로직]
+                        if st.checkbox("", key=f"plan_unified_{row['id']}"):
                             conn = get_connection()
                             today_str = str(date.today())
+                            
+                            # JSON 파싱 시도 (풍부한 데이터 복원)
+                            try:
+                                rich_data = json.loads(row['memo'])
+                            except:
+                                # 예전 방식의 단순 텍스트 메모인 경우 처리
+                                rich_data = {"creator": "", "rel_date": "", "venue": "", "summary": "", "brief": "", "highlights": "", "note": row['memo'], "img_url": "", "img_url2": ""}
                             
                             new_archive_record = {
                                 "category": row['category'],
                                 "title": row['title'],
-                                "creator": "",
-                                "rel_date": "",
-                                "venue": "",
-                                "summary": "",
-                                "brief": "",
-                                "highlights": "",
-                                "note": row['memo'],
-                                "img_url": "",
-                                "img_url2": "",
+                                "creator": rich_data.get("creator", ""),
+                                "rel_date": rich_data.get("rel_date", ""),
+                                "venue": rich_data.get("venue", ""),
+                                "summary": rich_data.get("summary", ""),
+                                "brief": rich_data.get("brief", ""),
+                                "highlights": rich_data.get("highlights", ""),
+                                "note": rich_data.get("note", ""),
+                                "img_url": rich_data.get("img_url", ""),
+                                "img_url2": rich_data.get("img_url2", ""),
                                 "save_date": today_str,
-                                "view_date": today_str
+                                "view_date": row['plan_date'] # 완료일은 원래 예정했던 날짜로 우선 세팅
                             }
                             
                             # 1. 로컬 아카이브 추가 및 플랜 삭제
@@ -693,15 +713,22 @@ if is_admin and tab_p:
                                 supabase.table("plan").delete().eq("title", row['title']).eq("plan_date", row['plan_date']).execute()
                             except: pass
 
-                            st.success(f"'{row['title']}' 일정이 아카이브로 안전하게 이동되었습니다!")
-                            time.sleep(0.5)
+                            st.success(f"🎉 '{row['title']}' 기록이 아카이브로 온전히 넘어갔습니다!")
+                            time.sleep(0.8)
                             st.rerun()
                     with col2:
                         emoji = cat_emojis.get(row['category'], "📌")
                         day_str = str(row['plan_date'])[5:] # MM-DD 형태
-                        st.markdown(f"<div style='margin-bottom: 5px;'><b>{day_str}</b> | {emoji} <b>{row['title']}</b> <span style='color:#888; font-size:0.9em; margin-left:10px;'>{row['memo']}</span></div>", unsafe_allow_html=True)
+                        
+                        # 텍스트 메모만 화면에 살짝 보이도록 처리
+                        try:
+                            display_memo = json.loads(row['memo']).get('note', '')
+                        except:
+                            display_memo = row['memo']
+                            
+                        st.markdown(f"<div style='margin-bottom: 5px; padding-top: 3px;'><b>{day_str}</b> | {emoji} <b>{row['title']}</b> <span style='color:#888; font-size:0.9em; margin-left:10px;'>{display_memo}</span></div>", unsafe_allow_html=True)
         else:
-            st.info("등록된 일정이 없습니다. 기대되는 작품이나 볼거리를 추가해 보세요!")
+            st.info("등록된 일정이 없습니다. 검색 후 '일정표에 추가' 버튼을 눌러 기대되는 작품이나 볼거리를 추가해 보세요!")
 
 # --- [ARCHIVE 탭] ---
 with tab_a:
