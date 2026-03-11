@@ -512,9 +512,9 @@ else:
 if is_admin and tab_w:
     with tab_w:
         # [1단계] 카테고리 & 검색
-        st.markdown("### 🔍 작품 검색 / 일정 불러오기")
+        st.write("### 🔍")
         category = st.radio("📂 CATEGORY", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"], horizontal=True, key="main_category_radio")
-        search_query = st.text_input(f"🔍 {category} {'URL 입력' if category == 'SCRAP' else '검색 (결과 선택 후 가져오기 클릭)'}")
+        search_query = st.text_input(f"🔍 {category} {'URL 입력' if category == 'SCRAP' else '검색'}")
         
         if search_query:
             if category == "SCRAP":
@@ -612,8 +612,8 @@ if is_admin and tab_w:
                     # 버튼 3개 배치
                     col_btn1, col_btn2, col_btn3 = st.columns([0.4, 0.4, 0.2])
                     
-                    submit_archive = col_btn1.form_submit_button("✅ 아카이브에 저장 (완료)", use_container_width=True)
-                    submit_plan = col_btn2.form_submit_button("🗓️ 일정표에 추가 (계획)", use_container_width=True)
+                    submit_archive = col_btn1.form_submit_button("✅ 아카이브 저장", use_container_width=True)
+                    submit_plan = col_btn2.form_submit_button("🗓️ 일정 추가", use_container_width=True)
                     cancel_btn = col_btn3.form_submit_button("❌ 닫기", use_container_width=True)
                     
                     if cancel_btn:
@@ -889,3 +889,4 @@ with tab_a:
                         st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else:
                     st.info("스크랩 검색 결과가 없거나 기록이 없습니다.")
+
