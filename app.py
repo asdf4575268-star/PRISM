@@ -664,8 +664,15 @@ if is_admin and tab_w:
                         emoji = cat_emojis.get(row['category'], "📌")
                         try: rich_data = json.loads(row['memo']); img_url = rich_data.get('img_url', '')
                         except: img_url = ""
+                        
                         if img_url and img_url.strip() and img_url != "None":
                             st.markdown(f"""<div style='position: relative; width: 100%; aspect-ratio: 1/1.4; border-radius: 6px; overflow: hidden; margin-bottom: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); background-color: #2A2A2A; display: flex; align-items: center; justify-content: center;'><img src="{img_url}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'"><div style="position: absolute; top: 4px; left: 4px; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px; font-size: 12px;">{emoji}</div></div>""", unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"""<div style='background-color: #2A2A2A; padding: 10px; border-radius: 6px; border-left: 4px solid #3399FF; margin-bottom: 5px; min-height: 80px; display: flex; align-items: center; justify-content: center; text-align: center;'><div style='font-size: 0.85em; font-weight: bold; line-height: 1.3;'>{emoji}<br>{row['title']}</div></div>""", unsafe_allow_html=True)
+                        
+                        if st.button("🔍 상세보기", key=f"dtl_cal_{row['id']}", use_container_width=True): 
+                            show_plan_details(row)
+                        st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
                         else:
                             st.markdown(f"""<div style='background-color: #2A2A2A; padding: 10px; border-radius: 6px; border-left: 4px solid #3399FF; margin-bottom: 5px; min-height: 80px; display: flex; align-items: center; justify-content: center; text-align: center;'><div style='font-size: 0.85em; font-weight: bold; line-height: 1.3;'>{emoji}<br>{row['title']}</div></div>""", unsafe_allow_html=True)
                         btn_col1, btn_col2 = st.columns(2)
@@ -799,6 +806,7 @@ with tab_a:
                                     if st.button("상세보기 / 수정", key=f"scr_btn_{row['id']}"): show_details(row)
                     else: st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else: st.info("스크랩 기록이 없습니다.")
+
 
 
 
