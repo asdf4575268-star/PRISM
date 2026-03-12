@@ -402,9 +402,17 @@ def show_plan_details(item):
                 if st.form_submit_button("💾 저장", use_container_width=True):
                     new_rich = {"creator": n_creator.strip(), "rel_date": n_rel.strip(), "venue": n_venue.strip(), "summary": n_sum.strip(), "brief": n_brief.strip(), "highlights": n_high.strip(), "note": n_note.strip(), "img_url": n_img.strip(), "img_url2": n_img2.strip()}
                     memo_payload = json.dumps(new_rich, ensure_ascii=False)
-                    conn = get_connection(); conn.execute("UPDATE plan SET title=?, plan_date=?, memo=? WHERE id=?", (n_title, str(n_plan_date), memo_payload, item['id'])); conn.commit(); st.cache_data.clear()
-                    supabase.table("plan").update({"title": n_title, "plan_date": str(n_plan_date), "memo": memo_payload}).eq("title", item['title']).eq("plan_date", item['plan_date']).execute()
-                    st.success("✅ 일정 수정 완료!"); time.sleep(0.5); st.rerun()
+                    conn = get_connection()
+                    conn.execute("UPDATE plan SET title=?, plan_date=?, memo=? WHERE id=?", (n_title, str(n_plan_date), memo_payload, item['id']))
+                    conn.commit()
+                    st.cache_data.clear()
+                    try: 
+                        supabase.table("plan").update({"title": n_title, "plan_date": str(n_plan_date), "memo": memo_payload}).eq("title", item['title']).eq("plan_date", item['plan_date']).execute()
+                    except: 
+                        pass
+                    st.success("✅ 일정 수정 완료!")
+                    time.sleep(0.5)
+                    st.rerun()
     else: 
         with col_img:
             if rich_data.get('img_url') and str(rich_data.get('img_url')) != "None": st.image(rich_data['img_url'], use_container_width=True)
@@ -752,6 +760,7 @@ with tab_a:
                                     if st.button("상세보기 / 수정", key=f"scr_btn_{row['id']}"): show_details(row)
                     else: st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else: st.info("스크랩 기록이 없습니다.")
+
 
 
 
