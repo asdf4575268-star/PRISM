@@ -551,7 +551,7 @@ if is_admin and tab_w:
                         st.session_state.f_summary = s.get('overview', ''); st.session_state.show_form = True; st.rerun()
         else:
             if not st.session_state.show_form:
-                if st.button("✏️"):
+                if st.button("✏️ 직접 입력"):
                     st.session_state.should_clear_form = True
                     st.session_state.show_form = True
                     st.rerun()
@@ -673,29 +673,6 @@ if is_admin and tab_w:
                         if st.button("🔍 상세보기", key=f"dtl_cal_{row['id']}", use_container_width=True): 
                             show_plan_details(row)
                         st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
-                        else:
-                            st.markdown(f"""<div style='background-color: #2A2A2A; padding: 10px; border-radius: 6px; border-left: 4px solid #3399FF; margin-bottom: 5px; min-height: 80px; display: flex; align-items: center; justify-content: center; text-align: center;'><div style='font-size: 0.85em; font-weight: bold; line-height: 1.3;'>{emoji}<br>{row['title']}</div></div>""", unsafe_allow_html=True)
-                        btn_col1, btn_col2 = st.columns(2)
-                        with btn_col1:
-                            if st.button("🔍 상세보기", key=f"dtl_cal_{row['id']}", use_container_width=True): 
-                                show_plan_details(row)
-                            st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
-                                conn = get_connection(); today_str = str(date.today())
-                                try: rich_data = json.loads(row['memo'])
-                                except: rich_data = {"creator": "", "rel_date": "", "venue": "", "summary": "", "brief": "", "highlights": "", "note": row['memo'], "img_url": "", "img_url2": ""}
-                                new_archive_record = {
-                                    "category": row['category'], "title": row['title'], "creator": rich_data.get("creator", ""), "rel_date": rich_data.get("rel_date", ""),
-                                    "venue": rich_data.get("venue", ""), "summary": rich_data.get("summary", ""), "brief": rich_data.get("brief", ""), "highlights": rich_data.get("highlights", ""),
-                                    "note": rich_data.get("note", ""), "img_url": rich_data.get("img_url", ""), "img_url2": rich_data.get("img_url2", ""), "save_date": today_str, "view_date": row['plan_date']
-                                }
-                                conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", (new_archive_record['category'], new_archive_record['title'], new_archive_record['creator'], new_archive_record['rel_date'], new_archive_record['venue'], new_archive_record['summary'], new_archive_record['brief'], new_archive_record['highlights'], new_archive_record['note'], new_archive_record['img_url'], new_archive_record['img_url2'], new_archive_record['save_date'], new_archive_record['view_date']))
-                                conn.execute("DELETE FROM plan WHERE id=?", (row['id'],)); conn.commit(); st.cache_data.clear()
-                                try: supabase.table("archive").upsert(new_archive_record).execute(); supabase.table("plan").delete().eq("title", row['title']).eq("plan_date", row['plan_date']).execute()
-                                except: pass
-                                st.success(f"🎉 '{row['title']}' 완료!"); time.sleep(0.5); st.rerun()
-                        with btn_col2:
-                            if st.button("🔍", key=f"dtl_cal_{row['id']}", help="상세보기 및 수정", use_container_width=True): show_plan_details(row)
-                        st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
 
 # --- [ARCHIVE 탭] ---
 with tab_a:
@@ -728,7 +705,6 @@ with tab_a:
                 for m in range(12, 0, -1):
                     m_data = y_df[y_df['v_dt'].dt.month == m]
                     if not m_data.empty:
-                        # 한국어 월 표시로 롤백 (예: 3월)
                         st.subheader(f"🗓️ {m}월")
                         items = m_data.to_dict('records')
                         for i in range(0, len(items), grid_cols):
@@ -806,11 +782,3 @@ with tab_a:
                                     if st.button("상세보기 / 수정", key=f"scr_btn_{row['id']}"): show_details(row)
                     else: st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else: st.info("스크랩 기록이 없습니다.")
-
-
-
-
-
-
-
-
