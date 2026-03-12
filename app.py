@@ -476,67 +476,6 @@ def show_plan_details(item):
                 st.rerun()
             
         st.divider()
-        
-    col_img, col_txt = st.columns([0.3, 0.7])
-    if is_admin and edit_mode:
-        with st.form(key=f"edit_plan_form_{item['id']}"):
-            col_img_form, col_txt_form = st.columns([0.3, 0.7])
-            with col_img_form:
-                n_img = st.text_input("🖼️ 이미지 URL", value=str(rich_data.get('img_url', '')))
-                n_img2 = st.text_input("🎬 관련 영상(URL) 또는 제목/메모", value=str(rich_data.get('img_url2', '')))
-                if n_img.strip() and n_img != "None": st.image(n_img, use_container_width=True)
-            with col_txt_form:
-                n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
-                n_creator = st.text_input("👤 창작자", value=str(rich_data.get('creator', '')))
-                c1, c2 = st.columns(2)
-                n_rel = c1.text_input("📅 작품 날짜", value=str(rich_data.get('rel_date', '')))
-                n_venue = c2.text_input("📍 장소", value=str(rich_data.get('venue', '')))
-                try: curr_plan = pd.to_datetime(item.get('plan_date')).date()
-                except: curr_plan = date.today()
-                n_plan_date = st.date_input("🗓️ 예정일 수정", value=curr_plan)
-                n_sum = st.text_area("📖 개요", value=str(rich_data.get('summary', '')), height=150)
-                n_brief = st.text_input("📝 요약", value=str(rich_data.get('brief', '')))
-                n_high = st.text_area("✨ 인상 깊은 부분", value=str(rich_data.get('highlights', '')), height=100)
-                n_note = st.text_area("🌈 일정 메모", value=str(rich_data.get('note', '')), height=100)
-                if st.form_submit_button("💾 저장", use_container_width=True):
-                    new_rich = {"creator": n_creator.strip(), "rel_date": n_rel.strip(), "venue": n_venue.strip(), "summary": n_sum.strip(), "brief": n_brief.strip(), "highlights": n_high.strip(), "note": n_note.strip(), "img_url": n_img.strip(), "img_url2": n_img2.strip()}
-                    memo_payload = json.dumps(new_rich, ensure_ascii=False)
-                    
-                    conn = get_connection()
-                    conn.execute("UPDATE plan SET title=?, plan_date=?, memo=? WHERE id=?", (n_title, str(n_plan_date), memo_payload, item['id']))
-                    conn.commit()
-                    st.cache_data.clear()
-                    
-                    try: 
-                        supabase.table("plan").update({"title": n_title, "plan_date": str(n_plan_date), "memo": memo_payload}).eq("title", item['title']).eq("plan_date", item['plan_date']).execute()
-                    except: pass
-                    
-                    st.success("✅ 일정 수정 완료!")
-                    time.sleep(0.5)
-                    st.rerun()
-    else: 
-        with col_img:
-            if rich_data.get('img_url') and str(rich_data.get('img_url')) != "None": st.image(rich_data['img_url'], use_container_width=True)
-            memo_content = rich_data.get('img_url2', '')
-            if memo_content and str(memo_content) != "None":
-                url_match = re.search(r'(https?://[^\s]+)', memo_content)
-                if url_match:
-                    video_url = url_match.group(1); text_part = memo_content.replace(video_url, '').strip(' /|-')
-                    if text_part: st.markdown(f'<div style="background-color: #1a1a1a; border-left: 4px solid #E50914; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">🎬 {text_part}</div>', unsafe_allow_html=True)
-                    st.video(video_url)
-                else: st.markdown(f'<div style="background-color: #1a1a1a; border-left: 4px solid #E50914; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">🎬 {memo_content}</div>', unsafe_allow_html=True)
-        with col_txt:
-            st.markdown(f'# {item.get("title")}')
-            st.write(f"**{rich_data.get('creator', '')}**")
-            st.write(f"**📅 {rich_data.get('rel_date', '')} | 📍 {rich_data.get('venue', '')}**")
-            st.markdown(f'<p style="color: #E50914; font-weight: bold; font-size: 1.1em;">🗓️ 예정일: {item.get("plan_date")}</p>', unsafe_allow_html=True)
-            st.divider()
-            sections = [("📝 요약 (한 줄 평)", "brief", "#0E6245"), ("🌈 일정 메모", "note", "#1E425E"), ("✨ 인상 깊은 부분", "highlights", "#7D5600"), ("📖 개요", "summary", "#444")]
-            for label, key, color in sections:
-                if rich_data.get(key):
-                    st.markdown(f'<div style="display: inline-block; background-color: {color}; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px;">{label}</div>', unsafe_allow_html=True)
-                    st.markdown(rich_data[key].replace('\n', '  \n'))
-                    st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
 
 # --- [5. 메인 UI] ---
 def get_base64(path):
@@ -846,5 +785,6 @@ with tab_a:
                                     if st.button("상세보기 / 수정", key=f"scr_btn_{row['id']}"): show_details(row)
                     else: st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else: st.info("스크랩 기록이 없습니다.")
+
 
 
