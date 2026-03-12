@@ -362,7 +362,7 @@ def show_details(item):
                     st.markdown(item[key].replace('\n', '  \n'))
                     st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
 
-@st.dialog("🗓️ 일정 상세 정보", width="large")
+@st.dialog("🗓️상세 정보", width="large")
 def show_plan_details(item):
     if hasattr(item, 'to_dict'): item = item.to_dict()
     try: rich_data = json.loads(item['memo'])
@@ -785,6 +785,7 @@ with tab_a:
                                     if st.button("상세보기 / 수정", key=f"scr_btn_{row['id']}"): show_details(row)
                     else: st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else: st.info("스크랩 기록이 없습니다.")
+
 
 
 
