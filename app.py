@@ -421,7 +421,7 @@ def show_plan_details(item):
                         supabase.table("plan").update({"title": n_title, "plan_date": str(n_plan_date), "memo": memo_payload}).eq("title", item['title']).eq("plan_date", item['plan_date']).execute()
                     except: pass
                     
-                    st.success("✅ 일정 수정 완료!")
+                    st.success("✅ 수정 완료!")
                     time.sleep(0.5)
                     st.rerun()
     else: 
@@ -785,6 +785,7 @@ with tab_a:
                                     if st.button("상세보기 / 수정", key=f"scr_btn_{row['id']}"): show_details(row)
                     else: st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else: st.info("스크랩 기록이 없습니다.")
+
 
 
 
