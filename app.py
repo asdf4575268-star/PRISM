@@ -367,17 +367,52 @@ def show_plan_details(item):
     if hasattr(item, 'to_dict'): item = item.to_dict()
     try: rich_data = json.loads(item['memo'])
     except: rich_data = {"creator": "", "rel_date": "", "venue": "", "summary": "", "brief": "", "highlights": "", "note": item.get('memo', ''), "img_url": "", "img_url2": ""}
+    
     edit_mode = False
     if is_admin:
-        t_col1, _, t_col3 = st.columns([0.3, 0.4, 0.3])
+        # 상단 버튼 배치 (삭제, 완료, 수정)
+        t_col1, t_col2, _, t_col4 = st.columns([0.25, 0.35, 0.15, 0.25])
         with t_col1:
             if st.button("🗑️ 삭제", key=f"del_plan_{item['id']}", use_container_width=True):
-                conn = get_connection(); conn.execute("DELETE FROM plan WHERE id=?", (item['id'],)); conn.commit(); st.cache_data.clear()
+                conn = get_connection()
+                conn.execute("DELETE FROM plan WHERE id=?", (item['id'],))
+                conn.commit()
+                st.cache_data.clear()
                 try: supabase.table("plan").delete().eq("title", item['title']).eq("plan_date", item['plan_date']).execute()
                 except: pass
                 st.rerun()
-        with t_col3: edit_mode = st.toggle("✏️ 수정", key=f"tog_plan_{item['id']}")
+                
+        with t_col2:
+            # 아카이브 완료 버튼을 팝업 안으로 이동
+            if st.button("✅ 아카이브 완료", key=f"done_plan_{item['id']}", use_container_width=True):
+                conn = get_connection()
+                today_str = str(date.today())
+                
+                new_archive_record = {
+                    "category": item['category'], "title": item['title'], "creator": rich_data.get("creator", ""), "rel_date": rich_data.get("rel_date", ""),
+                    "venue": rich_data.get("venue", ""), "summary": rich_data.get("summary", ""), "brief": rich_data.get("brief", ""), "highlights": rich_data.get("highlights", ""),
+                    "note": rich_data.get("note", ""), "img_url": rich_data.get("img_url", ""), "img_url2": rich_data.get("img_url2", ""), "save_date": today_str, "view_date": item['plan_date']
+                }
+                
+                conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", (new_archive_record['category'], new_archive_record['title'], new_archive_record['creator'], new_archive_record['rel_date'], new_archive_record['venue'], new_archive_record['summary'], new_archive_record['brief'], new_archive_record['highlights'], new_archive_record['note'], new_archive_record['img_url'], new_archive_record['img_url2'], new_archive_record['save_date'], new_archive_record['view_date']))
+                conn.execute("DELETE FROM plan WHERE id=?", (item['id'],))
+                conn.commit()
+                st.cache_data.clear()
+                
+                try: 
+                    supabase.table("archive").upsert(new_archive_record).execute()
+                    supabase.table("plan").delete().eq("title", item['title']).eq("plan_date", item['plan_date']).execute()
+                except: pass
+                
+                st.success(f"🎉 '{item['title']}' 아카이브로 이동 완료!")
+                time.sleep(0.5)
+                st.rerun()
+                
+        with t_col4: 
+            edit_mode = st.toggle("✏️ 수정", key=f"tog_plan_{item['id']}")
+            
         st.divider()
+        
     col_img, col_txt = st.columns([0.3, 0.7])
     if is_admin and edit_mode:
         with st.form(key=f"edit_plan_form_{item['id']}"):
@@ -402,14 +437,16 @@ def show_plan_details(item):
                 if st.form_submit_button("💾 저장", use_container_width=True):
                     new_rich = {"creator": n_creator.strip(), "rel_date": n_rel.strip(), "venue": n_venue.strip(), "summary": n_sum.strip(), "brief": n_brief.strip(), "highlights": n_high.strip(), "note": n_note.strip(), "img_url": n_img.strip(), "img_url2": n_img2.strip()}
                     memo_payload = json.dumps(new_rich, ensure_ascii=False)
+                    
                     conn = get_connection()
                     conn.execute("UPDATE plan SET title=?, plan_date=?, memo=? WHERE id=?", (n_title, str(n_plan_date), memo_payload, item['id']))
                     conn.commit()
                     st.cache_data.clear()
+                    
                     try: 
                         supabase.table("plan").update({"title": n_title, "plan_date": str(n_plan_date), "memo": memo_payload}).eq("title", item['title']).eq("plan_date", item['plan_date']).execute()
-                    except: 
-                        pass
+                    except: pass
+                    
                     st.success("✅ 일정 수정 완료!")
                     time.sleep(0.5)
                     st.rerun()
@@ -633,7 +670,9 @@ if is_admin and tab_w:
                             st.markdown(f"""<div style='background-color: #2A2A2A; padding: 10px; border-radius: 6px; border-left: 4px solid #3399FF; margin-bottom: 5px; min-height: 80px; display: flex; align-items: center; justify-content: center; text-align: center;'><div style='font-size: 0.85em; font-weight: bold; line-height: 1.3;'>{emoji}<br>{row['title']}</div></div>""", unsafe_allow_html=True)
                         btn_col1, btn_col2 = st.columns(2)
                         with btn_col1:
-                            if st.button("✅", key=f"done_cal_{row['id']}", help="아카이브로 완료 이동", use_container_width=True):
+                            if st.button("🔍 상세보기", key=f"dtl_cal_{row['id']}", use_container_width=True): 
+                            show_plan_details(row)
+                            st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
                                 conn = get_connection(); today_str = str(date.today())
                                 try: rich_data = json.loads(row['memo'])
                                 except: rich_data = {"creator": "", "rel_date": "", "venue": "", "summary": "", "brief": "", "highlights": "", "note": row['memo'], "img_url": "", "img_url2": ""}
@@ -760,6 +799,7 @@ with tab_a:
                                     if st.button("상세보기 / 수정", key=f"scr_btn_{row['id']}"): show_details(row)
                     else: st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else: st.info("스크랩 기록이 없습니다.")
+
 
 
 
