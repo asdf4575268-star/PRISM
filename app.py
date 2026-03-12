@@ -637,14 +637,14 @@ if is_admin and tab_w:
         
         col_l, col_c, col_r = st.columns([0.1, 0.8, 0.1])
         with col_l:
-            if st.button("⬅️ 이전", use_container_width=True): st.session_state.week_offset -= 1; st.rerun()
+            if st.button("⬅️", use_container_width=True): st.session_state.week_offset -= 1; st.rerun()
         today = pd.Timestamp(date.today()); this_monday = today - pd.Timedelta(days=today.weekday())
         view_monday = this_monday + pd.Timedelta(weeks=st.session_state.week_offset); view_sunday = view_monday + pd.Timedelta(days=6)
         with col_c:
             iso_year, iso_week, _ = view_monday.isocalendar()
             st.markdown(f"<h4 style='text-align: center; margin-top:0;'>📅 {iso_year}-{iso_week}주차 <span style='font-size:0.75em; color:#aaa;'>({view_monday.strftime('%m.%d')} ~ {view_sunday.strftime('%m.%d')})</span></h4>", unsafe_allow_html=True)
         with col_r:
-            if st.button("다음 ➡️", use_container_width=True): st.session_state.week_offset += 1; st.rerun()
+            if st.button("➡️", use_container_width=True): st.session_state.week_offset += 1; st.rerun()
                 
         conn = get_connection()
         plan_df = pd.read_sql_query("SELECT * FROM plan ORDER BY plan_date ASC", conn)
@@ -785,6 +785,7 @@ with tab_a:
                                     if st.button("상세보기 / 수정", key=f"scr_btn_{row['id']}"): show_details(row)
                     else: st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else: st.info("스크랩 기록이 없습니다.")
+
 
 
 
