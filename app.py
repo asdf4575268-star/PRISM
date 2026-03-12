@@ -573,6 +573,17 @@ if is_admin and tab_w:
             with cr:
                 summary = st.text_area("📖 개요", height=100, key="f_summary")
                 brief = st.text_input("📝 요약 (한 줄 평)", key="f_brief")
+                if not st.session_state.f_highlights:
+                    if category == "BOOKS":
+                        st.session_state.f_highlights = "📖 p. : \n📖 p. : \n📖 p. : "
+                    elif category == "MUSIC":
+                        st.session_state.f_highlights = "🎵 제목(#1) : \n🎵 제목(#2) : \n🎵 제목(#3) : "
+                    elif category == "MOVIES":
+                        st.session_state.f_highlights = "🎬 명장면 : \n💬 명대사 : "
+                    elif category == "SERIES":
+                        st.session_state.f_highlights = "📺 Ep.01 : \n📺 Ep.02 : \n📺 Ep.03 : "
+                    elif category == "STAGE":
+                        st.session_state.f_highlights = "🎭 1막 : \n🎭 2막 : \n🎶 넘버 : " 
                 highlights = st.text_area("✨ 인상 깊은 부분", height=100, key="f_highlights")
                 if category != "SCRAP": note = st.text_area("🌈 PRISM (메모)", height=100, key="f_note")
                 else: st.session_state.f_note = ""
@@ -785,6 +796,7 @@ with tab_a:
                                     if st.button("상세보기 / 수정", key=f"scr_btn_{row['id']}"): show_details(row)
                     else: st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else: st.info("스크랩 기록이 없습니다.")
+
 
 
 
