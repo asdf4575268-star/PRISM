@@ -4,7 +4,7 @@ from PIL import Image
 import sqlite3
 import requests
 import pandas as pd
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import time
 import re
 import xml.etree.ElementTree as ET
@@ -12,6 +12,7 @@ from supabase import create_client, Client
 import base64
 import html
 import json
+import extra_streamlit_components as stx
 
 # --- [1. 설정 및 API] ---
 favicon = Image.open("logo.png").resize((64, 64), Image.LANCZOS)
@@ -127,109 +128,16 @@ auto_sync_on_startup()
 # --- [3. 로그인 및 Session State 초기화] ---
 DEV_MODE = False 
 
+# 브라우저 쿠키 매니저 초기화
+cookie_manager = stx.CookieManager()
+
 if "is_logged_in" not in st.session_state:
     st.session_state.is_logged_in = False
-if "user_password" not in st.session_state:
-    st.session_state.user_password = ""
-if "selected_tag" not in st.session_state:
-    st.session_state.selected_tag = None
-if "show_form" not in st.session_state:
-    st.session_state.show_form = False
-if "week_offset" not in st.session_state:
-    st.session_state.week_offset = 0
 
-if "should_clear_form" not in st.session_state:
-    st.session_state.should_clear_form = False
-
-form_keys = ['f_title', 'f_creator', 'f_date', 'f_venue', 'f_img', 'f_summary', 'f_video', 'f_brief', 'f_highlights', 'f_note']
-
-if st.session_state.should_clear_form:
-    for k in form_keys:
-        st.session_state[k] = ""
-    st.session_state.f_view_date = date.today()
-    st.session_state.show_form = False
-    st.session_state.should_clear_form = False
-
-for k in form_keys:
-    if k not in st.session_state:
-        st.session_state[k] = ""
-if 'f_view_date' not in st.session_state:
-    st.session_state.f_view_date = date.today()
-
-if st.session_state.user_password == st.secrets["ADMIN_PASSWORD"]:
+# 쿠키에 로그인 정보가 살아있다면 세션 유지 (30일 지속)
+if cookie_manager.get(cookie="admin_logged_in") == "yes":
     st.session_state.is_logged_in = True
 
-is_admin = st.session_state.is_logged_in or DEV_MODE
-
-with st.sidebar:
-    st.markdown("### 🔐 관리자 접속")
-    if not is_admin:
-        input_password = st.text_input("비밀번호", type="password", key="sidebar_pw")
-        if input_password:
-            if input_password == st.secrets["ADMIN_PASSWORD"]:
-                st.session_state.user_password = input_password 
-                st.session_state.is_logged_in = True
-                st.rerun()
-            else:
-                st.error("비밀번호가 틀렸습니다.")
-    if st.session_state.is_logged_in:
-        st.success("관리자 모드 활성화됨")
-        if st.button("🔓 로그아웃", use_container_width=True):
-            st.session_state.is_logged_in = False
-            st.session_state.user_password = ""
-            st.rerun()
-        st.divider()
-        
-        # --- [추가됨] 엉킨 데이터 청소 버튼 ---
-        st.markdown("### 🛠️ 데이터 오류 수정")
-        if st.button("🧹 중복 데이터 정리", help="같은 제목의 데이터 중 가장 최근에 수정한 것만 남기고 삭제합니다.", use_container_width=True):
-            conn = get_connection()
-            # archive 테이블 중복 제거 (가장 마지막에 저장된 id만 남김)
-            conn.execute("""
-                DELETE FROM archive 
-                WHERE id NOT IN (
-                    SELECT MAX(id) FROM archive GROUP BY title, category
-                )
-            """)
-            # plan 테이블 중복 제거
-            conn.execute("""
-                DELETE FROM plan 
-                WHERE id NOT IN (
-                    SELECT MAX(id) FROM plan GROUP BY title, category
-                )
-            """)
-            conn.commit()
-            st.cache_data.clear()
-            st.success("✅ 중복이 제거되었습니다! 아래 '클라우드 백업'을 눌러주세요.")
-            time.sleep(1.5)
-            st.rerun()
-            
-        st.divider()
-        st.markdown("### 🔄 데이터 동기화")
-        if 'sync_msg' in st.session_state:
-            m_type, m_txt = st.session_state.sync_msg
-            if m_type == "success": st.success(m_txt)
-            elif m_type == "warning": st.warning(m_txt)
-            else: st.error(m_txt)
-            del st.session_state.sync_msg
-        st.button("📤 클라우드 백업", on_click=migrate_to_supabase, use_container_width=True)
-        st.button("📥 클라우드 복구", on_click=restore_from_supabase, use_container_width=True)
-
-@st.cache_resource
-def auto_sync_on_startup():
-    conn = get_connection()
-    count = conn.execute("SELECT COUNT(*) FROM archive").fetchone()[0]
-    if count == 0:
-        restore_from_supabase()
-    return True
-
-auto_sync_on_startup()
-
-# --- [3. 로그인 및 Session State 초기화] ---
-DEV_MODE = False 
-
-if "is_logged_in" not in st.session_state:
-    st.session_state.is_logged_in = False
 if "user_password" not in st.session_state:
     st.session_state.user_password = ""
 if "selected_tag" not in st.session_state:
@@ -239,7 +147,6 @@ if "show_form" not in st.session_state:
 if "week_offset" not in st.session_state:
     st.session_state.week_offset = 0
 
-# --- 에러 방지용 초기화 스위치 ---
 if "should_clear_form" not in st.session_state:
     st.session_state.should_clear_form = False
 
@@ -269,17 +176,46 @@ with st.sidebar:
         input_password = st.text_input("비밀번호", type="password", key="sidebar_pw_2")
         if input_password:
             if input_password == st.secrets["ADMIN_PASSWORD"]:
+                # 브라우저 쿠키에 로그인 도장 찍기 (30일 유지)
+                cookie_manager.set("admin_logged_in", "yes", expires_at=datetime.now() + timedelta(days=30))
                 st.session_state.user_password = input_password 
                 st.session_state.is_logged_in = True
+                time.sleep(0.5) # 쿠키 저장 대기 시간
                 st.rerun()
             else:
                 st.error("비밀번호가 틀렸습니다.")
     if st.session_state.is_logged_in:
         st.success("관리자 모드 활성화됨")
         if st.button("🔓 로그아웃", key="logout_2", use_container_width=True):
+            # 로그아웃 시 쿠키 삭제
+            cookie_manager.delete("admin_logged_in")
             st.session_state.is_logged_in = False
             st.session_state.user_password = ""
+            time.sleep(0.5)
             st.rerun()
+        st.divider()
+        
+        st.markdown("### 🛠️ 데이터 오류 수정")
+        if st.button("🧹 중복 데이터 정리", help="같은 제목의 데이터 중 가장 최근에 수정한 것만 남기고 삭제합니다.", use_container_width=True):
+            conn = get_connection()
+            conn.execute("""
+                DELETE FROM archive 
+                WHERE id NOT IN (
+                    SELECT MAX(id) FROM archive GROUP BY title, category
+                )
+            """)
+            conn.execute("""
+                DELETE FROM plan 
+                WHERE id NOT IN (
+                    SELECT MAX(id) FROM plan GROUP BY title, category
+                )
+            """)
+            conn.commit()
+            st.cache_data.clear()
+            st.success("✅ 중복이 제거되었습니다! 아래 '클라우드 백업'을 눌러주세요.")
+            time.sleep(1.5)
+            st.rerun()
+            
         st.divider()
         st.markdown("### 🔄 데이터 동기화")
         if 'sync_msg' in st.session_state:
