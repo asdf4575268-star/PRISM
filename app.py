@@ -603,88 +603,92 @@ if is_admin and tab_w:
 
         if st.session_state.show_form:
             st.divider()
-            cl, cr = st.columns([0.4, 0.6])
-            with cl:
-                img_url_val = st.text_input("🖼️ 이미지 URL", key="f_img")
-                video_url_val = st.text_input("🎬 관련 영상(URL) 또는 제목/메모", key="f_video")
-                if st.session_state.f_img and st.session_state.f_img.strip() and st.session_state.f_img != "None": st.image(st.session_state.f_img, use_container_width=True)
-                title = st.text_input("📌 제목", key="f_title")
-                creator = st.text_input("👤 창작자", key="f_creator")
-                rel_date = st.text_input("📅 작품 날짜", key="f_date")
-                venue = st.text_input("📍 장소/플랫폼", key="f_venue")
-            with cr:
-                summary = st.text_area("📖 개요", height=100, key="f_summary")
-                brief = st.text_input("📝 요약 (한 줄 평)", key="f_brief")
-                if not st.session_state.f_highlights:
-                    if category == "BOOKS":
-                        st.session_state.f_highlights = "📖 p. : \n📖 p. : \n📖 p. : "
-                    elif category == "MUSIC":
-                        st.session_state.f_highlights = "🎵 제목(#1) : \n🎵 제목(#2) : \n🎵 제목(#3) : "
-                    elif category == "MOVIES":
-                        st.session_state.f_highlights = "🎬 명장면 : \n💬 명대사 : "
-                    elif category == "SERIES":
-                        st.session_state.f_highlights = "📺 Ep.01 : \n📺 Ep.02 : \n📺 Ep.03 : "
-                    elif category == "STAGE":
-                        st.session_state.f_highlights = "🎭 1막 : \n🎭 2막 : \n🎶 넘버 : " 
-                highlights = st.text_area("✨ 인상 깊은 부분", height=100, key="f_highlights")
-                if category != "SCRAP": note = st.text_area("🌈 PRISM (메모)", height=100, key="f_note")
-                else: st.session_state.f_note = ""
-                view_date = st.date_input("🍿 감상 완료/예정일", key="f_view_date")
-                
+            
+            # 🚨 입력 도중 강제 새로고침을 막아주는 방어막(Form) 생성!
+            with st.form(key="new_record_form"):
+                cl, cr = st.columns([0.4, 0.6])
+                with cl:
+                    img_url_val = st.text_input("🖼️ 이미지 URL", value=st.session_state.f_img)
+                    video_url_val = st.text_input("🎬 관련 영상(URL) 또는 제목/메모", value=st.session_state.f_video)
+                    if st.session_state.f_img and st.session_state.f_img.strip() and st.session_state.f_img != "None": 
+                        st.image(st.session_state.f_img, use_container_width=True)
+                    title = st.text_input("📌 제목", value=st.session_state.f_title)
+                    creator = st.text_input("👤 창작자", value=st.session_state.f_creator)
+                    rel_date = st.text_input("📅 작품 날짜", value=st.session_state.f_date)
+                    venue = st.text_input("📍 장소/플랫폼", value=st.session_state.f_venue)
+                with cr:
+                    summary = st.text_area("📖 개요", value=st.session_state.f_summary, height=100)
+                    brief = st.text_input("📝 요약 (한 줄 평)", value=st.session_state.f_brief)
+                    
+                    # 카테고리별 양식 세팅
+                    hl_val = st.session_state.f_highlights
+                    if not hl_val:
+                        if category == "BOOKS": hl_val = "📖 p. : \n📖 p. : \n📖 p. : "
+                        elif category == "MUSIC": hl_val = "🎵 제목(#1) : \n🎵 제목(#2) : \n🎵 제목(#3) : "
+                        elif category == "MOVIES": hl_val = "🎬 명장면 : \n💬 명대사 : "
+                        elif category == "SERIES": hl_val = "📺 Ep.01 : \n📺 Ep.02 : \n📺 Ep.03 : "
+                        elif category == "STAGE": hl_val = "🎭 1막 : \n🎭 2막 : \n🎶 넘버 : " 
+                    
+                    highlights = st.text_area("✨ 인상 깊은 부분", value=hl_val, height=100)
+                    note_val = st.text_area("🌈 PRISM (메모)", value=st.session_state.f_note, height=100) if category != "SCRAP" else ""
+                    view_date = st.date_input("🍿 감상 완료/예정일", value=st.session_state.f_view_date)
+                    
                 st.markdown("<br>", unsafe_allow_html=True)
                 col_btn1, col_btn2, col_btn3 = st.columns([0.4, 0.4, 0.2])
                 
-                submit_archive = col_btn1.button("✅ 아카이브 저장", use_container_width=True)
-                submit_plan = col_btn2.button("🗓️ 일정 추가", use_container_width=True)
-                cancel_btn = col_btn3.button("❌ 닫기", use_container_width=True)
-                
-                if cancel_btn:
-                    st.session_state.should_clear_form = True
-                    st.rerun()
+                # 폼(Form) 전용 제출 버튼으로 교체
+                submit_archive = col_btn1.form_submit_button("✅ 아카이브 저장", use_container_width=True)
+                submit_plan = col_btn2.form_submit_button("🗓️ 일정 추가", use_container_width=True)
+                cancel_btn = col_btn3.form_submit_button("❌ 닫기", use_container_width=True)
 
-                if submit_archive:
-                    if st.session_state.f_title.strip():
-                        new_record = {
-                            "category": str(category), "title": st.session_state.f_title.strip(), "creator": st.session_state.f_creator.strip(), 
-                            "rel_date": st.session_state.f_date.strip(), "venue": st.session_state.f_venue.strip(), "summary": st.session_state.f_summary.strip(), 
-                            "brief": st.session_state.f_brief.strip(), "highlights": st.session_state.f_highlights.strip(), "note": st.session_state.f_note.strip(), 
-                            "img_url": st.session_state.f_img.strip(), "img_url2": st.session_state.f_video.strip(), 
-                            "save_date": str(date.today()), "view_date": str(st.session_state.f_view_date)
-                        }
-                        try:
-                            conn = get_connection()
-                            conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], new_record["note"], new_record["img_url"], new_record["img_url2"], new_record["save_date"], new_record["view_date"]))
-                            conn.commit()
-                            st.cache_data.clear() 
-                            try: supabase.table("archive").upsert(new_record).execute()
-                            except: pass
-                            
-                            st.success("✅ 아카이브 저장 완료!")
-                            st.session_state.should_clear_form = True
-                            time.sleep(0.8)
-                            st.rerun()
-                        except Exception as e: st.error(f"❌ 오류: {e}")
-                    else: st.warning("제목을 입력해 주세요.")
-                
-                if submit_plan:
-                    if st.session_state.f_title.strip():
-                        rich_data = {
-                            "creator": st.session_state.f_creator.strip(), "rel_date": st.session_state.f_date.strip(), "venue": st.session_state.f_venue.strip(),
-                            "summary": st.session_state.f_summary.strip(), "brief": st.session_state.f_brief.strip(), "highlights": st.session_state.f_highlights.strip(),
-                            "note": st.session_state.f_note.strip(), "img_url": st.session_state.f_img.strip(), "img_url2": st.session_state.f_video.strip()
-                        }
-                        memo_payload = json.dumps(rich_data, ensure_ascii=False)
+            # --- 폼 제출 후 로직 ---
+            if cancel_btn:
+                st.session_state.should_clear_form = True
+                st.rerun()
+
+            if submit_archive:
+                if title.strip():
+                    new_record = {
+                        "category": str(category), "title": title.strip(), "creator": creator.strip(), 
+                        "rel_date": rel_date.strip(), "venue": venue.strip(), "summary": summary.strip(), 
+                        "brief": brief.strip(), "highlights": highlights.strip(), "note": note_val.strip(), 
+                        "img_url": img_url_val.strip(), "img_url2": video_url_val.strip(), 
+                        "save_date": str(date.today()), "view_date": str(view_date)
+                    }
+                    try:
                         conn = get_connection()
-                        conn.execute("INSERT INTO plan (plan_date, category, title, memo) VALUES (?,?,?,?)", (str(st.session_state.f_view_date), str(category), st.session_state.f_title.strip(), memo_payload))
+                        conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], new_record["note"], new_record["img_url"], new_record["img_url2"], new_record["save_date"], new_record["view_date"]))
                         conn.commit()
-                        try: supabase.table("plan").upsert({"plan_date": str(st.session_state.f_view_date), "category": str(category), "title": st.session_state.f_title.strip(), "memo": memo_payload}).execute()
+                        st.cache_data.clear() 
+                        try: supabase.table("archive").upsert(new_record).execute()
                         except: pass
-
-                        st.success("🗓️ 일정표에 추가되었습니다!")
+                        
+                        st.success("✅ 아카이브 저장 완료!")
                         st.session_state.should_clear_form = True
                         time.sleep(0.8)
                         st.rerun()
-                    else: st.warning("제목을 입력해 주세요.")
+                    except Exception as e: st.error(f"❌ 오류: {e}")
+                else: st.warning("제목을 입력해 주세요.")
+            
+            if submit_plan:
+                if title.strip():
+                    rich_data = {
+                        "creator": creator.strip(), "rel_date": rel_date.strip(), "venue": venue.strip(),
+                        "summary": summary.strip(), "brief": brief.strip(), "highlights": highlights.strip(),
+                        "note": note_val.strip(), "img_url": img_url_val.strip(), "img_url2": video_url_val.strip()
+                    }
+                    memo_payload = json.dumps(rich_data, ensure_ascii=False)
+                    conn = get_connection()
+                    conn.execute("INSERT INTO plan (plan_date, category, title, memo) VALUES (?,?,?,?)", (str(view_date), str(category), title.strip(), memo_payload))
+                    conn.commit()
+                    try: supabase.table("plan").upsert({"plan_date": str(view_date), "category": str(category), "title": title.strip(), "memo": memo_payload}).execute()
+                    except: pass
+
+                    st.success("🗓️ 일정표에 추가되었습니다!")
+                    st.session_state.should_clear_form = True
+                    time.sleep(0.8)
+                    st.rerun()
+                else: st.warning("제목을 입력해 주세요.")
 
         st.divider()
         
