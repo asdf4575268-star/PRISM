@@ -266,7 +266,7 @@ is_admin = st.session_state.is_logged_in or DEV_MODE
 with st.sidebar:
     st.markdown("### 🔐 관리자 접속")
     if not is_admin:
-        input_password = st.text_input("비밀번호", type="password", key="sidebar_pw")
+        input_password = st.text_input("비밀번호", type="password", key="sidebar_pw_2")
         if input_password:
             if input_password == st.secrets["ADMIN_PASSWORD"]:
                 st.session_state.user_password = input_password 
@@ -276,7 +276,7 @@ with st.sidebar:
                 st.error("비밀번호가 틀렸습니다.")
     if st.session_state.is_logged_in:
         st.success("관리자 모드 활성화됨")
-        if st.button("🔓 로그아웃", use_container_width=True):
+        if st.button("🔓 로그아웃", key="logout_2", use_container_width=True):
             st.session_state.is_logged_in = False
             st.session_state.user_password = ""
             st.rerun()
@@ -288,8 +288,8 @@ with st.sidebar:
             elif m_type == "warning": st.warning(m_txt)
             else: st.error(m_txt)
             del st.session_state.sync_msg
-        st.button("📤 클라우드 백업", on_click=migrate_to_supabase, use_container_width=True)
-        st.button("📥 클라우드 복구", on_click=restore_from_supabase, use_container_width=True)
+        st.button("📤 클라우드 백업", key="backup_2", on_click=migrate_to_supabase, use_container_width=True)
+        st.button("📥 클라우드 복구", key="restore_2", on_click=restore_from_supabase, use_container_width=True)
 
 # --- [API 검색 함수들] ---
 def search_books(query):
@@ -902,12 +902,3 @@ with tab_a:
                                     if st.button("상세보기 / 수정", key=f"scr_btn_{row['id']}"): show_details(row)
                     else: st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else: st.info("스크랩 기록이 없습니다.")
-
-
-
-
-
-
-
-
-
