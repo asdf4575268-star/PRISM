@@ -55,20 +55,18 @@ def migrate_to_supabase():
     try:
         conn = get_connection()
         conn.row_factory = sqlite3.Row
+        
+        # 1. 아카이브 백업 (고유 id를 지우지 않고 그대로 전송하여 클라우드에 '덮어쓰기' 함)
         local_data = conn.execute("SELECT * FROM archive").fetchall()
         if local_data:
             upload_list = [dict(row) for row in local_data]
-            for d in upload_list:
-                if 'id' in d: del d['id']
             supabase.table("archive").upsert(upload_list).execute() 
             
-        # 플랜 백업 (수파베이스에 테이블이 없어도 앱이 터지지 않도록 보호)
+        # 2. 플랜 백업
         try:
             local_plan = conn.execute("SELECT * FROM plan").fetchall()
             if local_plan:
                 plan_upload = [dict(row) for row in local_plan]
-                for p in plan_upload:
-                    if 'id' in p: del p['id']
                 supabase.table("plan").upsert(plan_upload).execute()
         except: pass
         
@@ -81,45 +79,142 @@ def restore_from_supabase():
         conn = get_connection()
         cursor = conn.cursor()
         
-        # 1. 아카이브 데이터 복구
+        # 클라우드에서 데이터 가져오기
         res = supabase.table("archive").select("*").execute()
         cloud_data = res.data if hasattr(res, 'data') else res
-        local_df = get_all_data()
-        local_keys = set(zip(local_df['title'], local_df['view_date'])) if not local_df.empty else set()
-        to_insert = []
+        
         if cloud_data:
+            # 로컬 중복 꼬임을 막기 위해 싹 비우고 클라우드 데이터로 1:1 완벽 세팅
+            cursor.execute("DELETE FROM archive")
+            to_insert = []
             for row in cloud_data:
-                if (row['title'], row['view_date']) not in local_keys:
-                    to_insert.append((
-                        row['category'], row['title'], row['creator'], row['rel_date'], 
-                        row['venue'], row['summary'], row.get('brief', ''), row.get('highlights', ''), 
-                        row['note'], row.get('img_url'), row.get('img_url2'), row['save_date'], row['view_date']
-                    ))
-            if to_insert:
-                cursor.executemany("""INSERT INTO archive 
-                    (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) 
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", to_insert)
-                    
-        # 2. 플랜 데이터 복구 (테이블이 없으면 무시하고 넘어감)
+                to_insert.append((
+                    row['id'], row['category'], row['title'], row['creator'], row['rel_date'], 
+                    row['venue'], row['summary'], row.get('brief', ''), row.get('highlights', ''), 
+                    row['note'], row.get('img_url'), row.get('img_url2'), row['save_date'], row['view_date']
+                ))
+            cursor.executemany("""INSERT INTO archive 
+                (id, category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) 
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", to_insert)
+                
         try:
             res_p = supabase.table("plan").select("*").execute()
             cloud_plan = res_p.data if hasattr(res_p, 'data') else res_p
-            local_plan_df = pd.read_sql_query("SELECT * FROM plan", conn)
-            local_plan_keys = set(zip(local_plan_df['title'], local_plan_df['plan_date'])) if not local_plan_df.empty else set()
-            plan_insert = []
             if cloud_plan:
+                cursor.execute("DELETE FROM plan")
+                plan_insert = []
                 for rp in cloud_plan:
-                    if (rp['title'], rp['plan_date']) not in local_plan_keys:
-                        plan_insert.append((rp['plan_date'], rp['category'], rp['title'], rp['memo']))
-            if plan_insert:
-                cursor.executemany("INSERT INTO plan (plan_date, category, title, memo) VALUES (?,?,?,?)", plan_insert)
+                    plan_insert.append((rp['id'], rp['plan_date'], rp['category'], rp['title'], rp['memo']))
+                cursor.executemany("INSERT INTO plan (id, plan_date, category, title, memo) VALUES (?,?,?,?,?)", plan_insert)
         except: pass
         
         conn.commit()
         st.cache_data.clear() 
-        st.session_state.sync_msg = ("success", f"✅ 기존 데이터를 성공적으로 복구했습니다!")
+        st.session_state.sync_msg = ("success", f"✅ 데이터를 성공적으로 복구했습니다!")
     except Exception as e:
         st.session_state.sync_msg = ("error", f"❌ 복구 실패: {e}")
+
+@st.cache_resource
+def auto_sync_on_startup():
+    conn = get_connection()
+    count = conn.execute("SELECT COUNT(*) FROM archive").fetchone()[0]
+    if count == 0:
+        restore_from_supabase()
+    return True
+
+auto_sync_on_startup()
+
+# --- [3. 로그인 및 Session State 초기화] ---
+DEV_MODE = False 
+
+if "is_logged_in" not in st.session_state:
+    st.session_state.is_logged_in = False
+if "user_password" not in st.session_state:
+    st.session_state.user_password = ""
+if "selected_tag" not in st.session_state:
+    st.session_state.selected_tag = None
+if "show_form" not in st.session_state:
+    st.session_state.show_form = False
+if "week_offset" not in st.session_state:
+    st.session_state.week_offset = 0
+
+if "should_clear_form" not in st.session_state:
+    st.session_state.should_clear_form = False
+
+form_keys = ['f_title', 'f_creator', 'f_date', 'f_venue', 'f_img', 'f_summary', 'f_video', 'f_brief', 'f_highlights', 'f_note']
+
+if st.session_state.should_clear_form:
+    for k in form_keys:
+        st.session_state[k] = ""
+    st.session_state.f_view_date = date.today()
+    st.session_state.show_form = False
+    st.session_state.should_clear_form = False
+
+for k in form_keys:
+    if k not in st.session_state:
+        st.session_state[k] = ""
+if 'f_view_date' not in st.session_state:
+    st.session_state.f_view_date = date.today()
+
+if st.session_state.user_password == st.secrets["ADMIN_PASSWORD"]:
+    st.session_state.is_logged_in = True
+
+is_admin = st.session_state.is_logged_in or DEV_MODE
+
+with st.sidebar:
+    st.markdown("### 🔐 관리자 접속")
+    if not is_admin:
+        input_password = st.text_input("비밀번호", type="password", key="sidebar_pw")
+        if input_password:
+            if input_password == st.secrets["ADMIN_PASSWORD"]:
+                st.session_state.user_password = input_password 
+                st.session_state.is_logged_in = True
+                st.rerun()
+            else:
+                st.error("비밀번호가 틀렸습니다.")
+    if st.session_state.is_logged_in:
+        st.success("관리자 모드 활성화됨")
+        if st.button("🔓 로그아웃", use_container_width=True):
+            st.session_state.is_logged_in = False
+            st.session_state.user_password = ""
+            st.rerun()
+        st.divider()
+        
+        # --- [추가됨] 엉킨 데이터 청소 버튼 ---
+        st.markdown("### 🛠️ 데이터 오류 수정")
+        if st.button("🧹 중복 데이터 정리", help="같은 제목의 데이터 중 가장 최근에 수정한 것만 남기고 삭제합니다.", use_container_width=True):
+            conn = get_connection()
+            # archive 테이블 중복 제거 (가장 마지막에 저장된 id만 남김)
+            conn.execute("""
+                DELETE FROM archive 
+                WHERE id NOT IN (
+                    SELECT MAX(id) FROM archive GROUP BY title, category
+                )
+            """)
+            # plan 테이블 중복 제거
+            conn.execute("""
+                DELETE FROM plan 
+                WHERE id NOT IN (
+                    SELECT MAX(id) FROM plan GROUP BY title, category
+                )
+            """)
+            conn.commit()
+            st.cache_data.clear()
+            st.success("✅ 중복이 제거되었습니다! 아래 '클라우드 백업'을 눌러주세요.")
+            time.sleep(1.5)
+            st.rerun()
+            
+        st.divider()
+        st.markdown("### 🔄 데이터 동기화")
+        if 'sync_msg' in st.session_state:
+            m_type, m_txt = st.session_state.sync_msg
+            if m_type == "success": st.success(m_txt)
+            elif m_type == "warning": st.warning(m_txt)
+            else: st.error(m_txt)
+            del st.session_state.sync_msg
+        st.button("📤 클라우드 백업", on_click=migrate_to_supabase, use_container_width=True)
+        st.button("📥 클라우드 복구", on_click=restore_from_supabase, use_container_width=True)
+
 @st.cache_resource
 def auto_sync_on_startup():
     conn = get_connection()
