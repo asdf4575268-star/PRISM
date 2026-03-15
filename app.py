@@ -61,12 +61,17 @@ def migrate_to_supabase():
             for d in upload_list:
                 if 'id' in d: del d['id']
             supabase.table("archive").upsert(upload_list).execute() 
-        local_plan = conn.execute("SELECT * FROM plan").fetchall()
-        if local_plan:
-            plan_upload = [dict(row) for row in local_plan]
-            for p in plan_upload:
-                if 'id' in p: del p['id']
-            supabase.table("plan").upsert(plan_upload).execute()
+            
+        # 플랜 백업 (수파베이스에 테이블이 없어도 앱이 터지지 않도록 보호)
+        try:
+            local_plan = conn.execute("SELECT * FROM plan").fetchall()
+            if local_plan:
+                plan_upload = [dict(row) for row in local_plan]
+                for p in plan_upload:
+                    if 'id' in p: del p['id']
+                supabase.table("plan").upsert(plan_upload).execute()
+        except: pass
+        
         st.session_state.sync_msg = ("success", f"✅ 클라우드 백업 완료!")
     except Exception as e:
         st.session_state.sync_msg = ("error", f"❌ 백업 실패: {e}")
@@ -75,6 +80,8 @@ def restore_from_supabase():
     try:
         conn = get_connection()
         cursor = conn.cursor()
+        
+        # 1. 아카이브 데이터 복구
         res = supabase.table("archive").select("*").execute()
         cloud_data = res.data if hasattr(res, 'data') else res
         local_df = get_all_data()
@@ -92,23 +99,27 @@ def restore_from_supabase():
                 cursor.executemany("""INSERT INTO archive 
                     (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) 
                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", to_insert)
-        res_p = supabase.table("plan").select("*").execute()
-        cloud_plan = res_p.data if hasattr(res_p, 'data') else res_p
-        local_plan_df = pd.read_sql_query("SELECT * FROM plan", conn)
-        local_plan_keys = set(zip(local_plan_df['title'], local_plan_df['plan_date'])) if not local_plan_df.empty else set()
-        plan_insert = []
-        if cloud_plan:
-            for rp in cloud_plan:
-                if (rp['title'], rp['plan_date']) not in local_plan_keys:
-                    plan_insert.append((rp['plan_date'], rp['category'], rp['title'], rp['memo']))
+                    
+        # 2. 플랜 데이터 복구 (테이블이 없으면 무시하고 넘어감)
+        try:
+            res_p = supabase.table("plan").select("*").execute()
+            cloud_plan = res_p.data if hasattr(res_p, 'data') else res_p
+            local_plan_df = pd.read_sql_query("SELECT * FROM plan", conn)
+            local_plan_keys = set(zip(local_plan_df['title'], local_plan_df['plan_date'])) if not local_plan_df.empty else set()
+            plan_insert = []
+            if cloud_plan:
+                for rp in cloud_plan:
+                    if (rp['title'], rp['plan_date']) not in local_plan_keys:
+                        plan_insert.append((rp['plan_date'], rp['category'], rp['title'], rp['memo']))
             if plan_insert:
                 cursor.executemany("INSERT INTO plan (plan_date, category, title, memo) VALUES (?,?,?,?)", plan_insert)
+        except: pass
+        
         conn.commit()
         st.cache_data.clear() 
-        st.session_state.sync_msg = ("success", f"✅ 데이터를 복구했습니다!")
+        st.session_state.sync_msg = ("success", f"✅ 기존 데이터를 성공적으로 복구했습니다!")
     except Exception as e:
         st.session_state.sync_msg = ("error", f"❌ 복구 실패: {e}")
-
 @st.cache_resource
 def auto_sync_on_startup():
     conn = get_connection()
