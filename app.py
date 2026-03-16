@@ -357,9 +357,11 @@ def show_details(item):
                 if n_img.strip() and n_img != "None": st.image(n_img, use_container_width=True)
             with col_txt_form:
                 n_title = st.text_input("📌 제목", value=str(item.get('title', '')))
-                creator_label_edit = "👤 창작자 / 스크랩 분류" if item.get('category') == "SCRAP" else "👤 창작자"
-                n_creator = st.text_input(creator_label_edit, value=str(item.get('creator', '')))
+                
                 cat = item.get('category')
+                creator_label_edit = "👤 창작자/매체" if cat == "SCRAP" else "👤 창작자"
+                n_creator = st.text_input(creator_label_edit, value=str(item.get('creator', '')))
+                
                 labels = {"BOOKS": "📖 출판사", "MUSIC": "💿 레이블", "MOVIES": "🎬 제작사", "SERIES": "📺 플랫폼", "STAGE": "📍 장소", "SCRAP": "📰 매체"}
                 v_label = labels.get(cat, "📍 장소")
                 c1, c2 = st.columns(2)
@@ -369,9 +371,14 @@ def show_details(item):
                 except: curr_view = date.today()
                 n_view_date = st.date_input("🍿 감상일 수정", value=curr_view)
                 n_sum = st.text_area("📖 개요", value=str(item.get('summary', '')), height=150)
-                n_brief = st.text_area("📝 요약", value=str(item.get('brief', '')), height=100)
-                n_high = st.text_area("✨ 인상 깊은 부분", value=str(item.get('highlights', '')), height=100)
-                n_note = st.text_area("🌈 PRISM", value=str(item.get('note', '')), height=100) if cat != "SCRAP" else ""
+                n_brief = st.text_input("📝 요약 (한 줄 평)", value=str(item.get('brief', '')))
+                
+                n_high_label = "✨ 인상 깊은 부분 (5문장 요약)" if cat == "SCRAP" else "✨ 인상 깊은 부분"
+                n_high = st.text_area(n_high_label, value=str(item.get('highlights', '')), height=150 if cat == "SCRAP" else 100)
+                
+                n_note_label = "🌈 PRISM (5문장 감상)" if cat == "SCRAP" else "🌈 PRISM"
+                n_note = st.text_area(n_note_label, value=str(item.get('note', '')), height=150 if cat == "SCRAP" else 100)
+                
                 if st.form_submit_button("💾 저장", use_container_width=True):
                     try:
                         conn = get_connection()
@@ -405,10 +412,10 @@ def show_details(item):
             st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿 감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
             st.divider()
             
-            if item.get("category") != "SCRAP":
-                sections = [("📝 요약 (한 줄 평)", "brief", "#0E6245"), ("🌈 PRISM", "note", "#1E425E"), ("✨ 인상 깊은 부분", "highlights", "#7D5600"), ("📖 개요", "summary", "#444")]
+            if item.get("category") == "SCRAP":
+                sections = [("📝 요약 (한 줄 평)", "brief", "#0E6245"), ("✨ 5문장 요약", "highlights", "#7D5600"), ("🌈 5문장 감상", "note", "#1E425E"), ("📖 개요", "summary", "#444")]
             else:
-                sections = [("📝 5문장 요약", "brief", "#0E6245"), ("✨ 5문장 감상", "highlights", "#7D5600"), ("📖 개요 (링크/본문)", "summary", "#444")]
+                sections = [("📝 요약 (한 줄 평)", "brief", "#0E6245"), ("🌈 PRISM", "note", "#1E425E"), ("✨ 인상 깊은 부분", "highlights", "#7D5600"), ("📖 개요", "summary", "#444")]
                 
             for label, key, color in sections:
                 if item.get(key):
@@ -551,12 +558,6 @@ else:
 if is_admin and tab_w:
     with tab_w:
         category = st.radio("📂 category", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"], horizontal=True, key="main_category_radio")
-        
-        if category == "SCRAP":
-            scrap_type = st.radio("📰 스크랩 세부 분류", ["Article", "Column", "Essay"], horizontal=True, key="scrap_type_radio")
-        else:
-            scrap_type = ""
-            
         search_query = st.text_input(f"🔍 {category} 검색")
         
         if search_query:
@@ -564,7 +565,7 @@ if is_admin and tab_w:
                 if st.button("✨ 가져오기"):
                     s = scrape_url(search_query)
                     if s:
-                        st.session_state.f_title = s['title']; st.session_state.f_creator = scrap_type; st.session_state.f_date = str(date.today())
+                        st.session_state.f_title = s['title']; st.session_state.f_creator = ''; st.session_state.f_date = str(date.today())
                         st.session_state.f_img = s['img']; st.session_state.f_venue = s['venue']; st.session_state.f_summary = s['summary']
                         st.session_state.show_form = True; st.rerun()
             elif category == "BOOKS":
@@ -628,42 +629,33 @@ if is_admin and tab_w:
                         st.image(st.session_state.f_img, use_container_width=True)
                     title = st.text_input("📌 제목", value=st.session_state.f_title)
                     
-                    creator_label = "👤 창작자 / 스크랩 분류" if category == "SCRAP" else "👤 창작자"
-                    default_creator = scrap_type if category == "SCRAP" and not st.session_state.f_creator else st.session_state.f_creator
-                    creator = st.text_input(creator_label, value=default_creator)
+                    creator_label = "👤 창작자/매체" if category == "SCRAP" else "👤 창작자"
+                    creator = st.text_input(creator_label, value=st.session_state.f_creator)
                     
                     rel_date = st.text_input("📅 작품 날짜", value=st.session_state.f_date)
                     venue = st.text_input("📍 장소/플랫폼", value=st.session_state.f_venue)
                 with cr:
                     summary = st.text_area("📖 개요", value=st.session_state.f_summary, height=100)
+                    brief = st.text_input("📝 요약 (한 줄 평)", value=st.session_state.f_brief)
                     
-                    if category == "SCRAP":
-                        brief_val = st.session_state.f_brief
-                        if not brief_val:
-                            if scrap_type == "Article": brief_val = "1. [가장 중요한 정보]\n2. \n3. \n4. \n5. "
-                            elif scrap_type == "Column": brief_val = "1. [논지/핵심 주장]\n2. \n3. \n4. \n5. "
-                            elif scrap_type == "Essay": brief_val = "1. [중심 맥락]\n2. \n3. \n4. \n5. "
-                            else: brief_val = "1. \n2. \n3. \n4. \n5. "
-                        brief = st.text_area("📝 5문장 요약", value=brief_val, height=150)
+                    hl_val = st.session_state.f_highlights
+                    if not hl_val:
+                        if category == "BOOKS": hl_val = "📖 p. : \n📖 p. : \n📖 p. : "
+                        elif category == "MUSIC": hl_val = "🎵 제목(#1) : \n🎵 제목(#2) : \n🎵 제목(#3) : "
+                        elif category == "MOVIES": hl_val = "🎬 명장면 : \n💬 명대사 : "
+                        elif category == "SERIES": hl_val = "📺 Ep.01 : \n📺 Ep.02 : \n📺 Ep.03 : "
+                        elif category == "STAGE": hl_val = "🎭 1막 : \n🎭 2막 : \n🎶 넘버 : " 
+                        elif category == "SCRAP": hl_val = "1. \n2. \n3. \n4. \n5. "
+                    
+                    hl_label = "✨ 인상 깊은 부분 (5문장 요약)" if category == "SCRAP" else "✨ 인상 깊은 부분"
+                    highlights = st.text_area(hl_label, value=hl_val, height=150 if category == "SCRAP" else 100)
+                    
+                    note_val = st.session_state.f_note
+                    if category == "SCRAP" and not note_val:
+                        note_val = "1. \n2. \n3. \n4. \n5. "
                         
-                        hl_val = st.session_state.f_highlights
-                        if not hl_val:
-                            hl_val = "1. [감상/의견]\n2. \n3. \n4. \n5. "
-                        highlights = st.text_area("✨ 5문장 감상", value=hl_val, height=150)
-                        note_val = ""
-                    else:
-                        brief = st.text_input("📝 요약 (한 줄 평)", value=st.session_state.f_brief)
-                        
-                        hl_val = st.session_state.f_highlights
-                        if not hl_val:
-                            if category == "BOOKS": hl_val = "📖 p. : \n📖 p. : \n📖 p. : "
-                            elif category == "MUSIC": hl_val = "🎵 제목(#1) : \n🎵 제목(#2) : \n🎵 제목(#3) : "
-                            elif category == "MOVIES": hl_val = "🎬 명장면 : \n💬 명대사 : "
-                            elif category == "SERIES": hl_val = "📺 Ep.01 : \n📺 Ep.02 : \n📺 Ep.03 : "
-                            elif category == "STAGE": hl_val = "🎭 1막 : \n🎭 2막 : \n🎶 넘버 : " 
-                        
-                        highlights = st.text_area("✨ 인상 깊은 부분", value=hl_val, height=100)
-                        note_val = st.text_area("🌈 PRISM (메모)", value=st.session_state.f_note, height=100)
+                    note_label = "🌈 PRISM (5문장 감상)" if category == "SCRAP" else "🌈 PRISM (메모)"
+                    note_val = st.text_area(note_label, value=note_val, height=150 if category == "SCRAP" else 100)
                     
                     view_date = st.date_input("🍿 감상 완료/예정일", value=st.session_state.f_view_date)
                     
@@ -864,14 +856,14 @@ with tab_a:
                             y_str, w_str = w.split('-')
                             st.subheader(f"🗓️ {y_str}-{int(w_str)}주차 스크랩")
                             for _, row in w_data.iterrows():
-                                scrap_type_badge = f" [{row['creator']}]" if row['creator'] else ""
-                                with st.expander(f"👉{scrap_type_badge} [{row['venue']}] {row['title']} ({row['view_date']})"):
+                                with st.expander(f"👉 [{row['venue']}] {row['title']} ({row['view_date']})"):
                                     summary_text = str(row['summary'])
                                     if summary_text.startswith("http"):
                                         url = summary_text.split('\n')[0]
                                         st.markdown(f"**[🔗 원본 기사 보러가기]({url})**")
-                                    if row['brief']: st.markdown(f"**📝 5문장 요약:**<br>{row['brief'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
-                                    if row['highlights']: st.markdown(f"**✨ 5문장 감상:**<br>{row['highlights'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
+                                    if row['brief']: st.write(f"**📝 요약 (한 줄 평):** {row['brief']}")
+                                    if row['highlights']: st.markdown(f"**✨ 5문장 요약:**<br>{row['highlights'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
+                                    if row['note']: st.markdown(f"**🌈 5문장 감상:**<br>{row['note'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
                                     if st.button("상세보기 / 수정", key=f"scr_btn_{row['id']}"): show_details(row)
                     else: st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else: st.info("스크랩 기록이 없습니다.")
