@@ -178,7 +178,7 @@ with st.sidebar:
     if st.session_state.is_logged_in:
         st.success("관리자 모드 활성화됨")
         if st.button("🔓 로그아웃", key="logout_2", use_container_width=True):
-            cookie_manager.delete("admin_logged_in")
+            cookie_manager.set("admin_logged_in", "no") # delete 대신 값을 덮어써서 확실하게 로그아웃 처리
             st.session_state.is_logged_in = False
             st.session_state.user_password = ""
             time.sleep(0.5)
