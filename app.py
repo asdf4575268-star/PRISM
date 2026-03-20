@@ -394,7 +394,6 @@ def show_details(item):
             st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿 감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
             st.divider()
             
-            # 관리자/비관리자 권한에 따른 표시 로직 분리
             if item.get("category") == "SCRAP":
                 sections = [("📝 요약 (한 줄 평)", "brief", "#0E6245"), ("✨ 5문장 요약", "highlights", "#7D5600"), ("🌈 5문장 감상", "note", "#1E425E"), ("📖 개요", "summary", "#444")]
             else:
@@ -416,6 +415,21 @@ def show_details(item):
                     st.markdown(f'<div style="display: inline-block; background-color: {color}; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px; font-weight: bold;">{label}</div>', unsafe_allow_html=True)
                     st.markdown(item[key].replace('\n', '  \n'))
                     st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
+            
+            # 공유용 텍스트 복사 기능 추가
+            if item.get("category") != "SCRAP":
+                st.markdown("<br>", unsafe_allow_html=True)
+                with st.expander("🔗 외부에 리뷰 공유하기 (복사)"):
+                    share_text = f"[{item.get('category')}] {item.get('title')}\n"
+                    if creator_text:
+                        share_text += f"- {creator_text}\n"
+                    share_text += "\n"
+                    if item.get('brief'):
+                        share_text += f"💎 한 줄 평: {item.get('brief')}\n\n"
+                    if item.get('note'):
+                        share_text += f"🖋️ PRISM 리뷰:\n{item.get('note')}"
+                    
+                    st.code(share_text.strip(), language="markdown")
 
 @st.dialog("🗓️상세 정보", width="large")
 def show_plan_details(item):
@@ -516,7 +530,17 @@ def show_plan_details(item):
                     st.markdown(f'<div style="display: inline-block; background-color: {color}; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px; font-weight: bold;">{label}</div>', unsafe_allow_html=True)
                     st.markdown(rich_data[key].replace('\n', '  \n'))
                     st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
-        
+            
+            if item.get("category") != "SCRAP":
+                st.markdown("<br>", unsafe_allow_html=True)
+                with st.expander("🔗 외부에 리뷰 공유하기 (복사)"):
+                    share_text = f"[{item.get('category')}] {item.get('title')}\n"
+                    if rich_data.get('creator'): share_text += f"- {rich_data.get('creator')}\n"
+                    share_text += "\n"
+                    if rich_data.get('brief'): share_text += f"💎 한 줄 평: {rich_data.get('brief')}\n\n"
+                    if rich_data.get('note'): share_text += f"🖋️ PRISM 리뷰:\n{rich_data.get('note')}"
+                    st.code(share_text.strip(), language="markdown")
+
         if is_admin:
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("✅ 완료", key=f"done_plan_bottom_{item['id']}", use_container_width=True, type="primary"):
@@ -645,7 +669,6 @@ if is_admin and tab_w:
                         
                         brief = st.text_input("📝 요약 (한 줄 평)", value=st.session_state.f_brief)
                     else:
-                        # [사고의 깔때기] 템플릿: 데이터 수집 및 뼈대 스케치
                         hl_val = st.session_state.f_highlights
                         if not hl_val:
                             hl_val = """### [Step 2] 데이터 수집함 (Raw Data)
@@ -665,7 +688,6 @@ if is_admin and tab_w:
   4. """
                         highlights = st.text_area("📦 Step 2 & 3. 데이터 수집 및 스케치", value=hl_val, height=300)
                         
-                        # [사고의 깔때기] 템플릿: 본문 작성 (Drafting)
                         note_val = st.session_state.f_note
                         if not note_val:
                             note_val = """### [Step 4] 본문 작성 (Drafting)
@@ -673,7 +695,6 @@ if is_admin and tab_w:
 """
                         note_val = st.text_area("🖋️ Step 4. 본문 작성 (PRISM)", value=note_val, height=200)
                         
-                        # [사고의 깔때기] 템플릿: 최종 요약
                         brief = st.text_input("💎 Step 5. 최종 요약 (한 줄 평)", value=st.session_state.f_brief)
                     
                     view_date = st.date_input("🍿 감상 완료/예정일", value=st.session_state.f_view_date)
