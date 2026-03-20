@@ -122,7 +122,6 @@ def auto_sync_on_startup():
 
 auto_sync_on_startup()
 
-# --- 외부 이미지 Base64 변환 (공유 파일 첨부용) ---
 def get_image_base64(url):
     if not url or str(url).strip() == "None": return ""
     try:
@@ -141,9 +140,9 @@ if "is_logged_in" not in st.session_state:
     st.session_state.is_logged_in = False
 
 admin_cookie = cookie_manager.get(cookie="admin_logged_in")
-if admin_cookie == "yes" and not st.session_state.is_logged_in:
+if admin_cookie == "yes":
     st.session_state.is_logged_in = True
-elif admin_cookie != "yes":
+else:
     st.session_state.is_logged_in = False
 
 if "user_password" not in st.session_state:
@@ -173,9 +172,6 @@ for k in form_keys:
 if 'f_view_date' not in st.session_state:
     st.session_state.f_view_date = date.today()
 
-if st.session_state.user_password == st.secrets["ADMIN_PASSWORD"]:
-    st.session_state.is_logged_in = True
-
 is_admin = st.session_state.is_logged_in or DEV_MODE
 
 with st.sidebar:
@@ -194,13 +190,13 @@ with st.sidebar:
     if st.session_state.is_logged_in:
         st.success("관리자 모드 활성화됨")
         
-        # 확실한 로그아웃 로직 처리
+        # [수정] 로그아웃 확실하게 처리 (쿠키 덮어쓰기)
         if st.button("🔓 로그아웃", key="logout_btn", use_container_width=True):
-            cookie_manager.delete("admin_logged_in")
+            cookie_manager.set("admin_logged_in", "no") # delete 대신 덮어쓰기 사용
             st.session_state.is_logged_in = False
             st.session_state.user_password = ""
             st.session_state.should_clear_form = True
-            time.sleep(0.3)
+            time.sleep(0.5)
             st.rerun()
             
         st.divider()
@@ -460,59 +456,64 @@ def show_details(item):
             if item.get("category") != "SCRAP":
                 st.markdown("<br>", unsafe_allow_html=True)
                 
-                # --- 공유 데이터 구성 ---
-                share_text = f"[{item.get('category')}] {item.get('title')}\n"
-                if creator_text: share_text += f"- {creator_text}\n"
-                share_text += "\n"
-                if item.get('img_url2') and str(item.get('img_url2')) != "None": share_text += f"🎬 관련 영상/링크: {item.get('img_url2')}\n\n"
-                if item.get('brief'): share_text += f"💎 한 줄 평: {item.get('brief')}\n\n"
-                if item.get('note'): share_text += f"🖋️ PRISM 리뷰:\n{item.get('note')}"
+                # --- [수정] 블로그 공유용 마크다운 & 모바일 공유 버튼 ---
+                st.subheader("🔗 외부에 리뷰 공유하기")
                 
-                safe_share_text = share_text.strip().replace('`', '\\`').replace('\n', '\\n')
+                # 1. 모바일 기기용 Native Share (버튼)
+                share_text_mobile = f"[{item.get('category')}] {item.get('title')}\n"
+                if creator_text: share_text_mobile += f"- {creator_text}\n"
+                share_text_mobile += "\n"
+                if item.get('img_url2') and str(item.get('img_url2')) != "None": share_text_mobile += f"🎬 관련 링크: {item.get('img_url2')}\n\n"
+                if item.get('brief'): share_text_mobile += f"💎 한 줄 평: {item.get('brief')}\n\n"
+                if item.get('note'): share_text_mobile += f"🖋️ PRISM 리뷰:\n{item.get('note')}"
+                
+                safe_share_text = share_text_mobile.strip().replace('`', '\\`').replace('\n', '\\n')
                 img_b64_data = get_image_base64(item.get('img_url', ''))
                 
-                # 이미지 + 텍스트를 파일로 묶어서 보내는 자바스크립트 로직
                 share_html = f"""
-                <div style="margin-bottom: 10px;">
+                <div style="margin-bottom: 15px;">
                     <button onclick="shareItem()" style="width:100%; padding:12px; background: linear-gradient(45deg, #405de6, #5851db, #833ab4, #c13584, #e1306c, #fd1d1d); color:white; border-radius:8px; border:none; cursor:pointer; font-weight:bold; font-size:16px;">
-                        📲 SNS / 카톡으로 리뷰 공유하기
+                        📲 모바일 SNS / 카톡으로 공유하기
                     </button>
                 </div>
                 <script>
                 async function shareItem() {{
-                    let shareData = {{
-                        title: 'PRISM 리뷰',
-                        text: `{safe_share_text}`
-                    }};
-                    
+                    let shareData = {{ title: 'PRISM 리뷰', text: `{safe_share_text}` }};
                     const imgB64 = "{img_b64_data}";
                     if (imgB64 && navigator.canShare) {{
                         try {{
                             const res = await fetch(imgB64);
                             const blob = await res.blob();
                             const file = new File([blob], 'prism_cover.jpg', {{ type: blob.type }});
-                            if (navigator.canShare({{ files: [file] }})) {{
-                                shareData.files = [file];
-                            }}
-                        }} catch (e) {{ console.log('이미지 변환 에러:', e); }}
+                            if (navigator.canShare({{ files: [file] }})) shareData.files = [file];
+                        }} catch (e) {{ console.log(e); }}
                     }}
-
                     try {{
-                        if (navigator.share) {{
-                            await navigator.share(shareData);
-                        }} else {{
-                            alert('공유 기능을 지원하지 않는 브라우저입니다. 아래의 텍스트를 복사해주세요.');
-                        }}
-                    }} catch (e) {{
-                        console.log('공유 취소 또는 에러:', e);
-                    }}
+                        if (navigator.share) await navigator.share(shareData);
+                        else alert('현재 브라우저에서는 공유 기능을 지원하지 않습니다. 아래 블로그용 복사를 이용해주세요.');
+                    }} catch (e) {{ console.log(e); }}
                 }}
                 </script>
                 """
                 components.html(share_html, height=65)
 
-                with st.expander("🔗 텍스트 직접 복사하기 (PC용)"):
-                    st.code(share_text.strip(), language="markdown")
+                # 2. 블로그 포스팅용 마크다운 복사
+                with st.expander("📝 블로그 포스팅용 복사 (티스토리, 네이버, 벨로그)"):
+                    blog_text = f"## [{item.get('category')}] {item.get('title')}\n\n"
+                    if item.get('img_url') and str(item.get('img_url')) != "None":
+                        blog_text += f"![포스터/커버]({item.get('img_url')})\n\n"
+                    
+                    blog_text += f"- **창작자:** {creator_text}\n"
+                    blog_text += f"- **일시/장소:** {item.get('rel_date')} | {item.get('venue')}\n"
+                    if item.get('img_url2') and str(item.get('img_url2')) != "None":
+                        blog_text += f"- **관련 영상/링크:** {item.get('img_url2')}\n"
+                    blog_text += "\n---\n\n"
+                    
+                    if item.get('brief'): blog_text += f"### 💎 한 줄 평\n{item.get('brief')}\n\n"
+                    if item.get('note'): blog_text += f"### 🖋️ PRISM 리뷰\n{item.get('note')}\n\n"
+                    
+                    st.info("우측 상단의 복사(📋) 버튼을 눌러 블로그 에디터에 붙여넣기 하세요!")
+                    st.code(blog_text.strip(), language="markdown")
 
 @st.dialog("🗓️상세 정보", width="large")
 def show_plan_details(item):
@@ -640,58 +641,64 @@ def show_plan_details(item):
             if item.get("category") != "SCRAP":
                 st.markdown("<br>", unsafe_allow_html=True)
                 
-                # --- 공유 데이터 구성 (플랜) ---
-                share_text = f"[{item.get('category')}] {item.get('title')}\n"
-                if rich_data.get('creator'): share_text += f"- {rich_data.get('creator')}\n"
-                share_text += "\n"
-                if rich_data.get('img_url2') and str(rich_data.get('img_url2')) != "None": share_text += f"🎬 관련 영상/링크: {rich_data.get('img_url2')}\n\n"
-                if rich_data.get('brief'): share_text += f"💎 한 줄 평: {rich_data.get('brief')}\n\n"
-                if rich_data.get('note'): share_text += f"🖋️ PRISM 리뷰:\n{rich_data.get('note')}"
+                # --- [수정] 블로그 공유용 마크다운 & 모바일 공유 버튼 (플랜) ---
+                st.subheader("🔗 외부에 리뷰 공유하기")
                 
-                safe_share_text = share_text.strip().replace('`', '\\`').replace('\n', '\\n')
+                # 1. 모바일 기기용 Native Share
+                share_text_mobile = f"[일정 - {item.get('category')}] {item.get('title')}\n"
+                if rich_data.get('creator'): share_text_mobile += f"- {rich_data.get('creator')}\n"
+                share_text_mobile += "\n"
+                if rich_data.get('img_url2') and str(rich_data.get('img_url2')) != "None": share_text_mobile += f"🎬 관련 링크: {rich_data.get('img_url2')}\n\n"
+                if rich_data.get('brief'): share_text_mobile += f"💎 한 줄 평: {rich_data.get('brief')}\n\n"
+                if rich_data.get('note'): share_text_mobile += f"🖋️ PRISM 리뷰:\n{rich_data.get('note')}"
+                
+                safe_share_text = share_text_mobile.strip().replace('`', '\\`').replace('\n', '\\n')
                 img_b64_data = get_image_base64(rich_data.get('img_url', ''))
                 
                 share_html = f"""
-                <div style="margin-bottom: 10px;">
+                <div style="margin-bottom: 15px;">
                     <button onclick="sharePlanItem()" style="width:100%; padding:12px; background: linear-gradient(45deg, #405de6, #5851db, #833ab4, #c13584, #e1306c, #fd1d1d); color:white; border-radius:8px; border:none; cursor:pointer; font-weight:bold; font-size:16px;">
-                        📲 SNS / 카톡으로 리뷰 공유하기
+                        📲 모바일 SNS / 카톡으로 공유하기
                     </button>
                 </div>
                 <script>
                 async function sharePlanItem() {{
-                    let shareData = {{
-                        title: 'PRISM 일정 공유',
-                        text: `{safe_share_text}`
-                    }};
-                    
+                    let shareData = {{ title: 'PRISM 일정 공유', text: `{safe_share_text}` }};
                     const imgB64 = "{img_b64_data}";
                     if (imgB64 && navigator.canShare) {{
                         try {{
                             const res = await fetch(imgB64);
                             const blob = await res.blob();
                             const file = new File([blob], 'prism_plan_cover.jpg', {{ type: blob.type }});
-                            if (navigator.canShare({{ files: [file] }})) {{
-                                shareData.files = [file];
-                            }}
-                        }} catch (e) {{ console.log('이미지 변환 에러:', e); }}
+                            if (navigator.canShare({{ files: [file] }})) shareData.files = [file];
+                        }} catch (e) {{ console.log(e); }}
                     }}
-
                     try {{
-                        if (navigator.share) {{
-                            await navigator.share(shareData);
-                        }} else {{
-                            alert('공유 기능을 지원하지 않는 브라우저입니다. 아래의 텍스트를 복사해주세요.');
-                        }}
-                    }} catch (e) {{
-                        console.log('공유 취소 또는 에러:', e);
-                    }}
+                        if (navigator.share) await navigator.share(shareData);
+                        else alert('현재 브라우저에서는 공유 기능을 지원하지 않습니다. 아래 블로그용 복사를 이용해주세요.');
+                    }} catch (e) {{ console.log(e); }}
                 }}
                 </script>
                 """
                 components.html(share_html, height=65)
 
-                with st.expander("🔗 텍스트 직접 복사하기 (PC용)"):
-                    st.code(share_text.strip(), language="markdown")
+                # 2. 블로그 포스팅용 마크다운 복사
+                with st.expander("📝 블로그 포스팅용 복사 (티스토리, 네이버, 벨로그)"):
+                    blog_text = f"## [일정 - {item.get('category')}] {item.get('title')}\n\n"
+                    if rich_data.get('img_url') and str(rich_data.get('img_url')) != "None":
+                        blog_text += f"![포스터/커버]({rich_data.get('img_url')})\n\n"
+                    
+                    blog_text += f"- **창작자:** {rich_data.get('creator', '정보 없음')}\n"
+                    blog_text += f"- **일시/장소:** {rich_data.get('rel_date')} | {rich_data.get('venue')}\n"
+                    if rich_data.get('img_url2') and str(rich_data.get('img_url2')) != "None":
+                        blog_text += f"- **관련 영상/링크:** {rich_data.get('img_url2')}\n"
+                    blog_text += "\n---\n\n"
+                    
+                    if rich_data.get('brief'): blog_text += f"### 💎 한 줄 평\n{rich_data.get('brief')}\n\n"
+                    if rich_data.get('note'): blog_text += f"### 🖋️ PRISM 리뷰\n{rich_data.get('note')}\n\n"
+                    
+                    st.info("우측 상단의 복사(📋) 버튼을 눌러 블로그 에디터에 붙여넣기 하세요!")
+                    st.code(blog_text.strip(), language="markdown")
 
         if is_admin:
             st.markdown("<br>", unsafe_allow_html=True)
