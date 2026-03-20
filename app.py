@@ -1,5 +1,6 @@
 import calendar
 import streamlit as st
+import streamlit.components.v1 as components
 from PIL import Image
 import sqlite3
 import requests
@@ -121,14 +122,29 @@ def auto_sync_on_startup():
 
 auto_sync_on_startup()
 
+# --- 외부 이미지 Base64 변환 (공유 파일 첨부용) ---
+def get_image_base64(url):
+    if not url or str(url).strip() == "None": return ""
+    try:
+        res = requests.get(url, timeout=3)
+        if res.status_code == 200:
+            content_type = res.headers.get('Content-Type', 'image/jpeg')
+            return f"data:{content_type};base64,{base64.b64encode(res.content).decode()}"
+    except: pass
+    return ""
+
 # --- [3. 로그인 및 Session State 초기화] ---
 DEV_MODE = False 
 cookie_manager = stx.CookieManager()
 
 if "is_logged_in" not in st.session_state:
     st.session_state.is_logged_in = False
-if cookie_manager.get(cookie="admin_logged_in") == "yes":
+
+admin_cookie = cookie_manager.get(cookie="admin_logged_in")
+if admin_cookie == "yes" and not st.session_state.is_logged_in:
     st.session_state.is_logged_in = True
+elif admin_cookie != "yes":
+    st.session_state.is_logged_in = False
 
 if "user_password" not in st.session_state:
     st.session_state.user_password = ""
@@ -165,7 +181,7 @@ is_admin = st.session_state.is_logged_in or DEV_MODE
 with st.sidebar:
     st.markdown("### 🔐 관리자 접속")
     if not is_admin:
-        input_password = st.text_input("비밀번호", type="password", key="sidebar_pw_2")
+        input_password = st.text_input("비밀번호", type="password", key="sidebar_pw_main")
         if input_password:
             if input_password == st.secrets["ADMIN_PASSWORD"]:
                 cookie_manager.set("admin_logged_in", "yes", expires_at=datetime.now() + timedelta(days=30))
@@ -177,12 +193,16 @@ with st.sidebar:
                 st.error("비밀번호가 틀렸습니다.")
     if st.session_state.is_logged_in:
         st.success("관리자 모드 활성화됨")
-        if st.button("🔓 로그아웃", key="logout_2", use_container_width=True):
+        
+        # 확실한 로그아웃 로직 처리
+        if st.button("🔓 로그아웃", key="logout_btn", use_container_width=True):
             cookie_manager.delete("admin_logged_in")
             st.session_state.is_logged_in = False
             st.session_state.user_password = ""
-            time.sleep(0.5)
+            st.session_state.should_clear_form = True
+            time.sleep(0.3)
             st.rerun()
+            
         st.divider()
         st.markdown("### 🛠️ 데이터 오류 수정")
         if st.button("🧹 중복 데이터 정리", help="같은 제목의 데이터 중 가장 최근에 수정한 것만 남기고 삭제합니다.", use_container_width=True):
@@ -202,8 +222,8 @@ with st.sidebar:
             elif m_type == "warning": st.warning(m_txt)
             else: st.error(m_txt)
             del st.session_state.sync_msg
-        st.button("📤 클라우드 백업", key="backup_2", on_click=migrate_to_supabase, use_container_width=True)
-        st.button("📥 클라우드 복구", key="restore_2", on_click=restore_from_supabase, use_container_width=True)
+        st.button("📤 클라우드 백업", key="backup_sidebar", on_click=migrate_to_supabase, use_container_width=True)
+        st.button("📥 클라우드 복구", key="restore_sidebar", on_click=restore_from_supabase, use_container_width=True)
 
 # --- [API 검색 함수들] ---
 def search_books(query):
@@ -439,16 +459,59 @@ def show_details(item):
             
             if item.get("category") != "SCRAP":
                 st.markdown("<br>", unsafe_allow_html=True)
-                with st.expander("🔗 외부에 리뷰 공유하기 (복사)"):
-                    share_text = f"[{item.get('category')}] {item.get('title')}\n"
-                    if creator_text:
-                        share_text += f"- {creator_text}\n"
-                    share_text += "\n"
-                    if item.get('brief'):
-                        share_text += f"💎 한 줄 평: {item.get('brief')}\n\n"
-                    if item.get('note'):
-                        share_text += f"🖋️ PRISM 리뷰:\n{item.get('note')}"
+                
+                # --- 공유 데이터 구성 ---
+                share_text = f"[{item.get('category')}] {item.get('title')}\n"
+                if creator_text: share_text += f"- {creator_text}\n"
+                share_text += "\n"
+                if item.get('img_url2') and str(item.get('img_url2')) != "None": share_text += f"🎬 관련 영상/링크: {item.get('img_url2')}\n\n"
+                if item.get('brief'): share_text += f"💎 한 줄 평: {item.get('brief')}\n\n"
+                if item.get('note'): share_text += f"🖋️ PRISM 리뷰:\n{item.get('note')}"
+                
+                safe_share_text = share_text.strip().replace('`', '\\`').replace('\n', '\\n')
+                img_b64_data = get_image_base64(item.get('img_url', ''))
+                
+                # 이미지 + 텍스트를 파일로 묶어서 보내는 자바스크립트 로직
+                share_html = f"""
+                <div style="margin-bottom: 10px;">
+                    <button onclick="shareItem()" style="width:100%; padding:12px; background: linear-gradient(45deg, #405de6, #5851db, #833ab4, #c13584, #e1306c, #fd1d1d); color:white; border-radius:8px; border:none; cursor:pointer; font-weight:bold; font-size:16px;">
+                        📲 SNS / 카톡으로 리뷰 공유하기
+                    </button>
+                </div>
+                <script>
+                async function shareItem() {{
+                    let shareData = {{
+                        title: 'PRISM 리뷰',
+                        text: `{safe_share_text}`
+                    }};
                     
+                    const imgB64 = "{img_b64_data}";
+                    if (imgB64 && navigator.canShare) {{
+                        try {{
+                            const res = await fetch(imgB64);
+                            const blob = await res.blob();
+                            const file = new File([blob], 'prism_cover.jpg', {{ type: blob.type }});
+                            if (navigator.canShare({{ files: [file] }})) {{
+                                shareData.files = [file];
+                            }}
+                        }} catch (e) {{ console.log('이미지 변환 에러:', e); }}
+                    }}
+
+                    try {{
+                        if (navigator.share) {{
+                            await navigator.share(shareData);
+                        }} else {{
+                            alert('공유 기능을 지원하지 않는 브라우저입니다. 아래의 텍스트를 복사해주세요.');
+                        }}
+                    }} catch (e) {{
+                        console.log('공유 취소 또는 에러:', e);
+                    }}
+                }}
+                </script>
+                """
+                components.html(share_html, height=65)
+
+                with st.expander("🔗 텍스트 직접 복사하기 (PC용)"):
                     st.code(share_text.strip(), language="markdown")
 
 @st.dialog("🗓️상세 정보", width="large")
@@ -576,12 +639,58 @@ def show_plan_details(item):
             
             if item.get("category") != "SCRAP":
                 st.markdown("<br>", unsafe_allow_html=True)
-                with st.expander("🔗 외부에 리뷰 공유하기 (복사)"):
-                    share_text = f"[{item.get('category')}] {item.get('title')}\n"
-                    if rich_data.get('creator'): share_text += f"- {rich_data.get('creator')}\n"
-                    share_text += "\n"
-                    if rich_data.get('brief'): share_text += f"💎 한 줄 평: {rich_data.get('brief')}\n\n"
-                    if rich_data.get('note'): share_text += f"🖋️ PRISM 리뷰:\n{rich_data.get('note')}"
+                
+                # --- 공유 데이터 구성 (플랜) ---
+                share_text = f"[{item.get('category')}] {item.get('title')}\n"
+                if rich_data.get('creator'): share_text += f"- {rich_data.get('creator')}\n"
+                share_text += "\n"
+                if rich_data.get('img_url2') and str(rich_data.get('img_url2')) != "None": share_text += f"🎬 관련 영상/링크: {rich_data.get('img_url2')}\n\n"
+                if rich_data.get('brief'): share_text += f"💎 한 줄 평: {rich_data.get('brief')}\n\n"
+                if rich_data.get('note'): share_text += f"🖋️ PRISM 리뷰:\n{rich_data.get('note')}"
+                
+                safe_share_text = share_text.strip().replace('`', '\\`').replace('\n', '\\n')
+                img_b64_data = get_image_base64(rich_data.get('img_url', ''))
+                
+                share_html = f"""
+                <div style="margin-bottom: 10px;">
+                    <button onclick="sharePlanItem()" style="width:100%; padding:12px; background: linear-gradient(45deg, #405de6, #5851db, #833ab4, #c13584, #e1306c, #fd1d1d); color:white; border-radius:8px; border:none; cursor:pointer; font-weight:bold; font-size:16px;">
+                        📲 SNS / 카톡으로 리뷰 공유하기
+                    </button>
+                </div>
+                <script>
+                async function sharePlanItem() {{
+                    let shareData = {{
+                        title: 'PRISM 일정 공유',
+                        text: `{safe_share_text}`
+                    }};
+                    
+                    const imgB64 = "{img_b64_data}";
+                    if (imgB64 && navigator.canShare) {{
+                        try {{
+                            const res = await fetch(imgB64);
+                            const blob = await res.blob();
+                            const file = new File([blob], 'prism_plan_cover.jpg', {{ type: blob.type }});
+                            if (navigator.canShare({{ files: [file] }})) {{
+                                shareData.files = [file];
+                            }}
+                        }} catch (e) {{ console.log('이미지 변환 에러:', e); }}
+                    }}
+
+                    try {{
+                        if (navigator.share) {{
+                            await navigator.share(shareData);
+                        }} else {{
+                            alert('공유 기능을 지원하지 않는 브라우저입니다. 아래의 텍스트를 복사해주세요.');
+                        }}
+                    }} catch (e) {{
+                        console.log('공유 취소 또는 에러:', e);
+                    }}
+                }}
+                </script>
+                """
+                components.html(share_html, height=65)
+
+                with st.expander("🔗 텍스트 직접 복사하기 (PC용)"):
                     st.code(share_text.strip(), language="markdown")
 
         if is_admin:
