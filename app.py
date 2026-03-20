@@ -557,10 +557,10 @@ def show_plan_details(item):
             else:
                 if is_admin:
                     sections = [
-                        ("💎 [Step 5] 최종 요약 (한 줄 평)", "brief", "#E50914"), 
-                        ("🖋️ [Step 4] 본문 작성 (PRISM)", "note", "#1E425E"), 
-                        ("📦 [Step 2~3] 데이터 수집 및 스케치", "highlights", "#7D5600"), 
-                        ("📖 INFO (배경지식)", "summary", "#444")
+                        ("💎 한 줄 평", "brief", "#E50914"), 
+                        ("🖋️ PRISM", "note", "#1E425E"), 
+                        ("📦 SKETCH", "highlights", "#7D5600"), 
+                        ("📖 INFO", "summary", "#444")
                     ]
                 else:
                     sections = [
