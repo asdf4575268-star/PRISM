@@ -57,13 +57,11 @@ def migrate_to_supabase():
         conn = get_connection()
         conn.row_factory = sqlite3.Row
         
-        # 1. 아카이브 백업 (고유 id를 지우지 않고 그대로 전송하여 클라우드에 '덮어쓰기' 함)
         local_data = conn.execute("SELECT * FROM archive").fetchall()
         if local_data:
             upload_list = [dict(row) for row in local_data]
             supabase.table("archive").upsert(upload_list).execute() 
             
-        # 2. 플랜 백업
         try:
             local_plan = conn.execute("SELECT * FROM plan").fetchall()
             if local_plan:
@@ -80,12 +78,10 @@ def restore_from_supabase():
         conn = get_connection()
         cursor = conn.cursor()
         
-        # 클라우드에서 데이터 가져오기
         res = supabase.table("archive").select("*").execute()
         cloud_data = res.data if hasattr(res, 'data') else res
         
         if cloud_data:
-            # 로컬 중복 꼬임을 막기 위해 싹 비우고 클라우드 데이터로 1:1 완벽 세팅
             cursor.execute("DELETE FROM archive")
             to_insert = []
             for row in cloud_data:
@@ -127,14 +123,10 @@ auto_sync_on_startup()
 
 # --- [3. 로그인 및 Session State 초기화] ---
 DEV_MODE = False 
-
-# 브라우저 쿠키 매니저 초기화
 cookie_manager = stx.CookieManager()
 
 if "is_logged_in" not in st.session_state:
     st.session_state.is_logged_in = False
-
-# 쿠키에 로그인 정보가 살아있다면 세션 유지 (30일 지속)
 if cookie_manager.get(cookie="admin_logged_in") == "yes":
     st.session_state.is_logged_in = True
 
@@ -146,12 +138,10 @@ if "show_form" not in st.session_state:
     st.session_state.show_form = False
 if "week_offset" not in st.session_state:
     st.session_state.week_offset = 0
-
 if "should_clear_form" not in st.session_state:
     st.session_state.should_clear_form = False
 
 form_keys = ['f_title', 'f_creator', 'f_date', 'f_venue', 'f_img', 'f_summary', 'f_video', 'f_brief', 'f_highlights', 'f_note']
-
 if st.session_state.should_clear_form:
     for k in form_keys:
         st.session_state[k] = ""
@@ -176,46 +166,32 @@ with st.sidebar:
         input_password = st.text_input("비밀번호", type="password", key="sidebar_pw_2")
         if input_password:
             if input_password == st.secrets["ADMIN_PASSWORD"]:
-                # 브라우저 쿠키에 로그인 도장 찍기 (30일 유지)
                 cookie_manager.set("admin_logged_in", "yes", expires_at=datetime.now() + timedelta(days=30))
                 st.session_state.user_password = input_password 
                 st.session_state.is_logged_in = True
-                time.sleep(0.5) # 쿠키 저장 대기 시간
+                time.sleep(0.5)
                 st.rerun()
             else:
                 st.error("비밀번호가 틀렸습니다.")
     if st.session_state.is_logged_in:
         st.success("관리자 모드 활성화됨")
         if st.button("🔓 로그아웃", key="logout_2", use_container_width=True):
-            # 로그아웃 시 쿠키 삭제
             cookie_manager.delete("admin_logged_in")
             st.session_state.is_logged_in = False
             st.session_state.user_password = ""
             time.sleep(0.5)
             st.rerun()
         st.divider()
-        
         st.markdown("### 🛠️ 데이터 오류 수정")
         if st.button("🧹 중복 데이터 정리", help="같은 제목의 데이터 중 가장 최근에 수정한 것만 남기고 삭제합니다.", use_container_width=True):
             conn = get_connection()
-            conn.execute("""
-                DELETE FROM archive 
-                WHERE id NOT IN (
-                    SELECT MAX(id) FROM archive GROUP BY title, category
-                )
-            """)
-            conn.execute("""
-                DELETE FROM plan 
-                WHERE id NOT IN (
-                    SELECT MAX(id) FROM plan GROUP BY title, category
-                )
-            """)
+            conn.execute("DELETE FROM archive WHERE id NOT IN (SELECT MAX(id) FROM archive GROUP BY title, category)")
+            conn.execute("DELETE FROM plan WHERE id NOT IN (SELECT MAX(id) FROM plan GROUP BY title, category)")
             conn.commit()
             st.cache_data.clear()
             st.success("✅ 중복이 제거되었습니다! 아래 '클라우드 백업'을 눌러주세요.")
             time.sleep(1.5)
             st.rerun()
-            
         st.divider()
         st.markdown("### 🔄 데이터 동기화")
         if 'sync_msg' in st.session_state:
@@ -370,14 +346,20 @@ def show_details(item):
                 try: curr_view = pd.to_datetime(item.get('view_date')).date()
                 except: curr_view = date.today()
                 n_view_date = st.date_input("🍿 감상일 수정", value=curr_view)
-                n_sum = st.text_area("📖 개요", value=str(item.get('summary', '')), height=150)
-                n_brief = st.text_input("📝 요약 (한 줄 평)", value=str(item.get('brief', '')))
+                n_sum = st.text_area("📖 개요 (배경지식/정보)", value=str(item.get('summary', '')), height=100)
                 
-                n_high_label = "✨ 인상 깊은 부분 (5문장 요약)" if cat == "SCRAP" else "✨ 인상 깊은 부분"
-                n_high = st.text_area(n_high_label, value=str(item.get('highlights', '')), height=150 if cat == "SCRAP" else 100)
-                
-                n_note_label = "🌈 PRISM (5문장 감상)" if cat == "SCRAP" else "🌈 PRISM"
-                n_note = st.text_area(n_note_label, value=str(item.get('note', '')), height=150 if cat == "SCRAP" else 100)
+                if cat == "SCRAP":
+                    n_high_label = "✨ 5문장 요약"
+                    n_high = st.text_area(n_high_label, value=str(item.get('highlights', '')), height=150)
+                    n_note_label = "🌈 5문장 감상"
+                    n_note = st.text_area(n_note_label, value=str(item.get('note', '')), height=150)
+                    n_brief = st.text_input("📝 요약 (한 줄 평)", value=str(item.get('brief', '')))
+                else:
+                    n_high_label = "📦 Step 2 & 3. 데이터 수집 및 스케치"
+                    n_high = st.text_area(n_high_label, value=str(item.get('highlights', '')), height=250)
+                    n_note_label = "🖋️ Step 4. 본문 작성 (PRISM)"
+                    n_note = st.text_area(n_note_label, value=str(item.get('note', '')), height=200)
+                    n_brief = st.text_input("💎 Step 5. 최종 요약 (한 줄 평)", value=str(item.get('brief', '')))
                 
                 if st.form_submit_button("💾 저장", use_container_width=True):
                     try:
@@ -412,14 +394,26 @@ def show_details(item):
             st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿 감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
             st.divider()
             
+            # 관리자/비관리자 권한에 따른 표시 로직 분리
             if item.get("category") == "SCRAP":
                 sections = [("📝 요약 (한 줄 평)", "brief", "#0E6245"), ("✨ 5문장 요약", "highlights", "#7D5600"), ("🌈 5문장 감상", "note", "#1E425E"), ("📖 개요", "summary", "#444")]
             else:
-                sections = [("📝 요약 (한 줄 평)", "brief", "#0E6245"), ("🌈 PRISM", "note", "#1E425E"), ("✨ 인상 깊은 부분", "highlights", "#7D5600"), ("📖 개요", "summary", "#444")]
+                if is_admin:
+                    sections = [
+                        ("💎 [Step 5] 최종 요약 (한 줄 평)", "brief", "#E50914"), 
+                        ("🖋️ [Step 4] 본문 작성 (PRISM)", "note", "#1E425E"), 
+                        ("📦 [Step 2~3] 데이터 수집 및 스케치", "highlights", "#7D5600"), 
+                        ("📖 개요 (배경지식)", "summary", "#444")
+                    ]
+                else:
+                    sections = [
+                        ("💎 한 줄 평", "brief", "#E50914"), 
+                        ("🖋️ PRISM 리뷰", "note", "#1E425E")
+                    ]
                 
             for label, key, color in sections:
                 if item.get(key):
-                    st.markdown(f'<div style="display: inline-block; background-color: {color}; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px;">{label}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="display: inline-block; background-color: {color}; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px; font-weight: bold;">{label}</div>', unsafe_allow_html=True)
                     st.markdown(item[key].replace('\n', '  \n'))
                     st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
 
@@ -441,10 +435,8 @@ def show_plan_details(item):
                 try: supabase.table("plan").delete().eq("title", item['title']).eq("plan_date", item['plan_date']).execute()
                 except: pass
                 st.rerun()
-                
         with t_col3: 
             edit_mode = st.toggle("✏️ 수정", key=f"tog_plan_{item['id']}")
-            
         st.divider()
         
     col_img, col_txt = st.columns([0.3, 0.7])
@@ -464,26 +456,27 @@ def show_plan_details(item):
                 try: curr_plan = pd.to_datetime(item.get('plan_date')).date()
                 except: curr_plan = date.today()
                 n_plan_date = st.date_input("🗓️ 예정일 수정", value=curr_plan)
-                n_sum = st.text_area("📖 개요", value=str(rich_data.get('summary', '')), height=150)
-                n_brief = st.text_input("📝 요약", value=str(rich_data.get('brief', '')))
-                n_high = st.text_area("✨ 인상 깊은 부분", value=str(rich_data.get('highlights', '')), height=100)
-                n_note = st.text_area("🌈 일정 메모", value=str(rich_data.get('note', '')), height=100)
+                n_sum = st.text_area("📖 개요 (배경지식/정보)", value=str(rich_data.get('summary', '')), height=100)
+                
+                if item.get("category") == "SCRAP":
+                    n_high = st.text_area("✨ 5문장 요약", value=str(rich_data.get('highlights', '')), height=150)
+                    n_note = st.text_area("🌈 5문장 감상", value=str(rich_data.get('note', '')), height=150)
+                    n_brief = st.text_input("📝 요약 (한 줄 평)", value=str(rich_data.get('brief', '')))
+                else:
+                    n_high = st.text_area("📦 Step 2 & 3. 데이터 수집 및 스케치", value=str(rich_data.get('highlights', '')), height=250)
+                    n_note = st.text_area("🖋️ Step 4. 본문 작성 (PRISM)", value=str(rich_data.get('note', '')), height=200)
+                    n_brief = st.text_input("💎 Step 5. 최종 요약 (한 줄 평)", value=str(rich_data.get('brief', '')))
+                
                 if st.form_submit_button("💾 저장", use_container_width=True):
                     new_rich = {"creator": n_creator.strip(), "rel_date": n_rel.strip(), "venue": n_venue.strip(), "summary": n_sum.strip(), "brief": n_brief.strip(), "highlights": n_high.strip(), "note": n_note.strip(), "img_url": n_img.strip(), "img_url2": n_img2.strip()}
                     memo_payload = json.dumps(new_rich, ensure_ascii=False)
-                    
                     conn = get_connection()
                     conn.execute("UPDATE plan SET title=?, plan_date=?, memo=? WHERE id=?", (n_title, str(n_plan_date), memo_payload, item['id']))
                     conn.commit()
                     st.cache_data.clear()
-                    
-                    try: 
-                        supabase.table("plan").update({"title": n_title, "plan_date": str(n_plan_date), "memo": memo_payload}).eq("title", item['title']).eq("plan_date", item['plan_date']).execute()
+                    try: supabase.table("plan").update({"title": n_title, "plan_date": str(n_plan_date), "memo": memo_payload}).eq("title", item['title']).eq("plan_date", item['plan_date']).execute()
                     except: pass
-                    
-                    st.success("✅ 수정 완료!")
-                    time.sleep(0.5)
-                    st.rerun()
+                    st.success("✅ 수정 완료!"); time.sleep(0.5); st.rerun()
     else: 
         with col_img:
             if rich_data.get('img_url') and str(rich_data.get('img_url')) != "None": st.image(rich_data['img_url'], use_container_width=True)
@@ -501,10 +494,26 @@ def show_plan_details(item):
             st.write(f"**📅 {rich_data.get('rel_date', '')} | 📍 {rich_data.get('venue', '')}**")
             st.markdown(f'<p style="color: #E50914; font-weight: bold; font-size: 1.1em;">🗓️ 예정일: {item.get("plan_date")}</p>', unsafe_allow_html=True)
             st.divider()
-            sections = [("📝 요약 (한 줄 평)", "brief", "#0E6245"), ("🌈 일정 메모", "note", "#1E425E"), ("✨ 인상 깊은 부분", "highlights", "#7D5600"), ("📖 개요", "summary", "#444")]
+            
+            if item.get("category") == "SCRAP":
+                sections = [("📝 요약 (한 줄 평)", "brief", "#0E6245"), ("✨ 5문장 요약", "highlights", "#7D5600"), ("🌈 5문장 감상", "note", "#1E425E"), ("📖 개요", "summary", "#444")]
+            else:
+                if is_admin:
+                    sections = [
+                        ("💎 [Step 5] 최종 요약 (한 줄 평)", "brief", "#E50914"), 
+                        ("🖋️ [Step 4] 본문 작성 (PRISM)", "note", "#1E425E"), 
+                        ("📦 [Step 2~3] 데이터 수집 및 스케치", "highlights", "#7D5600"), 
+                        ("📖 개요 (배경지식)", "summary", "#444")
+                    ]
+                else:
+                    sections = [
+                        ("💎 한 줄 평", "brief", "#E50914"), 
+                        ("🖋️ PRISM 리뷰", "note", "#1E425E")
+                    ]
+                    
             for label, key, color in sections:
                 if rich_data.get(key):
-                    st.markdown(f'<div style="display: inline-block; background-color: {color}; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px;">{label}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="display: inline-block; background-color: {color}; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px; font-weight: bold;">{label}</div>', unsafe_allow_html=True)
                     st.markdown(rich_data[key].replace('\n', '  \n'))
                     st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
         
@@ -513,28 +522,21 @@ def show_plan_details(item):
             if st.button("✅ 완료", key=f"done_plan_bottom_{item['id']}", use_container_width=True, type="primary"):
                 conn = get_connection()
                 today_str = str(date.today())
-                
                 new_archive_record = {
                     "category": item['category'], "title": item['title'], "creator": rich_data.get("creator", ""), "rel_date": rich_data.get("rel_date", ""),
                     "venue": rich_data.get("venue", ""), "summary": rich_data.get("summary", ""), "brief": rich_data.get("brief", ""), "highlights": rich_data.get("highlights", ""),
                     "note": rich_data.get("note", ""), "img_url": rich_data.get("img_url", ""), "img_url2": rich_data.get("img_url2", ""), "save_date": today_str, "view_date": item['plan_date']
                 }
-                
                 conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", (new_archive_record['category'], new_archive_record['title'], new_archive_record['creator'], new_archive_record['rel_date'], new_archive_record['venue'], new_archive_record['summary'], new_archive_record['brief'], new_archive_record['highlights'], new_archive_record['note'], new_archive_record['img_url'], new_archive_record['img_url2'], new_archive_record['save_date'], new_archive_record['view_date']))
                 conn.execute("DELETE FROM plan WHERE id=?", (item['id'],))
                 conn.commit()
                 st.cache_data.clear()
-                
                 try: 
                     supabase.table("archive").upsert(new_archive_record).execute()
                     supabase.table("plan").delete().eq("title", item['title']).eq("plan_date", item['plan_date']).execute()
                 except: pass
-                
-                st.success(f"🎉 '{item['title']}' 아카이브로 이동 완료!")
-                time.sleep(0.5)
-                st.rerun()
-            
-        st.divider()
+                st.success(f"🎉 '{item['title']}' 아카이브로 이동 완료!"); time.sleep(0.5); st.rerun()
+            st.divider()
 
 # --- [5. 메인 UI] ---
 def get_base64(path):
@@ -628,40 +630,56 @@ if is_admin and tab_w:
                     if st.session_state.f_img and st.session_state.f_img.strip() and st.session_state.f_img != "None": 
                         st.image(st.session_state.f_img, use_container_width=True)
                     title = st.text_input("📌 제목", value=st.session_state.f_title)
-                    
-                    creator_label = "👤 창작자/매체" if category == "SCRAP" else "👤 창작자"
-                    creator = st.text_input(creator_label, value=st.session_state.f_creator)
-                    
+                    creator = st.text_input("👤 창작자", value=st.session_state.f_creator)
                     rel_date = st.text_input("📅 작품 날짜", value=st.session_state.f_date)
                     venue = st.text_input("📍 장소/플랫폼", value=st.session_state.f_venue)
+                    summary = st.text_area("📖 개요 (배경지식/정보)", value=st.session_state.f_summary, height=120)
+                
                 with cr:
-                    summary = st.text_area("📖 개요", value=st.session_state.f_summary, height=100)
-                    brief = st.text_input("📝 요약 (한 줄 평)", value=st.session_state.f_brief)
-                    
-                    hl_val = st.session_state.f_highlights
-                    if not hl_val:
-                        if category == "BOOKS": hl_val = "📖 p. : \n📖 p. : \n📖 p. : "
-                        elif category == "MUSIC": hl_val = "🎵 제목(#1) : \n🎵 제목(#2) : \n🎵 제목(#3) : "
-                        elif category == "MOVIES": hl_val = "🎬 명장면 : \n💬 명대사 : "
-                        elif category == "SERIES": hl_val = "📺 Ep.01 : \n📺 Ep.02 : \n📺 Ep.03 : "
-                        elif category == "STAGE": hl_val = "🎭 1막 : \n🎭 2막 : \n🎶 넘버 : " 
-                        elif category == "SCRAP": hl_val = "1. \n2. \n3. \n4. \n5. "
-                    
-                    hl_label = "✨ 인상 깊은 부분 (5문장 요약)" if category == "SCRAP" else "✨ 인상 깊은 부분"
-                    highlights = st.text_area(hl_label, value=hl_val, height=150 if category == "SCRAP" else 100)
-                    
-                    note_val = st.session_state.f_note
-                    if category == "SCRAP" and not note_val:
-                        note_val = "1. \n2. \n3. \n4. \n5. "
+                    if category == "SCRAP":
+                        hl_val = st.session_state.f_highlights if st.session_state.f_highlights else "1. \n2. \n3. \n4. \n5. "
+                        highlights = st.text_area("✨ 5문장 요약", value=hl_val, height=150)
                         
-                    note_label = "🌈 PRISM (5문장 감상)" if category == "SCRAP" else "🌈 PRISM (메모)"
-                    note_val = st.text_area(note_label, value=note_val, height=150 if category == "SCRAP" else 100)
+                        note_val = st.session_state.f_note if st.session_state.f_note else "1. \n2. \n3. \n4. \n5. "
+                        note_val = st.text_area("🌈 5문장 감상", value=note_val, height=150)
+                        
+                        brief = st.text_input("📝 요약 (한 줄 평)", value=st.session_state.f_brief)
+                    else:
+                        # [사고의 깔때기] 템플릿: 데이터 수집 및 뼈대 스케치
+                        hl_val = st.session_state.f_highlights
+                        if not hl_val:
+                            hl_val = """### [Step 2] 데이터 수집함 (Raw Data)
+*감상 중 머리와 가슴을 때린 파편들을 가감 없이 수집합니다.*
+- 📍 인상 깊은 대사/가사/장면 1: 
+- 📍 인상 깊은 대사/가사/장면 2: 
+- 📍 인상 깊은 대사/가사/장면 3: 
+- 📎 보충 팩트 (위키/인터뷰/배경지식): 
+
+### [Step 3] 키워드 결합 및 뼈대 스케치 (Structuring)
+*2번의 데이터들을 공통된 키워드로 묶고, 작품의 흐름과 연결해 4~5줄의 단락으로 정리합니다.*
+- 🔑 추출된 핵심 키워드: 
+- 📝 맥락 스케치 (4~5줄): 
+  1. 
+  2. 
+  3. 
+  4. """
+                        highlights = st.text_area("📦 Step 2 & 3. 데이터 수집 및 스케치", value=hl_val, height=300)
+                        
+                        # [사고의 깔때기] 템플릿: 본문 작성 (Drafting)
+                        note_val = st.session_state.f_note
+                        if not note_val:
+                            note_val = """### [Step 4] 본문 작성 (Drafting)
+*3번의 스케치를 뼈대 삼아, 2번의 수집 데이터를 살로 붙여 하나의 완전한 글로 완성합니다.*
+"""
+                        note_val = st.text_area("🖋️ Step 4. 본문 작성 (PRISM)", value=note_val, height=200)
+                        
+                        # [사고의 깔때기] 템플릿: 최종 요약
+                        brief = st.text_input("💎 Step 5. 최종 요약 (한 줄 평)", value=st.session_state.f_brief)
                     
                     view_date = st.date_input("🍿 감상 완료/예정일", value=st.session_state.f_view_date)
                     
                 st.markdown("<br>", unsafe_allow_html=True)
                 col_btn1, col_btn2, col_btn3 = st.columns([0.4, 0.4, 0.2])
-                
                 submit_archive = col_btn1.form_submit_button("✅ 아카이브 저장", use_container_width=True)
                 submit_plan = col_btn2.form_submit_button("🗓️ 일정 추가", use_container_width=True)
                 cancel_btn = col_btn3.form_submit_button("❌ 닫기", use_container_width=True)
@@ -686,11 +704,7 @@ if is_admin and tab_w:
                         st.cache_data.clear() 
                         try: supabase.table("archive").upsert(new_record).execute()
                         except: pass
-                        
-                        st.success("✅ 아카이브 저장 완료!")
-                        st.session_state.should_clear_form = True
-                        time.sleep(0.8)
-                        st.rerun()
+                        st.success("✅ 아카이브 저장 완료!"); st.session_state.should_clear_form = True; time.sleep(0.8); st.rerun()
                     except Exception as e: st.error(f"❌ 오류: {e}")
                 else: st.warning("제목을 입력해 주세요.")
             
@@ -707,11 +721,7 @@ if is_admin and tab_w:
                     conn.commit()
                     try: supabase.table("plan").upsert({"plan_date": str(view_date), "category": str(category), "title": title.strip(), "memo": memo_payload}).execute()
                     except: pass
-
-                    st.success("🗓️ 일정표에 추가되었습니다!")
-                    st.session_state.should_clear_form = True
-                    time.sleep(0.8)
-                    st.rerun()
+                    st.success("🗓️ 일정표에 추가되었습니다!"); st.session_state.should_clear_form = True; time.sleep(0.8); st.rerun()
                 else: st.warning("제목을 입력해 주세요.")
 
         st.divider()
@@ -748,14 +758,11 @@ if is_admin and tab_w:
                         emoji = cat_emojis.get(row['category'], "📌")
                         try: rich_data = json.loads(row['memo']); img_url = rich_data.get('img_url', '')
                         except: img_url = ""
-                        
                         if img_url and img_url.strip() and img_url != "None":
                             st.markdown(f"""<div style='position: relative; width: 100%; aspect-ratio: 1/1; border-radius: 6px; overflow: hidden; margin-bottom: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); background-color: #2A2A2A; display: flex; align-items: center; justify-content: center;'><img src="{img_url}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'"><div style="position: absolute; top: 4px; left: 4px; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px; font-size: 12px;">{emoji}</div></div>""", unsafe_allow_html=True)
                         else:
                             st.markdown(f"""<div style='background-color: #2A2A2A; padding: 10px; border-radius: 6px; border-left: 4px solid #3399FF; margin-bottom: 5px; min-height: 80px; display: flex; align-items: center; justify-content: center; text-align: center;'><div style='font-size: 0.85em; font-weight: bold; line-height: 1.3;'>{emoji}<br>{row['title']}</div></div>""", unsafe_allow_html=True)
-                        
-                        if st.button("🔍", key=f"dtl_cal_{row['id']}", use_container_width=True): 
-                            show_plan_details(row)
+                        if st.button("🔍", key=f"dtl_cal_{row['id']}", use_container_width=True): show_plan_details(row)
                         st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
 
 # --- [ARCHIVE 탭] ---
