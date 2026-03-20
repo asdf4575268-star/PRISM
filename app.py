@@ -359,7 +359,7 @@ def show_details(item):
             c1.text_input("📅 작품 날짜", key=prefix+"rel")
             c2.text_input("📍 장소/플랫폼", key=prefix+"ven")
             st.date_input("🍿 감상일 수정", key=prefix+"view")
-            st.text_area("📖 개요", key=prefix+"sum", height=100)
+            st.text_area("📖 INFO", key=prefix+"sum", height=100)
             
             if cat == "SCRAP":
                 st.text_area("✨ 5문장 요약", key=prefix+"high", height=150)
@@ -416,14 +416,14 @@ def show_details(item):
             st.divider()
             
             if item.get("category") == "SCRAP":
-                sections = [("📝 한 줄 평", "brief", "#0E6245"), ("✨ 5문장 요약", "highlights", "#7D5600"), ("🌈 5문장 감상", "note", "#1E425E"), ("📖 개요", "summary", "#444")]
+                sections = [("📝 한 줄 평", "brief", "#0E6245"), ("✨ 5문장 요약", "highlights", "#7D5600"), ("🌈 5문장 감상", "note", "#1E425E"), ("📖 INFO", "summary", "#444")]
             else:
                 if is_admin:
                     sections = [
                         ("💎 한 줄 평", "brief", "#E50914"), 
                         ("🖋️ PRISM", "note", "#1E425E"), 
                         ("📦 SKETCH", "highlights", "#7D5600"), 
-                        ("📖 개요", "summary", "#444")
+                        ("📖 INFO", "summary", "#444")
                     ]
                 else:
                     sections = [
@@ -502,16 +502,16 @@ def show_plan_details(item):
             c1.text_input("📅 작품 날짜", key=prefix+"rel")
             c2.text_input("📍 장소", key=prefix+"ven")
             st.date_input("🗓️ 예정일 수정", key=prefix+"view")
-            st.text_area("📖 개요 (배경지식/정보)", key=prefix+"sum", height=100)
+            st.text_area("📖 INFO", key=prefix+"sum", height=100)
             
             if item.get("category") == "SCRAP":
                 st.text_area("✨ 5문장 요약", key=prefix+"high", height=150)
                 st.text_area("🌈 5문장 감상", key=prefix+"note", height=150)
                 st.text_input("📝 요약 (한 줄 평)", key=prefix+"brief")
             else:
-                st.text_area("📦 Step 2 & 3. 데이터 수집 및 스케치", key=prefix+"high", height=250)
-                st.text_area("🖋️ Step 4. 본문 작성 (PRISM)", key=prefix+"note", height=200)
-                st.text_input("💎 Step 5. 최종 요약 (한 줄 평)", key=prefix+"brief")
+                st.text_area("📦 SKETCH", key=prefix+"high", height=250)
+                st.text_area("🖋️ PRISM", key=prefix+"note", height=200)
+                st.text_input("💎 한 줄 평", key=prefix+"brief")
             
             if st.button("💾 저장", use_container_width=True, type="primary"):
                 new_rich = {
@@ -553,14 +553,14 @@ def show_plan_details(item):
             st.divider()
             
             if item.get("category") == "SCRAP":
-                sections = [("📝 요약 (한 줄 평)", "brief", "#0E6245"), ("✨ 5문장 요약", "highlights", "#7D5600"), ("🌈 5문장 감상", "note", "#1E425E"), ("📖 개요", "summary", "#444")]
+                sections = [("📝 요약 (한 줄 평)", "brief", "#0E6245"), ("✨ 5문장 요약", "highlights", "#7D5600"), ("🌈 5문장 감상", "note", "#1E425E"), ("📖 INFO", "summary", "#444")]
             else:
                 if is_admin:
                     sections = [
                         ("💎 [Step 5] 최종 요약 (한 줄 평)", "brief", "#E50914"), 
                         ("🖋️ [Step 4] 본문 작성 (PRISM)", "note", "#1E425E"), 
                         ("📦 [Step 2~3] 데이터 수집 및 스케치", "highlights", "#7D5600"), 
-                        ("📖 개요 (배경지식)", "summary", "#444")
+                        ("📖 INFO (배경지식)", "summary", "#444")
                     ]
                 else:
                     sections = [
@@ -724,7 +724,7 @@ if is_admin and tab_w:
                 st.text_input(creator_label, key="f_creator")
                 st.text_input("📅 작품 날짜", key="f_date")
                 st.text_input("📍 장소/플랫폼", key="f_venue")
-                st.text_area("📖 개요 (배경지식/정보)", key="f_summary", height=120)
+                st.text_area("📖 INFO (배경지식/정보)", key="f_summary", height=120)
             
             with cr:
                 if category == "SCRAP":
