@@ -328,66 +328,52 @@ def show_details(item):
     col_img, col_txt = st.columns([0.3, 0.7])
     
     if is_admin and edit_mode:
-        prefix = f"ea_{item['id']}_"
-        
-        for k, v in [('img', item.get('img_url', '')), ('vid', item.get('img_url2', '')), 
-                     ('title', item.get('title', '')), ('creator', item.get('creator', '')), 
-                     ('rel', item.get('rel_date', '')), ('ven', item.get('venue', '')), 
-                     ('sum', item.get('summary', '')), ('high', item.get('highlights', '')), 
-                     ('note', item.get('note', '')), ('brief', item.get('brief', ''))]:
-            if prefix+k not in st.session_state:
-                st.session_state[prefix+k] = str(v)
-        
-        if prefix+"view" not in st.session_state:
-            try: st.session_state[prefix+"view"] = pd.to_datetime(item.get('view_date')).date()
-            except: st.session_state[prefix+"view"] = date.today()
-
-        col_img_form, col_txt_form = st.columns([0.3, 0.7])
-        with col_img_form:
-            st.text_input("🖼️ 이미지 URL", key=prefix+"img")
-            st.text_input("🎬 관련 영상(URL) 또는 제목/메모", key=prefix+"vid")
-            if st.session_state[prefix+"img"].strip() and st.session_state[prefix+"img"] != "None": 
-                st.image(st.session_state[prefix+"img"], use_container_width=True)
+        # Form을 사용하여 입력 도중 새로고침 방지
+        with st.form(key=f"edit_form_archive_{item['id']}"):
+            col_img_form, col_txt_form = st.columns([0.3, 0.7])
+            with col_img_form:
+                f_img = st.text_input("🖼️ 이미지 URL", value=str(item.get('img_url', '')).replace('None', ''))
+                f_vid = st.text_input("🎬 관련 영상(URL) 또는 제목/메모", value=str(item.get('img_url2', '')).replace('None', ''))
                 
-        with col_txt_form:
-            st.text_input("📌 제목", key=prefix+"title")
-            cat = item.get('category')
-            creator_label_edit = "👤 창작자/매체" if cat == "SCRAP" else "👤 창작자"
-            st.text_input(creator_label_edit, key=prefix+"creator")
+            with col_txt_form:
+                f_title = st.text_input("📌 제목", value=str(item.get('title', '')))
+                cat = item.get('category')
+                creator_label_edit = "👤 창작자/매체" if cat == "SCRAP" else "👤 창작자"
+                f_creator = st.text_input(creator_label_edit, value=str(item.get('creator', '')))
+                
+                c1, c2 = st.columns(2)
+                f_rel = c1.text_input("📅 작품 날짜", value=str(item.get('rel_date', '')))
+                f_ven = c2.text_input("📍 장소/플랫폼", value=str(item.get('venue', '')))
+                
+                try: view_val = pd.to_datetime(item.get('view_date')).date()
+                except: view_val = date.today()
+                
+                f_view = st.date_input("🍿 감상일 수정", value=view_val)
+                f_sum = st.text_area("📖 INFO", value=str(item.get('summary', '')), height=100)
+                
+                if cat == "SCRAP":
+                    f_high = st.text_area("✨ 5문장 요약", value=str(item.get('highlights', '')), height=150)
+                    f_note = st.text_area("🌈 5문장 감상", value=str(item.get('note', '')), height=150)
+                    f_brief = st.text_input("📝 요약 (한 줄 평)", value=str(item.get('brief', '')))
+                else:
+                    f_high = st.text_area("📦 SKETCH", value=str(item.get('highlights', '')), height=250)
+                    f_note = st.text_area("🖋️ PRISM", value=str(item.get('note', '')), height=200)
+                    f_brief = st.text_input("💎 Step 한 줄 평", value=str(item.get('brief', '')))
             
-            c1, c2 = st.columns(2)
-            c1.text_input("📅 작품 날짜", key=prefix+"rel")
-            c2.text_input("📍 장소/플랫폼", key=prefix+"ven")
-            st.date_input("🍿 감상일 수정", key=prefix+"view")
-            st.text_area("📖 INFO", key=prefix+"sum", height=100)
-            
-            if cat == "SCRAP":
-                st.text_area("✨ 5문장 요약", key=prefix+"high", height=150)
-                st.text_area("🌈 5문장 감상", key=prefix+"note", height=150)
-                st.text_input("📝 요약 (한 줄 평)", key=prefix+"brief")
-            else:
-                st.text_area("📦 SKETCH", key=prefix+"high", height=250)
-                st.text_area("🖋️ PRISM", key=prefix+"note", height=200)
-                st.text_input("💎 Step 한 줄 평", key=prefix+"brief")
-            
-            if st.button("💾 저장", use_container_width=True, type="primary"):
+            # Form 제출 버튼 (이 버튼을 눌러야만 코드가 재실행됨)
+            if st.form_submit_button("💾 저장", use_container_width=True, type="primary"):
                 try:
                     conn = get_connection()
                     conn.execute("""UPDATE archive SET title=?, creator=?, rel_date=?, venue=?, summary=?, brief=?, highlights=?, note=?, view_date=?, img_url=?, img_url2=? WHERE id=?""", 
-                                 (st.session_state[prefix+"title"], st.session_state[prefix+"creator"], st.session_state[prefix+"rel"], st.session_state[prefix+"ven"], 
-                                  st.session_state[prefix+"sum"], st.session_state[prefix+"brief"], st.session_state[prefix+"high"], st.session_state[prefix+"note"], 
-                                  str(st.session_state[prefix+"view"]), st.session_state[prefix+"img"], st.session_state[prefix+"vid"], item['id']))
+                                 (f_title, f_creator, f_rel, f_ven, f_sum, f_brief, f_high, f_note, str(f_view), f_img, f_vid, item['id']))
                     conn.commit()
                     st.cache_data.clear() 
                     supabase.table("archive").update({
-                        "title": st.session_state[prefix+"title"], "creator": st.session_state[prefix+"creator"], "rel_date": st.session_state[prefix+"rel"], 
-                        "venue": st.session_state[prefix+"ven"], "summary": st.session_state[prefix+"sum"], "brief": st.session_state[prefix+"brief"], 
-                        "highlights": st.session_state[prefix+"high"], "note": st.session_state[prefix+"note"], "view_date": str(st.session_state[prefix+"view"]), 
-                        "img_url": st.session_state[prefix+"img"], "img_url2": st.session_state[prefix+"vid"]
+                        "title": f_title, "creator": f_creator, "rel_date": f_rel, 
+                        "venue": f_ven, "summary": f_sum, "brief": f_brief, 
+                        "highlights": f_high, "note": f_note, "view_date": str(f_view), 
+                        "img_url": f_img, "img_url2": f_vid
                     }).eq("title", item['title']).eq("view_date", item['view_date']).execute()
-                    
-                    for k in ['img', 'vid', 'title', 'creator', 'rel', 'ven', 'sum', 'high', 'note', 'brief', 'view']:
-                        del st.session_state[prefix+k]
                         
                     st.success("✅ 수정 완료!"); time.sleep(0.5); st.rerun()
                 except Exception as e: st.error(f"❌ 오류: {e}")
@@ -439,7 +425,7 @@ def show_details(item):
             
             if item.get("category") != "SCRAP":
                 st.markdown("<br>", unsafe_allow_html=True)
-                with st.expander("🔗 공유"):
+                with st.expander("🔗 외부에 리뷰 공유하기 (복사)"):
                     share_text = f"[{item.get('category')}] {item.get('title')}\n"
                     if creator_text:
                         share_text += f"- {creator_text}\n"
@@ -476,62 +462,52 @@ def show_plan_details(item):
     col_img, col_txt = st.columns([0.3, 0.7])
     
     if is_admin and edit_mode:
-        prefix = f"ep_{item['id']}_"
-        for k, v in [('img', rich_data.get('img_url', '')), ('vid', rich_data.get('img_url2', '')), 
-                     ('title', item.get('title', '')), ('creator', rich_data.get('creator', '')), 
-                     ('rel', rich_data.get('rel_date', '')), ('ven', rich_data.get('venue', '')), 
-                     ('sum', rich_data.get('summary', '')), ('high', rich_data.get('highlights', '')), 
-                     ('note', rich_data.get('note', '')), ('brief', rich_data.get('brief', ''))]:
-            if prefix+k not in st.session_state: st.session_state[prefix+k] = str(v)
-        
-        if prefix+"view" not in st.session_state:
-            try: st.session_state[prefix+"view"] = pd.to_datetime(item.get('plan_date')).date()
-            except: st.session_state[prefix+"view"] = date.today()
-
-        col_img_form, col_txt_form = st.columns([0.3, 0.7])
-        with col_img_form:
-            st.text_input("🖼️ 이미지 URL", key=prefix+"img")
-            st.text_input("🎬 관련 영상(URL) 또는 제목/메모", key=prefix+"vid")
-            if st.session_state[prefix+"img"].strip() and st.session_state[prefix+"img"] != "None": 
-                st.image(st.session_state[prefix+"img"], use_container_width=True)
+        # Form을 사용하여 입력 도중 새로고침 방지
+        with st.form(key=f"edit_form_plan_{item['id']}"):
+            col_img_form, col_txt_form = st.columns([0.3, 0.7])
+            with col_img_form:
+                f_img = st.text_input("🖼️ 이미지 URL", value=str(rich_data.get('img_url', '')).replace('None', ''))
+                f_vid = st.text_input("🎬 관련 영상(URL) 또는 제목/메모", value=str(rich_data.get('img_url2', '')).replace('None', ''))
                 
-        with col_txt_form:
-            st.text_input("📌 제목", key=prefix+"title")
-            st.text_input("👤 창작자", key=prefix+"creator")
-            c1, c2 = st.columns(2)
-            c1.text_input("📅 작품 날짜", key=prefix+"rel")
-            c2.text_input("📍 장소", key=prefix+"ven")
-            st.date_input("🗓️ 예정일 수정", key=prefix+"view")
-            st.text_area("📖 INFO", key=prefix+"sum", height=100)
+            with col_txt_form:
+                f_title = st.text_input("📌 제목", value=str(item.get('title', '')))
+                f_creator = st.text_input("👤 창작자", value=str(rich_data.get('creator', '')))
+                c1, c2 = st.columns(2)
+                f_rel = c1.text_input("📅 작품 날짜", value=str(rich_data.get('rel_date', '')))
+                f_ven = c2.text_input("📍 장소", value=str(rich_data.get('venue', '')))
+                
+                try: view_val = pd.to_datetime(item.get('plan_date')).date()
+                except: view_val = date.today()
+                
+                f_view = st.date_input("🗓️ 예정일 수정", value=view_val)
+                f_sum = st.text_area("📖 INFO", value=str(rich_data.get('summary', '')), height=100)
+                
+                if item.get("category") == "SCRAP":
+                    f_high = st.text_area("✨ 5문장 요약", value=str(rich_data.get('highlights', '')), height=150)
+                    f_note = st.text_area("🌈 5문장 감상", value=str(rich_data.get('note', '')), height=150)
+                    f_brief = st.text_input("📝 요약 (한 줄 평)", value=str(rich_data.get('brief', '')))
+                else:
+                    f_high = st.text_area("📦 SKETCH", value=str(rich_data.get('highlights', '')), height=250)
+                    f_note = st.text_area("🖋️ PRISM", value=str(rich_data.get('note', '')), height=200)
+                    f_brief = st.text_input("💎 한 줄 평", value=str(rich_data.get('brief', '')))
             
-            if item.get("category") == "SCRAP":
-                st.text_area("✨ 5문장 요약", key=prefix+"high", height=150)
-                st.text_area("🌈 5문장 감상", key=prefix+"note", height=150)
-                st.text_input("📝 요약 (한 줄 평)", key=prefix+"brief")
-            else:
-                st.text_area("📦 SKETCH", key=prefix+"high", height=250)
-                st.text_area("🖋️ PRISM", key=prefix+"note", height=200)
-                st.text_input("💎 한 줄 평", key=prefix+"brief")
-            
-            if st.button("💾 저장", use_container_width=True, type="primary"):
+            # Form 제출 버튼
+            if st.form_submit_button("💾 저장", use_container_width=True, type="primary"):
                 new_rich = {
-                    "creator": st.session_state[prefix+"creator"].strip(), "rel_date": st.session_state[prefix+"rel"].strip(), 
-                    "venue": st.session_state[prefix+"ven"].strip(), "summary": st.session_state[prefix+"sum"].strip(), 
-                    "brief": st.session_state[prefix+"brief"].strip(), "highlights": st.session_state[prefix+"high"].strip(), 
-                    "note": st.session_state[prefix+"note"].strip(), "img_url": st.session_state[prefix+"img"].strip(), 
-                    "img_url2": st.session_state[prefix+"vid"].strip()
+                    "creator": f_creator.strip(), "rel_date": f_rel.strip(), 
+                    "venue": f_ven.strip(), "summary": f_sum.strip(), 
+                    "brief": f_brief.strip(), "highlights": f_high.strip(), 
+                    "note": f_note.strip(), "img_url": f_img.strip(), 
+                    "img_url2": f_vid.strip()
                 }
                 memo_payload = json.dumps(new_rich, ensure_ascii=False)
                 conn = get_connection()
                 conn.execute("UPDATE plan SET title=?, plan_date=?, memo=? WHERE id=?", 
-                             (st.session_state[prefix+"title"], str(st.session_state[prefix+"view"]), memo_payload, item['id']))
+                             (f_title, str(f_view), memo_payload, item['id']))
                 conn.commit()
                 st.cache_data.clear()
-                try: supabase.table("plan").update({"title": st.session_state[prefix+"title"], "plan_date": str(st.session_state[prefix+"view"]), "memo": memo_payload}).eq("title", item['title']).eq("plan_date", item['plan_date']).execute()
+                try: supabase.table("plan").update({"title": f_title, "plan_date": str(f_view), "memo": memo_payload}).eq("title", item['title']).eq("plan_date", item['plan_date']).execute()
                 except: pass
-                
-                for k in ['img', 'vid', 'title', 'creator', 'rel', 'ven', 'sum', 'high', 'note', 'brief', 'view']:
-                    del st.session_state[prefix+k]
                     
                 st.success("✅ 수정 완료!"); time.sleep(0.5); st.rerun()
     else: 
