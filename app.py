@@ -141,7 +141,6 @@ if "week_offset" not in st.session_state:
 if "should_clear_form" not in st.session_state:
     st.session_state.should_clear_form = False
 
-# [핵심 변경점] 폼 초기화를 위한 State 키 설정
 form_keys = ['f_title', 'f_creator', 'f_date', 'f_venue', 'f_img', 'f_video', 'f_summary', 'f_brief', 'f_highlights', 'f_note']
 
 if st.session_state.should_clear_form:
@@ -328,11 +327,9 @@ def show_details(item):
 
     col_img, col_txt = st.columns([0.3, 0.7])
     
-    # [핵심 변경점] 폼 폐기 및 실시간 State 동기화 (Edit 모드)
     if is_admin and edit_mode:
         prefix = f"ea_{item['id']}_"
         
-        # State 초기화
         for k, v in [('img', item.get('img_url', '')), ('vid', item.get('img_url2', '')), 
                      ('title', item.get('title', '')), ('creator', item.get('creator', '')), 
                      ('rel', item.get('rel_date', '')), ('ven', item.get('venue', '')), 
@@ -362,16 +359,16 @@ def show_details(item):
             c1.text_input("📅 작품 날짜", key=prefix+"rel")
             c2.text_input("📍 장소/플랫폼", key=prefix+"ven")
             st.date_input("🍿 감상일 수정", key=prefix+"view")
-            st.text_area("📖 개요 (배경지식/정보)", key=prefix+"sum", height=100)
+            st.text_area("📖 개요", key=prefix+"sum", height=100)
             
             if cat == "SCRAP":
                 st.text_area("✨ 5문장 요약", key=prefix+"high", height=150)
                 st.text_area("🌈 5문장 감상", key=prefix+"note", height=150)
                 st.text_input("📝 요약 (한 줄 평)", key=prefix+"brief")
             else:
-                st.text_area("📦 Step 2 & 3. 데이터 수집 및 스케치", key=prefix+"high", height=250)
-                st.text_area("🖋️ Step 4. 본문 작성 (PRISM)", key=prefix+"note", height=200)
-                st.text_input("💎 Step 5. 최종 요약 (한 줄 평)", key=prefix+"brief")
+                st.text_area("📦 SKETCH", key=prefix+"high", height=250)
+                st.text_area("🖋️ PRISM", key=prefix+"note", height=200)
+                st.text_input("💎 Step 한 줄 평", key=prefix+"brief")
             
             if st.button("💾 저장", use_container_width=True, type="primary"):
                 try:
@@ -389,7 +386,6 @@ def show_details(item):
                         "img_url": st.session_state[prefix+"img"], "img_url2": st.session_state[prefix+"vid"]
                     }).eq("title", item['title']).eq("view_date", item['view_date']).execute()
                     
-                    # 메모리 청소
                     for k in ['img', 'vid', 'title', 'creator', 'rel', 'ven', 'sum', 'high', 'note', 'brief', 'view']:
                         del st.session_state[prefix+k]
                         
@@ -479,7 +475,6 @@ def show_plan_details(item):
         
     col_img, col_txt = st.columns([0.3, 0.7])
     
-    # [핵심 변경점] 폼 폐기 및 실시간 State 동기화 (Plan Edit 모드)
     if is_admin and edit_mode:
         prefix = f"ep_{item['id']}_"
         for k, v in [('img', rich_data.get('img_url', '')), ('vid', rich_data.get('img_url2', '')), 
@@ -535,7 +530,6 @@ def show_plan_details(item):
                 try: supabase.table("plan").update({"title": st.session_state[prefix+"title"], "plan_date": str(st.session_state[prefix+"view"]), "memo": memo_payload}).eq("title", item['title']).eq("plan_date", item['plan_date']).execute()
                 except: pass
                 
-                # 메모리 청소
                 for k in ['img', 'vid', 'title', 'creator', 'rel', 'ven', 'sum', 'high', 'note', 'brief', 'view']:
                     del st.session_state[prefix+k]
                     
@@ -642,7 +636,6 @@ if is_admin and tab_w:
                     if s:
                         st.session_state.f_title = s['title']; st.session_state.f_creator = ''; st.session_state.f_date = str(date.today())
                         st.session_state.f_img = s['img']; st.session_state.f_venue = s['venue']; st.session_state.f_summary = s['summary']
-                        # 새로운 글을 가져올 때는 이전 작성 내용을 안전하게 비워줌
                         st.session_state.f_highlights = ""; st.session_state.f_note = ""; st.session_state.f_brief = ""; st.session_state.f_video = ""
                         st.session_state.show_form = True; st.rerun()
             elif category == "BOOKS":
@@ -700,19 +693,25 @@ if is_admin and tab_w:
                     st.session_state.show_form = True
                     st.rerun()
 
-        # [핵심 변경점] 폼 제거 & State 바인딩 (Write 모드)
         if st.session_state.show_form:
             st.divider()
             
-            # 템플릿 기본값 주입 (비어있을 때만)
             if category == "SCRAP":
                 if not st.session_state.f_highlights: st.session_state.f_highlights = "1. \n2. \n3. \n4. \n5. "
                 if not st.session_state.f_note: st.session_state.f_note = "1. \n2. \n3. \n4. \n5. "
             else:
                 if not st.session_state.f_highlights: 
-                    st.session_state.f_highlights = """### [Step 2] 데이터 수집함 (Raw Data)\n*감상 중 머리와 가슴을 때린 파편들을 가감 없이 수집합니다.*\n- 📍 인상 깊은 대사/가사/장면 1: \n- 📍 인상 깊은 대사/가사/장면 2: \n- 📍 인상 깊은 대사/가사/장면 3: \n- 📎 보충 팩트 (위키/인터뷰/배경지식): \n\n### [Step 3] 키워드 결합 및 뼈대 스케치 (Structuring)\n*2번의 데이터들을 공통된 키워드로 묶고, 작품의 흐름과 연결해 4~5줄의 단락으로 정리합니다.*\n- 🔑 추출된 핵심 키워드: \n- 📝 맥락 스케치 (4~5줄): \n  1. \n  2. \n  3. \n  4. """
+                    cat_hl_labels = {
+                        "BOOKS": "🔖 인상 깊은 구절",
+                        "MUSIC": "🎵 인상 깊은 가사/사운드",
+                        "MOVIES": "🎬 인상 깊은 명장면/명대사",
+                        "SERIES": "📺 인상 깊은 명장면/명대사",
+                        "STAGE": "🎭 인상 깊은 넘버/장면"
+                    }
+                    cat_label = cat_hl_labels.get(category, "📍 인상 깊은 부분")
+                    st.session_state.f_highlights = f"{cat_label} 1: \n{cat_label} 2: \n{cat_label} 3: \n📎 보충 팩트 (위키/인터뷰/배경지식): \n\n🔑 키워드: \n\n📝 스케치: \n  1. \n  2. \n  3. \n  4."
                 if not st.session_state.f_note: 
-                    st.session_state.f_note = """### [Step 4] 본문 작성 (Drafting)\n*3번의 스케치를 뼈대 삼아, 2번의 수집 데이터를 살로 붙여 하나의 완전한 글로 완성합니다.*\n"""
+                    st.session_state.f_note = ""
 
             cl, cr = st.columns([0.4, 0.6])
             with cl:
@@ -742,7 +741,6 @@ if is_admin and tab_w:
             st.markdown("<br>", unsafe_allow_html=True)
             col_btn1, col_btn2, col_btn3 = st.columns([0.4, 0.4, 0.2])
             
-            # 버튼 클릭 액션 로직
             if col_btn1.button("✅ 아카이브 저장", use_container_width=True, type="primary"):
                 if st.session_state.f_title.strip():
                     new_record = {
