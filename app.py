@@ -439,7 +439,7 @@ def show_details(item):
             
             if item.get("category") != "SCRAP":
                 st.markdown("<br>", unsafe_allow_html=True)
-                with st.expander("🔗 외부에 리뷰 공유하기 (복사)"):
+                with st.expander("🔗 공유"):
                     share_text = f"[{item.get('category')}] {item.get('title')}\n"
                     if creator_text:
                         share_text += f"- {creator_text}\n"
