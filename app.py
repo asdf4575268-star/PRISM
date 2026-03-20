@@ -138,13 +138,10 @@ cookie_manager = stx.CookieManager()
 
 if "is_logged_in" not in st.session_state:
     st.session_state.is_logged_in = False
-
-admin_cookie = cookie_manager.get(cookie="admin_logged_in")
-if admin_cookie == "yes":
-    st.session_state.is_logged_in = True
-else:
-    st.session_state.is_logged_in = False
-
+if "login_triggered" not in st.session_state:
+    st.session_state.login_triggered = False
+if "logout_triggered" not in st.session_state:
+    st.session_state.logout_triggered = False
 if "user_password" not in st.session_state:
     st.session_state.user_password = ""
 if "selected_tag" not in st.session_state:
@@ -172,6 +169,18 @@ for k in form_keys:
 if 'f_view_date' not in st.session_state:
     st.session_state.f_view_date = date.today()
 
+# [핵심 수정] 1사이클 딜레이 방어 로직
+admin_cookie = cookie_manager.get(cookie="admin_logged_in")
+
+if admin_cookie == "yes" and not st.session_state.logout_triggered:
+    st.session_state.is_logged_in = True
+elif (admin_cookie == "no" or admin_cookie is None) and not st.session_state.login_triggered:
+    st.session_state.is_logged_in = False
+
+# 플래그 초기화
+st.session_state.login_triggered = False
+st.session_state.logout_triggered = False
+
 is_admin = st.session_state.is_logged_in or DEV_MODE
 
 with st.sidebar:
@@ -181,22 +190,23 @@ with st.sidebar:
         if input_password:
             if input_password == st.secrets["ADMIN_PASSWORD"]:
                 cookie_manager.set("admin_logged_in", "yes", expires_at=datetime.now() + timedelta(days=30))
-                st.session_state.user_password = input_password 
+                st.session_state.login_triggered = True
                 st.session_state.is_logged_in = True
-                time.sleep(0.5)
+                time.sleep(0.3)
                 st.rerun()
             else:
                 st.error("비밀번호가 틀렸습니다.")
-    if st.session_state.is_logged_in:
+    
+    if is_admin:
         st.success("관리자 모드 활성화됨")
         
-        # [수정] 로그아웃 확실하게 처리 (쿠키 덮어쓰기)
         if st.button("🔓 로그아웃", key="logout_btn", use_container_width=True):
-            cookie_manager.set("admin_logged_in", "no") # delete 대신 덮어쓰기 사용
+            cookie_manager.set("admin_logged_in", "no") 
+            st.session_state.logout_triggered = True
             st.session_state.is_logged_in = False
             st.session_state.user_password = ""
             st.session_state.should_clear_form = True
-            time.sleep(0.5)
+            time.sleep(0.3)
             st.rerun()
             
         st.divider()
@@ -456,10 +466,8 @@ def show_details(item):
             if item.get("category") != "SCRAP":
                 st.markdown("<br>", unsafe_allow_html=True)
                 
-                # --- [수정] 블로그 공유용 마크다운 & 모바일 공유 버튼 ---
                 st.subheader("🔗 외부에 리뷰 공유하기")
                 
-                # 1. 모바일 기기용 Native Share (버튼)
                 share_text_mobile = f"[{item.get('category')}] {item.get('title')}\n"
                 if creator_text: share_text_mobile += f"- {creator_text}\n"
                 share_text_mobile += "\n"
@@ -497,7 +505,6 @@ def show_details(item):
                 """
                 components.html(share_html, height=65)
 
-                # 2. 블로그 포스팅용 마크다운 복사
                 with st.expander("📝 블로그 포스팅용 복사 (티스토리, 네이버, 벨로그)"):
                     blog_text = f"## [{item.get('category')}] {item.get('title')}\n\n"
                     if item.get('img_url') and str(item.get('img_url')) != "None":
@@ -641,10 +648,8 @@ def show_plan_details(item):
             if item.get("category") != "SCRAP":
                 st.markdown("<br>", unsafe_allow_html=True)
                 
-                # --- [수정] 블로그 공유용 마크다운 & 모바일 공유 버튼 (플랜) ---
                 st.subheader("🔗 외부에 리뷰 공유하기")
                 
-                # 1. 모바일 기기용 Native Share
                 share_text_mobile = f"[일정 - {item.get('category')}] {item.get('title')}\n"
                 if rich_data.get('creator'): share_text_mobile += f"- {rich_data.get('creator')}\n"
                 share_text_mobile += "\n"
@@ -682,7 +687,6 @@ def show_plan_details(item):
                 """
                 components.html(share_html, height=65)
 
-                # 2. 블로그 포스팅용 마크다운 복사
                 with st.expander("📝 블로그 포스팅용 복사 (티스토리, 네이버, 벨로그)"):
                     blog_text = f"## [일정 - {item.get('category')}] {item.get('title')}\n\n"
                     if rich_data.get('img_url') and str(rich_data.get('img_url')) != "None":
