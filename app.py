@@ -178,7 +178,7 @@ with st.sidebar:
     if st.session_state.is_logged_in:
         st.success("관리자 모드 활성화됨")
         if st.button("🔓 로그아웃", key="logout_2", use_container_width=True):
-            cookie_manager.set("admin_logged_in", "no") # delete 대신 값을 덮어써서 확실하게 로그아웃 처리
+            cookie_manager.set("admin_logged_in", "no")
             st.session_state.is_logged_in = False
             st.session_state.user_password = ""
             time.sleep(0.5)
@@ -328,7 +328,6 @@ def show_details(item):
     col_img, col_txt = st.columns([0.3, 0.7])
     
     if is_admin and edit_mode:
-        # Form을 사용하여 입력 도중 새로고침 방지
         with st.form(key=f"edit_form_archive_{item['id']}"):
             col_img_form, col_txt_form = st.columns([0.3, 0.7])
             with col_img_form:
@@ -349,18 +348,13 @@ def show_details(item):
                 except: view_val = date.today()
                 
                 f_view = st.date_input("🍿 감상일 수정", value=view_val)
-                f_sum = st.text_area("📖 INFO", value=str(item.get('summary', '')), height=100)
                 
-                if cat == "SCRAP":
-                    f_high = st.text_area("✨ 5문장 요약", value=str(item.get('highlights', '')), height=150)
-                    f_note = st.text_area("🌈 5문장 감상", value=str(item.get('note', '')), height=150)
-                    f_brief = st.text_input("📝 요약 (한 줄 평)", value=str(item.get('brief', '')))
-                else:
-                    f_high = st.text_area("📦 SKETCH", value=str(item.get('highlights', '')), height=250)
-                    f_note = st.text_area("🖋️ PRISM", value=str(item.get('note', '')), height=200)
-                    f_brief = st.text_input("💎 Step 한 줄 평", value=str(item.get('brief', '')))
+                # 4가지 핵심 폼
+                f_brief = st.text_input("1. 한 줄 평", value=str(item.get('brief', '')))
+                f_note = st.text_area("2. PRISM", value=str(item.get('note', '')), height=200)
+                f_sum = st.text_area("3. 감상 포인트", value=str(item.get('summary', '')), height=150)
+                f_high = st.text_area("4. 인상 깊은 부분 (가사, 문구, 장면 등)", value=str(item.get('highlights', '')), height=150)
             
-            # Form 제출 버튼 (이 버튼을 눌러야만 코드가 재실행됨)
             if st.form_submit_button("💾 저장", use_container_width=True, type="primary"):
                 try:
                     conn = get_connection()
@@ -401,41 +395,36 @@ def show_details(item):
             st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿 감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
             st.divider()
             
-            if item.get("category") == "SCRAP":
-                sections = [("📝 한 줄 평", "brief", "#0E6245"), ("✨ 5문장 요약", "highlights", "#7D5600"), ("🌈 5문장 감상", "note", "#1E425E"), ("📖 INFO", "summary", "#444")]
-            else:
-                if is_admin:
-                    sections = [
-                        ("💎 한 줄 평", "brief", "#E50914"), 
-                        ("🖋️ PRISM", "note", "#1E425E"), 
-                        ("📦 SKETCH", "highlights", "#7D5600"), 
-                        ("📖 INFO", "summary", "#444")
-                    ]
-                else:
-                    sections = [
-                        ("💎 한 줄 평", "brief", "#E50914"), 
-                        ("🖋️ PRISM 리뷰", "note", "#1E425E")
-                    ]
+            # 4가지 핵심 항목 뷰
+            sections = [
+                ("💎 1. 한 줄 평", "brief", "#E50914"), 
+                ("🖋️ 2. PRISM", "note", "#1E425E"), 
+                ("💡 3. 감상 포인트", "summary", "#0E6245"), 
+                ("🔖 4. 인상 깊은 부분", "highlights", "#7D5600")
+            ]
                 
             for label, key, color in sections:
-                if item.get(key):
+                if item.get(key) and str(item.get(key)).strip():
                     st.markdown(f'<div style="display: inline-block; background-color: {color}; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px; font-weight: bold;">{label}</div>', unsafe_allow_html=True)
-                    st.markdown(item[key].replace('\n', '  \n'))
+                    st.markdown(str(item[key]).replace('\n', '  \n'))
                     st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
             
-            if item.get("category") != "SCRAP":
-                st.markdown("<br>", unsafe_allow_html=True)
-                with st.expander("🔗 외부에 리뷰 공유하기 (복사)"):
-                    share_text = f"[{item.get('category')}] {item.get('title')}\n"
-                    if creator_text:
-                        share_text += f"- {creator_text}\n"
-                    share_text += "\n"
-                    if item.get('brief'):
-                        share_text += f"💎 한 줄 평: {item.get('brief')}\n\n"
-                    if item.get('note'):
-                        share_text += f"🖋️ PRISM 리뷰:\n{item.get('note')}"
-                    
-                    st.code(share_text.strip(), language="markdown")
+            st.markdown("<br>", unsafe_allow_html=True)
+            with st.expander("🔗 외부에 리뷰 공유하기 (복사)"):
+                share_text = f"[{item.get('category')}] {item.get('title')}\n"
+                if creator_text:
+                    share_text += f"- {creator_text}\n"
+                share_text += "\n"
+                if item.get('brief'):
+                    share_text += f"1. 한 줄 평:\n{item.get('brief')}\n\n"
+                if item.get('note'):
+                    share_text += f"2. PRISM:\n{item.get('note')}\n\n"
+                if item.get('summary'):
+                    share_text += f"3. 감상 포인트:\n{item.get('summary')}\n\n"
+                if item.get('highlights'):
+                    share_text += f"4. 인상 깊은 부분:\n{item.get('highlights')}\n\n"
+                
+                st.code(share_text.strip(), language="markdown")
 
 @st.dialog("🗓️상세 정보", width="large")
 def show_plan_details(item):
@@ -462,7 +451,6 @@ def show_plan_details(item):
     col_img, col_txt = st.columns([0.3, 0.7])
     
     if is_admin and edit_mode:
-        # Form을 사용하여 입력 도중 새로고침 방지
         with st.form(key=f"edit_form_plan_{item['id']}"):
             col_img_form, col_txt_form = st.columns([0.3, 0.7])
             with col_img_form:
@@ -480,18 +468,13 @@ def show_plan_details(item):
                 except: view_val = date.today()
                 
                 f_view = st.date_input("🗓️ 예정일 수정", value=view_val)
-                f_sum = st.text_area("📖 INFO", value=str(rich_data.get('summary', '')), height=100)
                 
-                if item.get("category") == "SCRAP":
-                    f_high = st.text_area("✨ 5문장 요약", value=str(rich_data.get('highlights', '')), height=150)
-                    f_note = st.text_area("🌈 5문장 감상", value=str(rich_data.get('note', '')), height=150)
-                    f_brief = st.text_input("📝 요약 (한 줄 평)", value=str(rich_data.get('brief', '')))
-                else:
-                    f_high = st.text_area("📦 SKETCH", value=str(rich_data.get('highlights', '')), height=250)
-                    f_note = st.text_area("🖋️ PRISM", value=str(rich_data.get('note', '')), height=200)
-                    f_brief = st.text_input("💎 한 줄 평", value=str(rich_data.get('brief', '')))
+                # 4가지 핵심 폼
+                f_brief = st.text_input("1. 한 줄 평", value=str(rich_data.get('brief', '')))
+                f_note = st.text_area("2. PRISM", value=str(rich_data.get('note', '')), height=200)
+                f_sum = st.text_area("3. 감상 포인트", value=str(rich_data.get('summary', '')), height=150)
+                f_high = st.text_area("4. 인상 깊은 부분 (가사, 문구, 장면 등)", value=str(rich_data.get('highlights', '')), height=150)
             
-            # Form 제출 버튼
             if st.form_submit_button("💾 저장", use_container_width=True, type="primary"):
                 new_rich = {
                     "creator": f_creator.strip(), "rel_date": f_rel.strip(), 
@@ -528,37 +511,30 @@ def show_plan_details(item):
             st.markdown(f'<p style="color: #E50914; font-weight: bold; font-size: 1.1em;">🗓️ 예정일: {item.get("plan_date")}</p>', unsafe_allow_html=True)
             st.divider()
             
-            if item.get("category") == "SCRAP":
-                sections = [("📝 요약 (한 줄 평)", "brief", "#0E6245"), ("✨ 5문장 요약", "highlights", "#7D5600"), ("🌈 5문장 감상", "note", "#1E425E"), ("📖 INFO", "summary", "#444")]
-            else:
-                if is_admin:
-                    sections = [
-                        ("💎 한 줄 평", "brief", "#E50914"), 
-                        ("🖋️ PRISM", "note", "#1E425E"), 
-                        ("📦 SKETCH", "highlights", "#7D5600"), 
-                        ("📖 INFO", "summary", "#444")
-                    ]
-                else:
-                    sections = [
-                        ("💎 한 줄 평", "brief", "#E50914"), 
-                        ("🖋️ PRISM 리뷰", "note", "#1E425E")
-                    ]
+            # 4가지 핵심 항목 뷰
+            sections = [
+                ("💎 1. 한 줄 평", "brief", "#E50914"), 
+                ("🖋️ 2. PRISM", "note", "#1E425E"), 
+                ("💡 3. 감상 포인트", "summary", "#0E6245"), 
+                ("🔖 4. 인상 깊은 부분", "highlights", "#7D5600")
+            ]
                     
             for label, key, color in sections:
-                if rich_data.get(key):
+                if rich_data.get(key) and str(rich_data.get(key)).strip():
                     st.markdown(f'<div style="display: inline-block; background-color: {color}; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px; font-weight: bold;">{label}</div>', unsafe_allow_html=True)
-                    st.markdown(rich_data[key].replace('\n', '  \n'))
+                    st.markdown(str(rich_data[key]).replace('\n', '  \n'))
                     st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
             
-            if item.get("category") != "SCRAP":
-                st.markdown("<br>", unsafe_allow_html=True)
-                with st.expander("🔗 외부에 리뷰 공유하기 (복사)"):
-                    share_text = f"[{item.get('category')}] {item.get('title')}\n"
-                    if rich_data.get('creator'): share_text += f"- {rich_data.get('creator')}\n"
-                    share_text += "\n"
-                    if rich_data.get('brief'): share_text += f"💎 한 줄 평: {rich_data.get('brief')}\n\n"
-                    if rich_data.get('note'): share_text += f"🖋️ PRISM 리뷰:\n{rich_data.get('note')}"
-                    st.code(share_text.strip(), language="markdown")
+            st.markdown("<br>", unsafe_allow_html=True)
+            with st.expander("🔗 외부에 리뷰 공유하기 (복사)"):
+                share_text = f"[{item.get('category')}] {item.get('title')}\n"
+                if rich_data.get('creator'): share_text += f"- {rich_data.get('creator')}\n"
+                share_text += "\n"
+                if rich_data.get('brief'): share_text += f"1. 한 줄 평:\n{rich_data.get('brief')}\n\n"
+                if rich_data.get('note'): share_text += f"2. PRISM:\n{rich_data.get('note')}\n\n"
+                if rich_data.get('summary'): share_text += f"3. 감상 포인트:\n{rich_data.get('summary')}\n\n"
+                if rich_data.get('highlights'): share_text += f"4. 인상 깊은 부분:\n{rich_data.get('highlights')}\n\n"
+                st.code(share_text.strip(), language="markdown")
 
         if is_admin:
             st.markdown("<br>", unsafe_allow_html=True)
@@ -672,23 +648,6 @@ if is_admin and tab_w:
         if st.session_state.show_form:
             st.divider()
             
-            if category == "SCRAP":
-                if not st.session_state.f_highlights: st.session_state.f_highlights = "1. \n2. \n3. \n4. \n5. "
-                if not st.session_state.f_note: st.session_state.f_note = "1. \n2. \n3. \n4. \n5. "
-            else:
-                if not st.session_state.f_highlights: 
-                    cat_hl_labels = {
-                        "BOOKS": "🔖 인상 깊은 구절",
-                        "MUSIC": "🎵 인상 깊은 가사/사운드",
-                        "MOVIES": "🎬 인상 깊은 명장면/명대사",
-                        "SERIES": "📺 인상 깊은 명장면/명대사",
-                        "STAGE": "🎭 인상 깊은 넘버/장면"
-                    }
-                    cat_label = cat_hl_labels.get(category, "📍 인상 깊은 부분")
-                    st.session_state.f_highlights = f"{cat_label} 1: \n{cat_label} 2: \n{cat_label} 3: \n📎 보충 팩트 (위키/인터뷰/배경지식): \n\n🔑 키워드: \n\n📝 스케치: \n  1. \n  2. \n  3. \n  4."
-                if not st.session_state.f_note: 
-                    st.session_state.f_note = ""
-
             cl, cr = st.columns([0.4, 0.6])
             with cl:
                 st.text_input("🖼️ 이미지 URL", key="f_img")
@@ -700,19 +659,14 @@ if is_admin and tab_w:
                 st.text_input(creator_label, key="f_creator")
                 st.text_input("📅 작품 날짜", key="f_date")
                 st.text_input("📍 장소/플랫폼", key="f_venue")
-                st.text_area("📖 INFO (배경지식/정보)", key="f_summary", height=120)
+                st.date_input("🍿 감상 완료/예정일", key="f_view_date")
             
             with cr:
-                if category == "SCRAP":
-                    st.text_area("✨ 5문장 요약", key="f_highlights", height=150)
-                    st.text_area("🌈 5문장 감상", key="f_note", height=150)
-                    st.text_input("📝 요약 (한 줄 평)", key="f_brief")
-                else:
-                    st.text_area("📦 Step 2 & 3. 데이터 수집 및 스케치", key="f_highlights", height=300)
-                    st.text_area("🖋️ Step 4. 본문 작성 (PRISM)", key="f_note", height=200)
-                    st.text_input("💎 Step 5. 최종 요약 (한 줄 평)", key="f_brief")
-                
-                st.date_input("🍿 감상 완료/예정일", key="f_view_date")
+                # API 연동으로 f_summary에 내용이 채워지더라도 사용자가 직접 수정하거나 덮어쓸 수 있습니다.
+                st.text_input("1. 한 줄 평", key="f_brief")
+                st.text_area("2. PRISM", key="f_note", height=200)
+                st.text_area("3. 감상 포인트 (API 연동 시 기본 정보 자동입력)", key="f_summary", height=150)
+                st.text_area("4. 인상 깊은 부분 (가사, 문구, 장면 등)", key="f_highlights", height=150)
                 
             st.markdown("<br>", unsafe_allow_html=True)
             col_btn1, col_btn2, col_btn3 = st.columns([0.4, 0.4, 0.2])
