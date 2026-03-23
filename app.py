@@ -337,6 +337,7 @@ def show_details(item):
         st.divider()
 
     col_img, col_txt = st.columns([0.3, 0.7])
+    cat = item.get('category')
     
     if is_admin and edit_mode:
         with st.form(key=f"edit_form_archive_{item['id']}"):
@@ -347,7 +348,6 @@ def show_details(item):
                 
             with col_txt_form:
                 f_title = st.text_input("📌 제목", value=str(item.get('title', '')))
-                cat = item.get('category')
                 creator_label_edit = "👤 창작자/매체" if cat == "SCRAP" else "👤 창작자"
                 f_creator = st.text_input(creator_label_edit, value=str(item.get('creator', '')))
                 
@@ -360,10 +360,17 @@ def show_details(item):
                 
                 f_view = st.date_input("🍿 감상일 수정", value=view_val)
                 
-                f_brief = st.text_input("1. 💎 한 줄 평", value=str(item.get('brief', '')))
-                f_note = st.text_area("2. 🖋️ PRISM (본문)", value=str(item.get('note', '')), height=300)
-                f_sum = st.text_area("3. 💡 감상 포인트", value=str(item.get('summary', '')), height=150)
-                f_high = st.text_area("4. 🔖 인상 깊은 부분 (가사, 문구, 장면 등)", value=str(item.get('highlights', '')), height=150)
+                # 스크랩 폼과 일반 폼 분리
+                if cat == "SCRAP":
+                    f_brief = st.text_input("1. 🔑 키워드", value=str(item.get('brief', '')))
+                    f_high = st.text_area("2. ✨ 5문장 요약", value=str(item.get('highlights', '')), height=150)
+                    f_note = st.text_area("3. 🌈 감상", value=str(item.get('note', '')), height=200)
+                    f_sum = st.text_area("🔗 원본 링크/정보", value=str(item.get('summary', '')), height=100)
+                else:
+                    f_brief = st.text_input("1. 💎 한 줄 평", value=str(item.get('brief', '')))
+                    f_note = st.text_area("2. 🖋️ PRISM (본문)", value=str(item.get('note', '')), height=300)
+                    f_sum = st.text_area("3. 💡 감상 포인트", value=str(item.get('summary', '')), height=150)
+                    f_high = st.text_area("4. 🔖 인상 깊은 부분 (가사, 문구, 장면 등)", value=str(item.get('highlights', '')), height=150)
             
             if st.form_submit_button("💾 저장", use_container_width=True, type="primary"):
                 try:
@@ -405,12 +412,21 @@ def show_details(item):
             st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿 감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
             st.divider()
             
-            sections = [
-                ("💎 한 줄 평", "brief", "#E50914"), 
-                ("🖋️ PRISM", "note", "#1E425E"),
-                ("💡 감상 포인트", "summary", "#0E6245"), 
-                ("🔖 인상 깊은 부분", "highlights", "#7D5600")
-            ]
+            # 뷰 화면 분리
+            if cat == "SCRAP":
+                sections = [
+                    ("🔑 키워드", "brief", "#0E6245"),
+                    ("✨ 5문장 요약", "highlights", "#7D5600"),
+                    ("🌈 감상", "note", "#1E425E"),
+                    ("🔗 정보", "summary", "#444")
+                ]
+            else:
+                sections = [
+                    ("💎 한 줄 평", "brief", "#E50914"), 
+                    ("🖋️ PRISM", "note", "#1E425E"),
+                    ("💡 감상 포인트", "summary", "#0E6245"), 
+                    ("🔖 인상 깊은 부분", "highlights", "#7D5600")
+                ]
                 
             for label, key, color in sections:
                 if item.get(key) and str(item.get(key)).strip():
@@ -426,23 +442,30 @@ def show_details(item):
                 else:
                     share_text += "\n"
                 
-                if item.get('brief') and str(item.get('brief')).strip():
-                    share_text += f"💎 한 줄 평\n{item.get('brief')}\n\n"
+                # 송고용 텍스트 분리
+                if cat == "SCRAP":
+                    if item.get('brief') and str(item.get('brief')).strip():
+                        share_text += f"🔑 키워드:\n{item.get('brief')}\n\n"
+                    if item.get('highlights') and str(item.get('highlights')).strip():
+                        share_text += f"✨ 5문장 요약:\n{item.get('highlights')}\n\n"
+                    if item.get('note') and str(item.get('note')).strip():
+                        share_text += f"🌈 감상:\n{item.get('note')}\n\n"
+                    if item.get('summary') and str(item.get('summary')).strip():
+                        share_text += f"🔗 원본 링크:\n{item.get('summary')}\n\n"
+                else:
+                    if item.get('brief') and str(item.get('brief')).strip():
+                        share_text += f"💎 한 줄 평\n{item.get('brief')}\n\n"
+                    if item.get('note') and str(item.get('note')).strip():
+                        share_text += f"🖋️ PRISM\n{item.get('note')}\n\n"
                     
-                if item.get('note') and str(item.get('note')).strip():
-                    share_text += f"🖋️ PRISM\n{item.get('note')}\n\n"
-                
-                has_summary = item.get('summary') and str(item.get('summary')).strip()
-                has_highlights = item.get('highlights') and str(item.get('highlights')).strip()
-                
-                if has_summary or has_highlights:
-                    share_text += "┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n"
-                    share_text += "📌 덧붙이는 메모\n\n"
-                    
-                    if has_summary:
-                        share_text += f"💡 감상 포인트\n{item.get('summary')}\n\n"
-                    if has_highlights:
-                        share_text += f"🔖 인상 깊은 부분\n{item.get('highlights')}\n\n"
+                    has_summary = item.get('summary') and str(item.get('summary')).strip()
+                    has_highlights = item.get('highlights') and str(item.get('highlights')).strip()
+                    if has_summary or has_highlights:
+                        share_text += "┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n📌 덧붙이는 메모\n\n"
+                        if has_summary:
+                            share_text += f"💡 감상 포인트\n{item.get('summary')}\n\n"
+                        if has_highlights:
+                            share_text += f"🔖 인상 깊은 부분\n{item.get('highlights')}\n\n"
                 
                 img_u = item.get('img_url')
                 vid_u = item.get('img_url2')
@@ -482,6 +505,7 @@ def show_plan_details(item):
         st.divider()
         
     col_img, col_txt = st.columns([0.3, 0.7])
+    cat = item.get('category')
     
     if is_admin and edit_mode:
         with st.form(key=f"edit_form_plan_{item['id']}"):
@@ -502,10 +526,16 @@ def show_plan_details(item):
                 
                 f_view = st.date_input("🗓️ 예정일 수정", value=view_val)
                 
-                f_brief = st.text_input("1. 💎 한 줄 평", value=str(rich_data.get('brief', '')))
-                f_note = st.text_area("2. 🖋️ PRISM (본문)", value=str(rich_data.get('note', '')), height=300)
-                f_sum = st.text_area("3. 💡 감상 포인트", value=str(rich_data.get('summary', '')), height=150)
-                f_high = st.text_area("4. 🔖 인상 깊은 부분 (가사, 문구, 장면 등)", value=str(rich_data.get('highlights', '')), height=150)
+                if cat == "SCRAP":
+                    f_brief = st.text_input("1. 🔑 키워드", value=str(rich_data.get('brief', '')))
+                    f_high = st.text_area("2. ✨ 5문장 요약", value=str(rich_data.get('highlights', '')), height=150)
+                    f_note = st.text_area("3. 🌈 감상", value=str(rich_data.get('note', '')), height=200)
+                    f_sum = st.text_area("🔗 원본 링크/정보", value=str(rich_data.get('summary', '')), height=100)
+                else:
+                    f_brief = st.text_input("1. 💎 한 줄 평", value=str(rich_data.get('brief', '')))
+                    f_note = st.text_area("2. 🖋️ PRISM (본문)", value=str(rich_data.get('note', '')), height=300)
+                    f_sum = st.text_area("3. 💡 감상 포인트", value=str(rich_data.get('summary', '')), height=150)
+                    f_high = st.text_area("4. 🔖 인상 깊은 부분 (가사, 문구, 장면 등)", value=str(rich_data.get('highlights', '')), height=150)
             
             if st.form_submit_button("💾 저장", use_container_width=True, type="primary"):
                 new_rich = {
@@ -543,12 +573,20 @@ def show_plan_details(item):
             st.markdown(f'<p style="color: #E50914; font-weight: bold; font-size: 1.1em;">🗓️ 예정일: {item.get("plan_date")}</p>', unsafe_allow_html=True)
             st.divider()
             
-            sections = [
-                ("💎 한 줄 평", "brief", "#E50914"), 
-                ("🖋️ PRISM", "note", "#1E425E"),
-                ("💡 감상 포인트", "summary", "#0E6245"), 
-                ("🔖 인상 깊은 부분", "highlights", "#7D5600")
-            ]
+            if cat == "SCRAP":
+                sections = [
+                    ("🔑 키워드", "brief", "#0E6245"),
+                    ("✨ 5문장 요약", "highlights", "#7D5600"),
+                    ("🌈 감상", "note", "#1E425E"),
+                    ("🔗 정보", "summary", "#444")
+                ]
+            else:
+                sections = [
+                    ("💎 한 줄 평", "brief", "#E50914"), 
+                    ("🖋️ PRISM", "note", "#1E425E"),
+                    ("💡 감상 포인트", "summary", "#0E6245"), 
+                    ("🔖 인상 깊은 부분", "highlights", "#7D5600")
+                ]
                     
             for label, key, color in sections:
                 if rich_data.get(key) and str(rich_data.get(key)).strip():
@@ -564,23 +602,29 @@ def show_plan_details(item):
                 else:
                     share_text += "\n"
                 
-                if rich_data.get('brief') and str(rich_data.get('brief')).strip():
-                    share_text += f"💎 한 줄 평\n{rich_data.get('brief')}\n\n"
+                if cat == "SCRAP":
+                    if rich_data.get('brief') and str(rich_data.get('brief')).strip():
+                        share_text += f"🔑 키워드:\n{rich_data.get('brief')}\n\n"
+                    if rich_data.get('highlights') and str(rich_data.get('highlights')).strip():
+                        share_text += f"✨ 5문장 요약:\n{rich_data.get('highlights')}\n\n"
+                    if rich_data.get('note') and str(rich_data.get('note')).strip():
+                        share_text += f"🌈 감상:\n{rich_data.get('note')}\n\n"
+                    if rich_data.get('summary') and str(rich_data.get('summary')).strip():
+                        share_text += f"🔗 원본 링크:\n{rich_data.get('summary')}\n\n"
+                else:
+                    if rich_data.get('brief') and str(rich_data.get('brief')).strip():
+                        share_text += f"💎 한 줄 평\n{rich_data.get('brief')}\n\n"
+                    if rich_data.get('note') and str(rich_data.get('note')).strip():
+                        share_text += f"🖋️ PRISM\n{rich_data.get('note')}\n\n"
                     
-                if rich_data.get('note') and str(rich_data.get('note')).strip():
-                    share_text += f"🖋️ PRISM\n{rich_data.get('note')}\n\n"
-                
-                has_summary = rich_data.get('summary') and str(rich_data.get('summary')).strip()
-                has_highlights = rich_data.get('highlights') and str(rich_data.get('highlights')).strip()
-                
-                if has_summary or has_highlights:
-                    share_text += "┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n"
-                    share_text += "📌 덧붙이는 메모\n\n"
-                    
-                    if has_summary:
-                        share_text += f"💡 감상 포인트\n{rich_data.get('summary')}\n\n"
-                    if has_highlights:
-                        share_text += f"🔖 인상 깊은 부분\n{rich_data.get('highlights')}\n\n"
+                    has_summary = rich_data.get('summary') and str(rich_data.get('summary')).strip()
+                    has_highlights = rich_data.get('highlights') and str(rich_data.get('highlights')).strip()
+                    if has_summary or has_highlights:
+                        share_text += "┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n📌 덧붙이는 메모\n\n"
+                        if has_summary:
+                            share_text += f"💡 감상 포인트\n{rich_data.get('summary')}\n\n"
+                        if has_highlights:
+                            share_text += f"🔖 인상 깊은 부분\n{rich_data.get('highlights')}\n\n"
                 
                 img_u = rich_data.get('img_url')
                 vid_u = rich_data.get('img_url2')
@@ -736,10 +780,17 @@ if is_admin and tab_w:
                 st.date_input("🍿 감상 완료/예정일", key="f_view_date")
             
             with cr:
-                st.text_input("1. 💎 한 줄 평", key="f_brief")
-                st.text_area("2. 🖋️ PRISM (본문)", key="f_note", height=300)
-                st.text_area("3. 💡 감상 포인트 (API 연동 시 기본 정보 자동입력)", key="f_summary", height=150)
-                st.text_area("4. 🔖 인상 깊은 부분 (가사, 문구, 장면 등)", key="f_highlights", height=150)
+                # 스크랩 폼과 일반 폼 분리
+                if category == "SCRAP":
+                    st.text_input("1. 🔑 키워드", key="f_brief")
+                    st.text_area("2. ✨ 5문장 요약", key="f_highlights", height=150)
+                    st.text_area("3. 🌈 감상", key="f_note", height=200)
+                    st.text_area("🔗 원본 링크/정보", key="f_summary", height=100)
+                else:
+                    st.text_input("1. 💎 한 줄 평", key="f_brief")
+                    st.text_area("2. 🖋️ PRISM (본문)", key="f_note", height=300)
+                    st.text_area("3. 💡 감상 포인트 (API 연동 시 기본 정보 자동입력)", key="f_summary", height=150)
+                    st.text_area("4. 🔖 인상 깊은 부분 (가사, 문구, 장면 등)", key="f_highlights", height=150)
                 
             st.markdown("<br>", unsafe_allow_html=True)
             col_btn1, col_btn2, col_btn3 = st.columns([0.4, 0.4, 0.2])
@@ -928,9 +979,10 @@ with tab_a:
                                     if summary_text.startswith("http"):
                                         url = summary_text.split('\n')[0]
                                         st.markdown(f"**[🔗 원본 기사 보러가기]({url})**")
-                                    if row['brief']: st.write(f"**📝 요약 (한 줄 평):** {row['brief']}")
+                                    # 스크랩 탭 모아보기 화면 양식 적용
+                                    if row['brief']: st.write(f"**🔑 키워드:** {row['brief']}")
                                     if row['highlights']: st.markdown(f"**✨ 5문장 요약:**<br>{row['highlights'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
-                                    if row['note']: st.markdown(f"**🌈 5문장 감상:**<br>{row['note'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
+                                    if row['note']: st.markdown(f"**🌈 감상:**<br>{row['note'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
                                     if st.button("상세보기 / 수정", key=f"scr_btn_{row['id']}"): show_details(row)
                     else: st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else: st.info("스크랩 기록이 없습니다.")
