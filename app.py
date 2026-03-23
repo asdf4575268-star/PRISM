@@ -349,11 +349,11 @@ def show_details(item):
                 
                 f_view = st.date_input("🍿 감상일 수정", value=view_val)
                 
-                # 4가지 핵심 폼
-                f_brief = st.text_input("1. 한 줄 평", value=str(item.get('brief', '')))
-                f_note = st.text_area("2. PRISM", value=str(item.get('note', '')), height=200)
-                f_sum = st.text_area("3. 감상 포인트", value=str(item.get('summary', '')), height=150)
-                f_high = st.text_area("4. 인상 깊은 부분 (가사, 문구, 장면 등)", value=str(item.get('highlights', '')), height=150)
+                # 4가지 핵심 항목 폼 통일
+                f_brief = st.text_input("💎 중심맥락 (한 줄 평)", value=str(item.get('brief', '')))
+                f_sum = st.text_area("📖 INFO (자료 조사, 감상 포인트 등)", value=str(item.get('summary', '')), height=150)
+                f_high = st.text_area("📦 SKETCH (인상 깊은 부분, 키워드, 흐름 등)", value=str(item.get('highlights', '')), height=200)
+                f_note = st.text_area("🖋️ PRISM (핵심 사례, 설계도, 본문 등)", value=str(item.get('note', '')), height=300)
             
             if st.form_submit_button("💾 저장", use_container_width=True, type="primary"):
                 try:
@@ -395,12 +395,12 @@ def show_details(item):
             st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿 감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
             st.divider()
             
-            # 4가지 핵심 항목 뷰
+            # 4가지 핵심 항목 뷰 통일
             sections = [
-                ("💎 1. 한 줄 평", "brief", "#E50914"), 
-                ("🖋️ 2. PRISM", "note", "#1E425E"), 
-                ("💡 3. 감상 포인트", "summary", "#0E6245"), 
-                ("🔖 4. 인상 깊은 부분", "highlights", "#7D5600")
+                ("💎 중심맥락 (한 줄 평)", "brief", "#E50914"), 
+                ("📖 INFO", "summary", "#444"), 
+                ("📦 SKETCH", "highlights", "#7D5600"), 
+                ("🖋️ PRISM", "note", "#1E425E")
             ]
                 
             for label, key, color in sections:
@@ -415,14 +415,16 @@ def show_details(item):
                 if creator_text:
                     share_text += f"- {creator_text}\n"
                 share_text += "\n"
-                if item.get('brief'):
-                    share_text += f"1. 한 줄 평:\n{item.get('brief')}\n\n"
-                if item.get('note'):
-                    share_text += f"2. PRISM:\n{item.get('note')}\n\n"
-                if item.get('summary'):
-                    share_text += f"3. 감상 포인트:\n{item.get('summary')}\n\n"
-                if item.get('highlights'):
-                    share_text += f"4. 인상 깊은 부분:\n{item.get('highlights')}\n\n"
+                
+                # 송고용 텍스트 통일
+                if item.get('brief') and str(item.get('brief')).strip():
+                    share_text += f"💎 중심맥락 (한 줄 평):\n{item.get('brief')}\n\n"
+                if item.get('summary') and str(item.get('summary')).strip():
+                    share_text += f"📖 INFO:\n{item.get('summary')}\n\n"
+                if item.get('highlights') and str(item.get('highlights')).strip():
+                    share_text += f"📦 SKETCH:\n{item.get('highlights')}\n\n"
+                if item.get('note') and str(item.get('note')).strip():
+                    share_text += f"🖋️ PRISM:\n{item.get('note')}\n\n"
                 
                 st.code(share_text.strip(), language="markdown")
 
@@ -469,11 +471,11 @@ def show_plan_details(item):
                 
                 f_view = st.date_input("🗓️ 예정일 수정", value=view_val)
                 
-                # 4가지 핵심 폼
-                f_brief = st.text_input("1. 한 줄 평", value=str(rich_data.get('brief', '')))
-                f_note = st.text_area("2. PRISM", value=str(rich_data.get('note', '')), height=200)
-                f_sum = st.text_area("3. 감상 포인트", value=str(rich_data.get('summary', '')), height=150)
-                f_high = st.text_area("4. 인상 깊은 부분 (가사, 문구, 장면 등)", value=str(rich_data.get('highlights', '')), height=150)
+                # 4가지 핵심 항목 폼 통일
+                f_brief = st.text_input("💎 중심맥락 (한 줄 평)", value=str(rich_data.get('brief', '')))
+                f_sum = st.text_area("📖 INFO (자료 조사, 감상 포인트 등)", value=str(rich_data.get('summary', '')), height=150)
+                f_high = st.text_area("📦 SKETCH (인상 깊은 부분, 키워드, 흐름 등)", value=str(rich_data.get('highlights', '')), height=200)
+                f_note = st.text_area("🖋️ PRISM (핵심 사례, 설계도, 본문 등)", value=str(rich_data.get('note', '')), height=300)
             
             if st.form_submit_button("💾 저장", use_container_width=True, type="primary"):
                 new_rich = {
@@ -511,12 +513,12 @@ def show_plan_details(item):
             st.markdown(f'<p style="color: #E50914; font-weight: bold; font-size: 1.1em;">🗓️ 예정일: {item.get("plan_date")}</p>', unsafe_allow_html=True)
             st.divider()
             
-            # 4가지 핵심 항목 뷰
+            # 4가지 핵심 항목 뷰 통일
             sections = [
-                ("💎 1. 한 줄 평", "brief", "#E50914"), 
-                ("🖋️ 2. PRISM", "note", "#1E425E"), 
-                ("💡 3. 감상 포인트", "summary", "#0E6245"), 
-                ("🔖 4. 인상 깊은 부분", "highlights", "#7D5600")
+                ("💎 중심맥락 (한 줄 평)", "brief", "#E50914"), 
+                ("📖 INFO", "summary", "#444"), 
+                ("📦 SKETCH", "highlights", "#7D5600"), 
+                ("🖋️ PRISM", "note", "#1E425E")
             ]
                     
             for label, key, color in sections:
@@ -530,10 +532,16 @@ def show_plan_details(item):
                 share_text = f"[{item.get('category')}] {item.get('title')}\n"
                 if rich_data.get('creator'): share_text += f"- {rich_data.get('creator')}\n"
                 share_text += "\n"
-                if rich_data.get('brief'): share_text += f"1. 한 줄 평:\n{rich_data.get('brief')}\n\n"
-                if rich_data.get('note'): share_text += f"2. PRISM:\n{rich_data.get('note')}\n\n"
-                if rich_data.get('summary'): share_text += f"3. 감상 포인트:\n{rich_data.get('summary')}\n\n"
-                if rich_data.get('highlights'): share_text += f"4. 인상 깊은 부분:\n{rich_data.get('highlights')}\n\n"
+                
+                if rich_data.get('brief') and str(rich_data.get('brief')).strip():
+                    share_text += f"💎 중심맥락 (한 줄 평):\n{rich_data.get('brief')}\n\n"
+                if rich_data.get('summary') and str(rich_data.get('summary')).strip():
+                    share_text += f"📖 INFO:\n{rich_data.get('summary')}\n\n"
+                if rich_data.get('highlights') and str(rich_data.get('highlights')).strip():
+                    share_text += f"📦 SKETCH:\n{rich_data.get('highlights')}\n\n"
+                if rich_data.get('note') and str(rich_data.get('note')).strip():
+                    share_text += f"🖋️ PRISM:\n{rich_data.get('note')}\n\n"
+                    
                 st.code(share_text.strip(), language="markdown")
 
         if is_admin:
@@ -662,11 +670,11 @@ if is_admin and tab_w:
                 st.date_input("🍿 감상 완료/예정일", key="f_view_date")
             
             with cr:
-                # API 연동으로 f_summary에 내용이 채워지더라도 사용자가 직접 수정하거나 덮어쓸 수 있습니다.
-                st.text_input("1. 한 줄 평", key="f_brief")
-                st.text_area("2. PRISM", key="f_note", height=200)
-                st.text_area("3. 감상 포인트 (API 연동 시 기본 정보 자동입력)", key="f_summary", height=150)
-                st.text_area("4. 인상 깊은 부분 (가사, 문구, 장면 등)", key="f_highlights", height=150)
+                # 4가지 핵심 항목 폼 통일
+                st.text_input("💎 중심맥락 (한 줄 평)", key="f_brief")
+                st.text_area("📖 INFO (자료 조사, 감상 포인트 등)", key="f_summary", height=150)
+                st.text_area("📦 SKETCH (인상 깊은 부분, 키워드, 흐름 등)", key="f_highlights", height=200)
+                st.text_area("🖋️ PRISM (핵심 사례, 설계도, 본문 등)", key="f_note", height=300)
                 
             st.markdown("<br>", unsafe_allow_html=True)
             col_btn1, col_btn2, col_btn3 = st.columns([0.4, 0.4, 0.2])
