@@ -221,7 +221,18 @@ def search_apple_music(query):
         for m in res:
             is_album = m.get('wrapperType') == 'collection'
             title = m.get('collectionName' if is_album else 'trackName', '제목 없음')
-            formatted_res.append({'display_name': f"{'📀' if is_album else '🎵'} {title} - {m.get('artistName', '')}", 'title': title, 'creator': m.get('artistName', ''), 'date': m.get('releaseDate', '')[:10], 'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'), 'venue': m.get('artistName', '')})
+            item_url = m.get('collectionViewUrl' if is_album else 'trackViewUrl', '')
+            formatted_res.append({
+                'display_name': f"{'📀' if is_album else '🎵'} {title} - {m.get('artistName', '')}", 
+                'title': title, 
+                'creator': m.get('artistName', ''), 
+                'date': m.get('releaseDate', '')[:10], 
+                'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'), 
+                'venue': m.get('artistName', ''),
+                'is_album': is_album,
+                'collection_id': m.get('collectionId'),
+                'url': item_url
+            })
         return formatted_res
     except: return []
 
@@ -349,7 +360,6 @@ def show_details(item):
                 
                 f_view = st.date_input("🍿 감상일 수정", value=view_val)
                 
-                # 중요도 순으로 폼 재배치
                 f_brief = st.text_input("1. 💎 한 줄 평", value=str(item.get('brief', '')))
                 f_note = st.text_area("2. 🖋️ PRISM (본문)", value=str(item.get('note', '')), height=300)
                 f_sum = st.text_area("3. 💡 감상 포인트", value=str(item.get('summary', '')), height=150)
@@ -395,7 +405,6 @@ def show_details(item):
             st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿 감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
             st.divider()
             
-            # 뷰 화면도 중요도 순(한 줄 평 -> PRISM -> 포인트 -> 인상 깊은 부분)으로 재배치
             sections = [
                 ("💎 한 줄 평", "brief", "#E50914"), 
                 ("🖋️ PRISM", "note", "#1E425E"),
@@ -411,7 +420,6 @@ def show_details(item):
             
             st.markdown("<br>", unsafe_allow_html=True)
             with st.expander("🔗 외부에 리뷰 공유하기 (복사)"):
-                # 편집이 필요 없는 깔끔한 복사 양식
                 share_text = f"[{item.get('category')}] {item.get('title')}\n"
                 if creator_text:
                     share_text += f"👤 {creator_text}\n\n"
@@ -427,7 +435,6 @@ def show_details(item):
                 has_summary = item.get('summary') and str(item.get('summary')).strip()
                 has_highlights = item.get('highlights') and str(item.get('highlights')).strip()
                 
-                # 포스트잇 느낌을 주는 점선 추가
                 if has_summary or has_highlights:
                     share_text += "┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n"
                     share_text += "📌 덧붙이는 메모\n\n"
@@ -436,6 +443,19 @@ def show_details(item):
                         share_text += f"💡 감상 포인트\n{item.get('summary')}\n\n"
                     if has_highlights:
                         share_text += f"🔖 인상 깊은 부분\n{item.get('highlights')}\n\n"
+                
+                img_u = item.get('img_url')
+                vid_u = item.get('img_url2')
+                has_img = img_u and str(img_u).strip() and str(img_u) != "None"
+                has_vid = vid_u and str(vid_u).strip() and str(vid_u) != "None"
+                
+                if has_img or has_vid:
+                    share_text += "┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n"
+                    share_text += "📎 첨부 자료\n\n"
+                    if has_img:
+                        share_text += f"🖼️ 포스터/사진:\n{img_u}\n\n"
+                    if has_vid:
+                        share_text += f"🎬 관련 영상:\n{vid_u}\n\n"
                 
                 st.code(share_text.strip(), language="markdown")
 
@@ -482,7 +502,6 @@ def show_plan_details(item):
                 
                 f_view = st.date_input("🗓️ 예정일 수정", value=view_val)
                 
-                # 중요도 순으로 폼 재배치
                 f_brief = st.text_input("1. 💎 한 줄 평", value=str(rich_data.get('brief', '')))
                 f_note = st.text_area("2. 🖋️ PRISM (본문)", value=str(rich_data.get('note', '')), height=300)
                 f_sum = st.text_area("3. 💡 감상 포인트", value=str(rich_data.get('summary', '')), height=150)
@@ -524,7 +543,6 @@ def show_plan_details(item):
             st.markdown(f'<p style="color: #E50914; font-weight: bold; font-size: 1.1em;">🗓️ 예정일: {item.get("plan_date")}</p>', unsafe_allow_html=True)
             st.divider()
             
-            # 뷰 화면도 중요도 순(한 줄 평 -> PRISM -> 포인트 -> 인상 깊은 부분)으로 재배치
             sections = [
                 ("💎 한 줄 평", "brief", "#E50914"), 
                 ("🖋️ PRISM", "note", "#1E425E"),
@@ -555,7 +573,6 @@ def show_plan_details(item):
                 has_summary = rich_data.get('summary') and str(rich_data.get('summary')).strip()
                 has_highlights = rich_data.get('highlights') and str(rich_data.get('highlights')).strip()
                 
-                # 포스트잇 느낌을 주는 점선 추가
                 if has_summary or has_highlights:
                     share_text += "┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n"
                     share_text += "📌 덧붙이는 메모\n\n"
@@ -564,6 +581,19 @@ def show_plan_details(item):
                         share_text += f"💡 감상 포인트\n{rich_data.get('summary')}\n\n"
                     if has_highlights:
                         share_text += f"🔖 인상 깊은 부분\n{rich_data.get('highlights')}\n\n"
+                
+                img_u = rich_data.get('img_url')
+                vid_u = rich_data.get('img_url2')
+                has_img = img_u and str(img_u).strip() and str(img_u) != "None"
+                has_vid = vid_u and str(vid_u).strip() and str(vid_u) != "None"
+                
+                if has_img or has_vid:
+                    share_text += "┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n"
+                    share_text += "📎 첨부 자료\n\n"
+                    if has_img:
+                        share_text += f"🖼️ 포스터/사진:\n{img_u}\n\n"
+                    if has_vid:
+                        share_text += f"🎬 관련 영상:\n{vid_u}\n\n"
                         
                 st.code(share_text.strip(), language="markdown")
 
@@ -641,8 +671,21 @@ if is_admin and tab_w:
                     if st.button("✨ 가져오기"):
                         m = opts[sel]
                         st.session_state.f_title = m['title']; st.session_state.f_creator = m['creator']; st.session_state.f_date = m['date']
-                        st.session_state.f_img = m['img']; st.session_state.f_venue = m['venue']; st.session_state.f_summary = f"{m.get('url', '')}\n\n"
-                        st.session_state.f_highlights = ""; st.session_state.f_note = ""; st.session_state.f_brief = ""; st.session_state.f_video = ""
+                        st.session_state.f_img = m['img']; st.session_state.f_venue = m['venue']
+                        
+                        st.session_state.f_summary = f"{m.get('url', '')}\n\n" if m.get('url') else ""
+                        
+                        tracklist_text = ""
+                        if m.get('is_album') and m.get('collection_id'):
+                            try:
+                                lookup_url = f"https://itunes.apple.com/lookup?id={m['collection_id']}&entity=song"
+                                lookup_res = requests.get(lookup_url).json().get("results", [])
+                                tracks = [t['trackName'] for t in lookup_res if t.get('wrapperType') == 'track']
+                                if tracks:
+                                    tracklist_text = "💿 트랙리스트\n" + "\n".join([f"{i+1}. {t}" for i, t in enumerate(tracks)])
+                            except: pass
+                            
+                        st.session_state.f_highlights = tracklist_text; st.session_state.f_note = ""; st.session_state.f_brief = ""; st.session_state.f_video = ""
                         st.session_state.show_form = True; st.rerun()
             elif category == "STAGE":
                 res = search_kopis(search_query)
@@ -693,7 +736,6 @@ if is_admin and tab_w:
                 st.date_input("🍿 감상 완료/예정일", key="f_view_date")
             
             with cr:
-                # 메인 폼 재배치
                 st.text_input("1. 💎 한 줄 평", key="f_brief")
                 st.text_area("2. 🖋️ PRISM (본문)", key="f_note", height=300)
                 st.text_area("3. 💡 감상 포인트 (API 연동 시 기본 정보 자동입력)", key="f_summary", height=150)
