@@ -367,10 +367,10 @@ def show_details(item):
                     f_note = st.text_area("3. 🌈 감상", value=str(item.get('note', '')), height=200)
                     f_sum = st.text_area("🔗 원본 링크/정보", value=str(item.get('summary', '')), height=100)
                 else:
-                    f_brief = st.text_input("1. 💎 한 줄 평", value=str(item.get('brief', '')))
-                    f_note = st.text_area("2. 🖋️ PRISM (본문)", value=str(item.get('note', '')), height=300)
-                    f_sum = st.text_area("3. 💡 감상 포인트", value=str(item.get('summary', '')), height=150)
-                    f_high = st.text_area("4. 🔖 인상 깊은 부분 (가사, 문구, 장면 등)", value=str(item.get('highlights', '')), height=150)
+                    f_brief = st.text_input("1. 💎 DRIP", value=str(item.get('brief', '')))
+                    f_note = st.text_area("2. 🖋️ PRISM", value=str(item.get('note', '')), height=300)
+                    f_sum = st.text_area("3. 💡 SIGHT", value=str(item.get('summary', '')), height=150)
+                    f_high = st.text_area("4. 🔖 SENSE", value=str(item.get('highlights', '')), height=150)
             
             if st.form_submit_button("💾 저장", use_container_width=True, type="primary"):
                 try:
@@ -422,9 +422,9 @@ def show_details(item):
                 ]
             else:
                 sections = [
-                    ("💎 한 줄 평", "brief", "#E50914"), 
+                    ("💎 DRIP", "brief", "#E50914"), 
                     ("🖋️ PRISM", "note", "#1E425E"),
-                    ("💡 감상 포인트", "summary", "#0E6245"), 
+                    ("💡 SIGHT", "summary", "#0E6245"), 
                     ("🔖 인상 깊은 부분", "highlights", "#7D5600")
                 ]
                 
@@ -454,7 +454,7 @@ def show_details(item):
                         share_text += f"🔗 원본 링크:\n{item.get('summary')}\n\n"
                 else:
                     if item.get('brief') and str(item.get('brief')).strip():
-                        share_text += f"💎 한 줄 평\n{item.get('brief')}\n\n"
+                        share_text += f"💎 DRIP\n{item.get('brief')}\n\n"
                     if item.get('note') and str(item.get('note')).strip():
                         share_text += f"🖋️ PRISM\n{item.get('note')}\n\n"
                     
@@ -463,7 +463,7 @@ def show_details(item):
                     if has_summary or has_highlights:
                         share_text += "┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n📌 덧붙이는 메모\n\n"
                         if has_summary:
-                            share_text += f"💡 감상 포인트\n{item.get('summary')}\n\n"
+                            share_text += f"💡 SIGHT\n{item.get('summary')}\n\n"
                         if has_highlights:
                             share_text += f"🔖 인상 깊은 부분\n{item.get('highlights')}\n\n"
                 
@@ -532,10 +532,10 @@ def show_plan_details(item):
                     f_note = st.text_area("3. 🌈 감상", value=str(rich_data.get('note', '')), height=200)
                     f_sum = st.text_area("🔗 원본 링크/정보", value=str(rich_data.get('summary', '')), height=100)
                 else:
-                    f_brief = st.text_input("1. 💎 한 줄 평", value=str(rich_data.get('brief', '')))
-                    f_note = st.text_area("2. 🖋️ PRISM (본문)", value=str(rich_data.get('note', '')), height=300)
-                    f_sum = st.text_area("3. 💡 감상 포인트", value=str(rich_data.get('summary', '')), height=150)
-                    f_high = st.text_area("4. 🔖 인상 깊은 부분 (가사, 문구, 장면 등)", value=str(rich_data.get('highlights', '')), height=150)
+                    f_brief = st.text_input("1. 💎 DRIP", value=str(rich_data.get('brief', '')))
+                    f_note = st.text_area("2. 🖋️ PRISM", value=str(rich_data.get('note', '')), height=300)
+                    f_sum = st.text_area("3. 💡 SIGHT", value=str(rich_data.get('summary', '')), height=150)
+                    f_high = st.text_area("4. 🔖SENSE", value=str(rich_data.get('highlights', '')), height=150)
             
             if st.form_submit_button("💾 저장", use_container_width=True, type="primary"):
                 new_rich = {
@@ -582,9 +582,9 @@ def show_plan_details(item):
                 ]
             else:
                 sections = [
-                    ("💎 한 줄 평", "brief", "#E50914"), 
+                    ("💎 DRIP", "brief", "#E50914"), 
                     ("🖋️ PRISM", "note", "#1E425E"),
-                    ("💡 감상 포인트", "summary", "#0E6245"), 
+                    ("💡 SIGHT", "summary", "#0E6245"), 
                     ("🔖 인상 깊은 부분", "highlights", "#7D5600")
                 ]
                     
@@ -613,7 +613,7 @@ def show_plan_details(item):
                         share_text += f"🔗 원본 링크:\n{rich_data.get('summary')}\n\n"
                 else:
                     if rich_data.get('brief') and str(rich_data.get('brief')).strip():
-                        share_text += f"💎 한 줄 평\n{rich_data.get('brief')}\n\n"
+                        share_text += f"💎 DRIP\n{rich_data.get('brief')}\n\n"
                     if rich_data.get('note') and str(rich_data.get('note')).strip():
                         share_text += f"🖋️ PRISM\n{rich_data.get('note')}\n\n"
                     
@@ -622,7 +622,7 @@ def show_plan_details(item):
                     if has_summary or has_highlights:
                         share_text += "┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n📌 덧붙이는 메모\n\n"
                         if has_summary:
-                            share_text += f"💡 감상 포인트\n{rich_data.get('summary')}\n\n"
+                            share_text += f"💡 SIGHT\n{rich_data.get('summary')}\n\n"
                         if has_highlights:
                             share_text += f"🔖 인상 깊은 부분\n{rich_data.get('highlights')}\n\n"
                 
@@ -787,10 +787,10 @@ if is_admin and tab_w:
                     st.text_area("3. 🌈 감상", key="f_note", height=200)
                     st.text_area("🔗 원본 링크/정보", key="f_summary", height=100)
                 else:
-                    st.text_input("1. 💎 한 줄 평", key="f_brief")
-                    st.text_area("2. 🖋️ PRISM (본문)", key="f_note", height=300)
-                    st.text_area("3. 💡 감상 포인트 (API 연동 시 기본 정보 자동입력)", key="f_summary", height=150)
-                    st.text_area("4. 🔖 인상 깊은 부분 (가사, 문구, 장면 등)", key="f_highlights", height=150)
+                    st.text_input("1. 💎 DRIP", key="f_brief")
+                    st.text_area("2. 🖋️ PRISM", key="f_note", height=300)
+                    st.text_area("3. 💡 SIGHT (API 연동 시 기본 정보 자동입력)", key="f_summary", height=150)
+                    st.text_area("4. 🔖SENSE", key="f_highlights", height=150)
                 
             st.markdown("<br>", unsafe_allow_html=True)
             col_btn1, col_btn2, col_btn3 = st.columns([0.4, 0.4, 0.2])
