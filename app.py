@@ -250,11 +250,19 @@ def get_tmdb_details(item_id, category):
         res = requests.get(url).json()
         crew_list = res.get('credits', {}).get('crew', [])
         cast_list = res.get('credits', {}).get('cast', [])
+        profile_path = ""
+        
         if is_movie:
-            director = next((m['name'] for m in crew_list if m.get('job') == 'Director'), "정보 없음")
+            director_obj = next((m for m in crew_list if m.get('job') == 'Director'), None)
+            director = director_obj['name'] if director_obj else "정보 없음"
             creator_label = f"[감독] {director}"
             companies = res.get('production_companies', [])
             venue_info = companies[0].get('name', '') if companies else ""
+            
+            if director_obj and director_obj.get('profile_path'):
+                profile_path = director_obj.get('profile_path')
+            elif cast_list and cast_list[0].get('profile_path'):
+                profile_path = cast_list[0].get('profile_path')
         else:
             creators = res.get('created_by', [])
             if creators: creator_names = ", ".join([c['name'] for c in creators])
@@ -262,10 +270,21 @@ def get_tmdb_details(item_id, category):
             creator_label = f"[작가/제작] {creator_names}"
             networks = res.get('networks', [])
             venue_info = networks[0].get('name', '') if networks else ""
+            
+            if cast_list and cast_list[0].get('profile_path'):
+                profile_path = cast_list[0].get('profile_path')
+                
         cast_names = ", ".join([c['name'] for c in cast_list[:3]])
         cast_label = f"[출연] {cast_names}" if cast_names else ""
-        return {"creator": f"{creator_label} / {cast_label}".strip(" / "), "venue": venue_info}
-    except: return {"creator": "정보 없음", "venue": ""}
+        
+        profile_url = f"https://image.tmdb.org/t/p/w500{profile_path}" if profile_path else ""
+        
+        return {
+            "creator": f"{creator_label} / {cast_label}".strip(" / "), 
+            "venue": venue_info,
+            "profile_url": profile_url
+        }
+    except: return {"creator": "정보 없음", "venue": "", "profile_url": ""}
 
 def search_kopis(query):
     year_match = re.search(r'\d{4}', query)
@@ -344,7 +363,7 @@ def show_details(item):
             col_img_form, col_txt_form = st.columns([0.3, 0.7])
             with col_img_form:
                 f_img = st.text_input("🖼️ 이미지 URL", value=str(item.get('img_url', '')).replace('None', ''))
-                f_vid = st.text_input("🎬 관련 영상(URL) 또는 제목/메모", value=str(item.get('img_url2', '')).replace('None', ''))
+                f_vid = st.text_input("🎬 관련 영상 / 👤 인물 사진(URL)", value=str(item.get('img_url2', '')).replace('None', ''))
                 
             with col_txt_form:
                 f_title = st.text_input("📌 제목", value=str(item.get('title', '')))
@@ -360,7 +379,6 @@ def show_details(item):
                 
                 f_view = st.date_input("🍿 감상일 수정", value=view_val)
                 
-                # 스크랩 폼과 일반 폼 분리
                 if cat == "SCRAP":
                     f_brief = st.text_input("1. 🔑 키워드", value=str(item.get('brief', '')))
                     f_high = st.text_area("2. ✨ 5문장 요약", value=str(item.get('highlights', '')), height=150)
@@ -390,15 +408,28 @@ def show_details(item):
                 except Exception as e: st.error(f"❌ 오류: {e}")
     else: 
         with col_img:
-            if item.get('img_url') and str(item.get('img_url')) != "None": st.image(item['img_url'], use_container_width=True)
+            if item.get('img_url') and str(item.get('img_url')) != "None": 
+                st.image(item['img_url'], use_container_width=True)
+            
             memo_content = item.get('img_url2', '')
             if memo_content and str(memo_content) != "None":
                 url_match = re.search(r'(https?://[^\s]+)', memo_content)
                 if url_match:
-                    video_url = url_match.group(1); text_part = memo_content.replace(video_url, '').strip(' /|-')
-                    if text_part: st.markdown(f'<div style="background-color: #1a1a1a; border-left: 4px solid #E50914; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">🎬 {text_part}</div>', unsafe_allow_html=True)
-                    st.video(video_url)
-                else: st.markdown(f'<div style="background-color: #1a1a1a; border-left: 4px solid #E50914; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">🎬 {memo_content}</div>', unsafe_allow_html=True)
+                    media_url = url_match.group(1)
+                    text_part = memo_content.replace(media_url, '').strip(' /|-')
+                    if text_part: 
+                        st.markdown(f'<div style="background-color: #1a1a1a; border-left: 4px solid #E50914; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">📎 {text_part}</div>', unsafe_allow_html=True)
+                    
+                    # 이미지와 영상을 구분하여 렌더링
+                    if re.search(r'\.(jpg|jpeg|png|webp|gif)', media_url, re.IGNORECASE) or "image.tmdb.org" in media_url:
+                        st.image(media_url, use_container_width=True)
+                    else:
+                        try:
+                            st.video(media_url)
+                        except:
+                            st.markdown(f"**[🔗 첨부 링크 보러가기]({media_url})**")
+                else: 
+                    st.markdown(f'<div style="background-color: #1a1a1a; border-left: 4px solid #E50914; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">📎 {memo_content}</div>', unsafe_allow_html=True)
         with col_txt:
             st.markdown(f'# {item.get("title")}')
             
@@ -412,7 +443,6 @@ def show_details(item):
             st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿 감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
             st.divider()
             
-            # 뷰 화면 분리
             if cat == "SCRAP":
                 sections = [
                     ("🔑 키워드", "brief", "#0E6245"),
@@ -425,7 +455,7 @@ def show_details(item):
                     ("💎 DRIP", "brief", "#E50914"), 
                     ("🖋️ PRISM", "note", "#1E425E"),
                     ("💡 SIGHT", "summary", "#0E6245"), 
-                    ("🔖 인상 깊은 부분", "highlights", "#7D5600")
+                    ("🔖 SENSE", "highlights", "#7D5600")
                 ]
                 
             for label, key, color in sections:
@@ -442,7 +472,6 @@ def show_details(item):
                 else:
                     share_text += "\n"
                 
-                # 송고용 텍스트 분리
                 if cat == "SCRAP":
                     if item.get('brief') and str(item.get('brief')).strip():
                         share_text += f"🔑 키워드:\n{item.get('brief')}\n\n"
@@ -453,32 +482,11 @@ def show_details(item):
                     if item.get('summary') and str(item.get('summary')).strip():
                         share_text += f"🔗 원본 링크:\n{item.get('summary')}\n\n"
                 else:
+                    # 일반 카테고리는 오직 DRIP(한줄평)과 PRISM(본문)만 복사되도록 구성
                     if item.get('brief') and str(item.get('brief')).strip():
                         share_text += f"💎 DRIP\n{item.get('brief')}\n\n"
                     if item.get('note') and str(item.get('note')).strip():
                         share_text += f"🖋️ PRISM\n{item.get('note')}\n\n"
-                    
-                    has_summary = item.get('summary') and str(item.get('summary')).strip()
-                    has_highlights = item.get('highlights') and str(item.get('highlights')).strip()
-                    if has_summary or has_highlights:
-                        share_text += "┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n📌 덧붙이는 메모\n\n"
-                        if has_summary:
-                            share_text += f"💡 SIGHT\n{item.get('summary')}\n\n"
-                        if has_highlights:
-                            share_text += f"🔖 인상 깊은 부분\n{item.get('highlights')}\n\n"
-                
-                img_u = item.get('img_url')
-                vid_u = item.get('img_url2')
-                has_img = img_u and str(img_u).strip() and str(img_u) != "None"
-                has_vid = vid_u and str(vid_u).strip() and str(vid_u) != "None"
-                
-                if has_img or has_vid:
-                    share_text += "┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n"
-                    share_text += "📎 첨부 자료\n\n"
-                    if has_img:
-                        share_text += f"🖼️ 포스터/사진:\n{img_u}\n\n"
-                    if has_vid:
-                        share_text += f"🎬 관련 영상:\n{vid_u}\n\n"
                 
                 st.code(share_text.strip(), language="markdown")
 
@@ -512,7 +520,7 @@ def show_plan_details(item):
             col_img_form, col_txt_form = st.columns([0.3, 0.7])
             with col_img_form:
                 f_img = st.text_input("🖼️ 이미지 URL", value=str(rich_data.get('img_url', '')).replace('None', ''))
-                f_vid = st.text_input("🎬 관련 영상(URL) 또는 제목/메모", value=str(rich_data.get('img_url2', '')).replace('None', ''))
+                f_vid = st.text_input("🎬 관련 영상 / 👤 인물 사진(URL)", value=str(rich_data.get('img_url2', '')).replace('None', ''))
                 
             with col_txt_form:
                 f_title = st.text_input("📌 제목", value=str(item.get('title', '')))
@@ -535,7 +543,7 @@ def show_plan_details(item):
                     f_brief = st.text_input("1. 💎 DRIP", value=str(rich_data.get('brief', '')))
                     f_note = st.text_area("2. 🖋️ PRISM", value=str(rich_data.get('note', '')), height=300)
                     f_sum = st.text_area("3. 💡 SIGHT", value=str(rich_data.get('summary', '')), height=150)
-                    f_high = st.text_area("4. 🔖SENSE", value=str(rich_data.get('highlights', '')), height=150)
+                    f_high = st.text_area("4. 🔖 SENSE", value=str(rich_data.get('highlights', '')), height=150)
             
             if st.form_submit_button("💾 저장", use_container_width=True, type="primary"):
                 new_rich = {
@@ -557,15 +565,27 @@ def show_plan_details(item):
                 st.success("✅ 수정 완료!"); time.sleep(0.5); st.rerun()
     else: 
         with col_img:
-            if rich_data.get('img_url') and str(rich_data.get('img_url')) != "None": st.image(rich_data['img_url'], use_container_width=True)
+            if rich_data.get('img_url') and str(rich_data.get('img_url')) != "None": 
+                st.image(rich_data['img_url'], use_container_width=True)
+            
             memo_content = rich_data.get('img_url2', '')
             if memo_content and str(memo_content) != "None":
                 url_match = re.search(r'(https?://[^\s]+)', memo_content)
                 if url_match:
-                    video_url = url_match.group(1); text_part = memo_content.replace(video_url, '').strip(' /|-')
-                    if text_part: st.markdown(f'<div style="background-color: #1a1a1a; border-left: 4px solid #E50914; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">🎬 {text_part}</div>', unsafe_allow_html=True)
-                    st.video(video_url)
-                else: st.markdown(f'<div style="background-color: #1a1a1a; border-left: 4px solid #E50914; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">🎬 {memo_content}</div>', unsafe_allow_html=True)
+                    media_url = url_match.group(1)
+                    text_part = memo_content.replace(media_url, '').strip(' /|-')
+                    if text_part: 
+                        st.markdown(f'<div style="background-color: #1a1a1a; border-left: 4px solid #E50914; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">📎 {text_part}</div>', unsafe_allow_html=True)
+                    
+                    if re.search(r'\.(jpg|jpeg|png|webp|gif)', media_url, re.IGNORECASE) or "image.tmdb.org" in media_url:
+                        st.image(media_url, use_container_width=True)
+                    else:
+                        try:
+                            st.video(media_url)
+                        except:
+                            st.markdown(f"**[🔗 첨부 링크 보러가기]({media_url})**")
+                else: 
+                    st.markdown(f'<div style="background-color: #1a1a1a; border-left: 4px solid #E50914; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">📎 {memo_content}</div>', unsafe_allow_html=True)
         with col_txt:
             st.markdown(f'# {item.get("title")}')
             st.write(f"**{rich_data.get('creator', '')}**")
@@ -585,7 +605,7 @@ def show_plan_details(item):
                     ("💎 DRIP", "brief", "#E50914"), 
                     ("🖋️ PRISM", "note", "#1E425E"),
                     ("💡 SIGHT", "summary", "#0E6245"), 
-                    ("🔖 인상 깊은 부분", "highlights", "#7D5600")
+                    ("🔖 SENSE", "highlights", "#7D5600")
                 ]
                     
             for label, key, color in sections:
@@ -612,32 +632,11 @@ def show_plan_details(item):
                     if rich_data.get('summary') and str(rich_data.get('summary')).strip():
                         share_text += f"🔗 원본 링크:\n{rich_data.get('summary')}\n\n"
                 else:
+                    # 일반 카테고리는 오직 DRIP(한줄평)과 PRISM(본문)만 복사되도록 구성
                     if rich_data.get('brief') and str(rich_data.get('brief')).strip():
                         share_text += f"💎 DRIP\n{rich_data.get('brief')}\n\n"
                     if rich_data.get('note') and str(rich_data.get('note')).strip():
                         share_text += f"🖋️ PRISM\n{rich_data.get('note')}\n\n"
-                    
-                    has_summary = rich_data.get('summary') and str(rich_data.get('summary')).strip()
-                    has_highlights = rich_data.get('highlights') and str(rich_data.get('highlights')).strip()
-                    if has_summary or has_highlights:
-                        share_text += "┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n📌 덧붙이는 메모\n\n"
-                        if has_summary:
-                            share_text += f"💡 SIGHT\n{rich_data.get('summary')}\n\n"
-                        if has_highlights:
-                            share_text += f"🔖 인상 깊은 부분\n{rich_data.get('highlights')}\n\n"
-                
-                img_u = rich_data.get('img_url')
-                vid_u = rich_data.get('img_url2')
-                has_img = img_u and str(img_u).strip() and str(img_u) != "None"
-                has_vid = vid_u and str(vid_u).strip() and str(vid_u) != "None"
-                
-                if has_img or has_vid:
-                    share_text += "┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n"
-                    share_text += "📎 첨부 자료\n\n"
-                    if has_img:
-                        share_text += f"🖼️ 포스터/사진:\n{img_u}\n\n"
-                    if has_vid:
-                        share_text += f"🎬 관련 영상:\n{vid_u}\n\n"
                         
                 st.code(share_text.strip(), language="markdown")
 
@@ -754,7 +753,9 @@ if is_admin and tab_w:
                         st.session_state.f_title = s.get(t_key, ''); st.session_state.f_creator = details['creator']; st.session_state.f_date = s.get(d_key, '')
                         st.session_state.f_img = f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}"; st.session_state.f_venue = details['venue']
                         st.session_state.f_summary = s.get('overview', '')
-                        st.session_state.f_highlights = ""; st.session_state.f_note = ""; st.session_state.f_brief = ""; st.session_state.f_video = ""
+                        st.session_state.f_highlights = ""; st.session_state.f_note = ""; st.session_state.f_brief = ""
+                        # TMDB 검색 시 배우/감독의 사진을 영상 칸에 입력해 줌
+                        st.session_state.f_video = details.get('profile_url', '')
                         st.session_state.show_form = True; st.rerun()
         else:
             if not st.session_state.show_form:
@@ -769,7 +770,8 @@ if is_admin and tab_w:
             cl, cr = st.columns([0.4, 0.6])
             with cl:
                 st.text_input("🖼️ 이미지 URL", key="f_img")
-                st.text_input("🎬 관련 영상(URL) 또는 제목/메모", key="f_video")
+                # 인물 사진(URL) 명시
+                st.text_input("🎬 관련 영상 / 👤 인물 사진(URL)", key="f_video")
                 if st.session_state.f_img and st.session_state.f_img.strip() and st.session_state.f_img != "None": 
                     st.image(st.session_state.f_img, use_container_width=True)
                 st.text_input("📌 제목", key="f_title")
@@ -780,7 +782,6 @@ if is_admin and tab_w:
                 st.date_input("🍿 감상 완료/예정일", key="f_view_date")
             
             with cr:
-                # 스크랩 폼과 일반 폼 분리
                 if category == "SCRAP":
                     st.text_input("1. 🔑 키워드", key="f_brief")
                     st.text_area("2. ✨ 5문장 요약", key="f_highlights", height=150)
@@ -790,7 +791,7 @@ if is_admin and tab_w:
                     st.text_input("1. 💎 DRIP", key="f_brief")
                     st.text_area("2. 🖋️ PRISM", key="f_note", height=300)
                     st.text_area("3. 💡 SIGHT (API 연동 시 기본 정보 자동입력)", key="f_summary", height=150)
-                    st.text_area("4. 🔖SENSE", key="f_highlights", height=150)
+                    st.text_area("4. 🔖 SENSE", key="f_highlights", height=150)
                 
             st.markdown("<br>", unsafe_allow_html=True)
             col_btn1, col_btn2, col_btn3 = st.columns([0.4, 0.4, 0.2])
@@ -979,7 +980,6 @@ with tab_a:
                                     if summary_text.startswith("http"):
                                         url = summary_text.split('\n')[0]
                                         st.markdown(f"**[🔗 원본 기사 보러가기]({url})**")
-                                    # 스크랩 탭 모아보기 화면 양식 적용
                                     if row['brief']: st.write(f"**🔑 키워드:** {row['brief']}")
                                     if row['highlights']: st.markdown(f"**✨ 5문장 요약:**<br>{row['highlights'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
                                     if row['note']: st.markdown(f"**🌈 감상:**<br>{row['note'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
