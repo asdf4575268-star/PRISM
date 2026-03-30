@@ -140,6 +140,8 @@ if "week_offset" not in st.session_state:
     st.session_state.week_offset = 0
 if "should_clear_form" not in st.session_state:
     st.session_state.should_clear_form = False
+if "temp_profile_url" not in st.session_state:
+    st.session_state.temp_profile_url = ""
 
 form_keys = ['f_title', 'f_creator', 'f_date', 'f_venue', 'f_img', 'f_video', 'f_summary', 'f_brief', 'f_highlights', 'f_note']
 
@@ -147,6 +149,7 @@ if st.session_state.should_clear_form:
     for k in form_keys:
         if k in st.session_state:
             st.session_state[k] = ""
+    st.session_state.temp_profile_url = ""
     st.session_state.f_view_date = date.today()
     st.session_state.show_form = False
     st.session_state.should_clear_form = False
@@ -363,7 +366,7 @@ def show_details(item):
             col_img_form, col_txt_form = st.columns([0.3, 0.7])
             with col_img_form:
                 f_img = st.text_input("🖼️ 이미지 URL", value=str(item.get('img_url', '')).replace('None', ''))
-                f_vid = st.text_input("🎬 관련 영상 / 👤 인물 사진(URL)", value=str(item.get('img_url2', '')).replace('None', ''))
+                f_vid = st.text_input("🎬 관련 영상(URL) 또는 제목/메모", value=str(item.get('img_url2', '')).replace('None', ''))
                 
             with col_txt_form:
                 f_title = st.text_input("📌 제목", value=str(item.get('title', '')))
@@ -420,7 +423,6 @@ def show_details(item):
                     if text_part: 
                         st.markdown(f'<div style="background-color: #1a1a1a; border-left: 4px solid #E50914; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">📎 {text_part}</div>', unsafe_allow_html=True)
                     
-                    # 이미지와 영상을 구분하여 렌더링
                     if re.search(r'\.(jpg|jpeg|png|webp|gif)', media_url, re.IGNORECASE) or "image.tmdb.org" in media_url:
                         st.image(media_url, use_container_width=True)
                     else:
@@ -482,7 +484,6 @@ def show_details(item):
                     if item.get('summary') and str(item.get('summary')).strip():
                         share_text += f"🔗 원본 링크:\n{item.get('summary')}\n\n"
                 else:
-                    # 일반 카테고리는 오직 DRIP(한줄평)과 PRISM(본문)만 복사되도록 구성
                     if item.get('brief') and str(item.get('brief')).strip():
                         share_text += f"💎 DRIP\n{item.get('brief')}\n\n"
                     if item.get('note') and str(item.get('note')).strip():
@@ -520,7 +521,7 @@ def show_plan_details(item):
             col_img_form, col_txt_form = st.columns([0.3, 0.7])
             with col_img_form:
                 f_img = st.text_input("🖼️ 이미지 URL", value=str(rich_data.get('img_url', '')).replace('None', ''))
-                f_vid = st.text_input("🎬 관련 영상 / 👤 인물 사진(URL)", value=str(rich_data.get('img_url2', '')).replace('None', ''))
+                f_vid = st.text_input("🎬 관련 영상(URL) 또는 제목/메모", value=str(rich_data.get('img_url2', '')).replace('None', ''))
                 
             with col_txt_form:
                 f_title = st.text_input("📌 제목", value=str(item.get('title', '')))
@@ -632,7 +633,6 @@ def show_plan_details(item):
                     if rich_data.get('summary') and str(rich_data.get('summary')).strip():
                         share_text += f"🔗 원본 링크:\n{rich_data.get('summary')}\n\n"
                 else:
-                    # 일반 카테고리는 오직 DRIP(한줄평)과 PRISM(본문)만 복사되도록 구성
                     if rich_data.get('brief') and str(rich_data.get('brief')).strip():
                         share_text += f"💎 DRIP\n{rich_data.get('brief')}\n\n"
                     if rich_data.get('note') and str(rich_data.get('note')).strip():
@@ -754,8 +754,11 @@ if is_admin and tab_w:
                         st.session_state.f_img = f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}"; st.session_state.f_venue = details['venue']
                         st.session_state.f_summary = s.get('overview', '')
                         st.session_state.f_highlights = ""; st.session_state.f_note = ""; st.session_state.f_brief = ""
-                        # TMDB 검색 시 배우/감독의 사진을 영상 칸에 입력해 줌
-                        st.session_state.f_video = details.get('profile_url', '')
+                        
+                        # 영상 칸은 비우되, 인물 사진을 세션 변수에 담아 화면에만 띄웁니다.
+                        st.session_state.f_video = "" 
+                        st.session_state.temp_profile_url = details.get('profile_url', '')
+                        
                         st.session_state.show_form = True; st.rerun()
         else:
             if not st.session_state.show_form:
@@ -770,10 +773,16 @@ if is_admin and tab_w:
             cl, cr = st.columns([0.4, 0.6])
             with cl:
                 st.text_input("🖼️ 이미지 URL", key="f_img")
-                # 인물 사진(URL) 명시
-                st.text_input("🎬 관련 영상 / 👤 인물 사진(URL)", key="f_video")
+                st.text_input("🎬 관련 영상(URL) 또는 제목/메모", key="f_video")
+                
                 if st.session_state.f_img and st.session_state.f_img.strip() and st.session_state.f_img != "None": 
                     st.image(st.session_state.f_img, use_container_width=True)
+                
+                # API로 가져온 인물 사진이 있을 때만 폼 하단에 참고용 미리보기 표출
+                if st.session_state.get("temp_profile_url"):
+                    st.markdown("👤 **감독/출연진 미리보기**")
+                    st.image(st.session_state.temp_profile_url, width=120)
+
                 st.text_input("📌 제목", key="f_title")
                 creator_label = "👤 창작자/매체" if category == "SCRAP" else "👤 창작자"
                 st.text_input(creator_label, key="f_creator")
