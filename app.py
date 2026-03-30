@@ -140,8 +140,6 @@ if "week_offset" not in st.session_state:
     st.session_state.week_offset = 0
 if "should_clear_form" not in st.session_state:
     st.session_state.should_clear_form = False
-if "temp_profiles" not in st.session_state:
-    st.session_state.temp_profiles = []
 
 form_keys = ['f_title', 'f_creator', 'f_date', 'f_venue', 'f_img', 'f_video', 'f_summary', 'f_brief', 'f_highlights', 'f_note']
 
@@ -149,7 +147,6 @@ if st.session_state.should_clear_form:
     for k in form_keys:
         if k in st.session_state:
             st.session_state[k] = ""
-    st.session_state.temp_profiles = []
     st.session_state.f_view_date = date.today()
     st.session_state.show_form = False
     st.session_state.should_clear_form = False
@@ -253,7 +250,6 @@ def get_tmdb_details(item_id, category):
         res = requests.get(url).json()
         crew_list = res.get('credits', {}).get('crew', [])
         cast_list = res.get('credits', {}).get('cast', [])
-        profiles = []
         
         if is_movie:
             director_obj = next((m for m in crew_list if m.get('job') == 'Director'), None)
@@ -261,13 +257,6 @@ def get_tmdb_details(item_id, category):
             creator_label = f"[감독] {director}"
             companies = res.get('production_companies', [])
             venue_info = companies[0].get('name', '') if companies else ""
-            
-            if director_obj and director_obj.get('profile_path'):
-                profiles.append({
-                    "name": director_obj['name'],
-                    "role": "감독",
-                    "url": f"https://image.tmdb.org/t/p/w200{director_obj['profile_path']}"
-                })
         else:
             creators = res.get('created_by', [])
             if creators: creator_names = ", ".join([c['name'] for c in creators])
@@ -279,20 +268,11 @@ def get_tmdb_details(item_id, category):
         cast_names = ", ".join([c['name'] for c in cast_list[:3]])
         cast_label = f"[출연] {cast_names}" if cast_names else ""
         
-        for c in cast_list[:4]:  # 주요 출연진 최대 4명 추가
-            if c.get('profile_path'):
-                profiles.append({
-                    "name": c['name'],
-                    "role": c.get('character', '출연'),
-                    "url": f"https://image.tmdb.org/t/p/w200{c['profile_path']}"
-                })
-        
         return {
             "creator": f"{creator_label} / {cast_label}".strip(" / "), 
-            "venue": venue_info,
-            "profiles": profiles
+            "venue": venue_info
         }
-    except: return {"creator": "정보 없음", "venue": "", "profiles": []}
+    except: return {"creator": "정보 없음", "venue": ""}
 
 def search_kopis(query):
     year_match = re.search(r'\d{4}', query)
@@ -371,7 +351,7 @@ def show_details(item):
             col_img_form, col_txt_form = st.columns([0.3, 0.7])
             with col_img_form:
                 f_img = st.text_input("🖼️ 이미지 URL", value=str(item.get('img_url', '')).replace('None', ''))
-                f_vid = st.text_input("🎬 관련 영상 / 👤 인물 사진(URL)", value=str(item.get('img_url2', '')).replace('None', ''))
+                f_vid = st.text_input("🎬 관련 영상(URL) 또는 제목/메모", value=str(item.get('img_url2', '')).replace('None', ''))
                 
             with col_txt_form:
                 f_title = st.text_input("📌 제목", value=str(item.get('title', '')))
@@ -526,7 +506,7 @@ def show_plan_details(item):
             col_img_form, col_txt_form = st.columns([0.3, 0.7])
             with col_img_form:
                 f_img = st.text_input("🖼️ 이미지 URL", value=str(rich_data.get('img_url', '')).replace('None', ''))
-                f_vid = st.text_input("🎬 관련 영상 / 👤 인물 사진(URL)", value=str(rich_data.get('img_url2', '')).replace('None', ''))
+                f_vid = st.text_input("🎬 관련 영상(URL) 또는 제목/메모", value=str(rich_data.get('img_url2', '')).replace('None', ''))
                 
             with col_txt_form:
                 f_title = st.text_input("📌 제목", value=str(item.get('title', '')))
@@ -759,10 +739,7 @@ if is_admin and tab_w:
                         st.session_state.f_img = f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}"; st.session_state.f_venue = details['venue']
                         st.session_state.f_summary = s.get('overview', '')
                         st.session_state.f_highlights = ""; st.session_state.f_note = ""; st.session_state.f_brief = ""
-                        
-                        # 영상 칸은 비우되, 여러 명의 인물 사진을 세션 변수에 담아 화면에만 띄웁니다.
                         st.session_state.f_video = "" 
-                        st.session_state.temp_profiles = details.get('profiles', [])
                         
                         st.session_state.show_form = True; st.rerun()
         else:
@@ -783,18 +760,6 @@ if is_admin and tab_w:
                 if st.session_state.f_img and st.session_state.f_img.strip() and st.session_state.f_img != "None": 
                     st.image(st.session_state.f_img, use_container_width=True)
                 
-                # 여러 명의 프로필 이미지를 가로로 나열해서 표출
-                if st.session_state.get("temp_profiles"):
-                    st.markdown("👤 **감독 및 출연진 미리보기**")
-                    prof_list = st.session_state.temp_profiles
-                    prof_cols = st.columns(min(len(prof_list), 5))
-                    
-                    for idx, prof in enumerate(prof_list[:5]):
-                        with prof_cols[idx]:
-                            st.image(prof["url"], use_container_width=True)
-                            st.markdown(f"<div style='text-align:center; font-size:12px; line-height:1.3; margin-top:4px;'><b>{prof['name']}</b><br><span style='color:#aaa; font-size:11px;'>{prof['role']}</span></div>", unsafe_allow_html=True)
-                    st.markdown("<br>", unsafe_allow_html=True)
-
                 st.text_input("📌 제목", key="f_title")
                 creator_label = "👤 창작자/매체" if category == "SCRAP" else "👤 창작자"
                 st.text_input(creator_label, key="f_creator")
