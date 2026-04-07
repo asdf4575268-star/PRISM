@@ -679,6 +679,8 @@ if is_admin and tab_w:
                         st.session_state.f_img = s['img']; st.session_state.f_venue = s['venue']; st.session_state.f_summary = s['summary']
                         st.session_state.f_highlights = ""; st.session_state.f_note = ""; st.session_state.f_brief = ""; st.session_state.f_video = ""
                         st.session_state.show_form = True; st.rerun()
+                    else:
+                        st.error("URL 정보를 가져올 수 없습니다.")
             elif category == "BOOKS":
                 res = search_books(search_query)
                 if res:
@@ -691,6 +693,8 @@ if is_admin and tab_w:
                         st.session_state.f_venue = b.get('publisher', ''); st.session_state.f_summary = b.get('contents', '')
                         st.session_state.f_highlights = ""; st.session_state.f_note = ""; st.session_state.f_brief = ""; st.session_state.f_video = ""
                         st.session_state.show_form = True; st.rerun()
+                else:
+                    st.info("검색 결과가 없습니다.")
             elif category == "MUSIC":
                 res = search_apple_music(search_query)
                 if res:
@@ -715,6 +719,8 @@ if is_admin and tab_w:
                             
                         st.session_state.f_highlights = tracklist_text; st.session_state.f_note = ""; st.session_state.f_brief = ""; st.session_state.f_video = ""
                         st.session_state.show_form = True; st.rerun()
+                else:
+                    st.info("검색 결과가 없습니다.")
             elif category == "STAGE":
                 res = search_kopis(search_query)
                 if res:
@@ -726,6 +732,8 @@ if is_admin and tab_w:
                         st.session_state.f_img = s['img']; st.session_state.f_venue = s['venue']; st.session_state.f_summary = f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id={s['id']}"
                         st.session_state.f_highlights = ""; st.session_state.f_note = ""; st.session_state.f_brief = ""; st.session_state.f_video = ""
                         st.session_state.show_form = True; st.rerun()
+                else:
+                    st.info("검색 결과가 없습니다.")
             else: 
                 res = search_tmdb(search_query, category)
                 if res:
@@ -742,12 +750,15 @@ if is_admin and tab_w:
                         st.session_state.f_video = "" 
                         
                         st.session_state.show_form = True; st.rerun()
-        else:
-            if not st.session_state.show_form:
-                if st.button("✏️ 직접 입력"):
-                    st.session_state.should_clear_form = True
-                    st.session_state.show_form = True
-                    st.rerun()
+                else:
+                    st.info("검색 결과가 없습니다.")
+
+        # else 블록 밖으로 꺼내어 검색창 입력 여부와 무관하게 표시되도록 수정
+        if not st.session_state.show_form:
+            if st.button("✏️ 직접 입력"):
+                st.session_state.should_clear_form = True
+                st.session_state.show_form = True
+                st.rerun()
 
         if st.session_state.show_form:
             st.divider()
