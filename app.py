@@ -138,18 +138,8 @@ if "show_form" not in st.session_state:
     st.session_state.show_form = False
 if "week_offset" not in st.session_state:
     st.session_state.week_offset = 0
-if "should_clear_form" not in st.session_state:
-    st.session_state.should_clear_form = False
 
 form_keys = ['f_title', 'f_creator', 'f_date', 'f_venue', 'f_img', 'f_video', 'f_summary', 'f_brief', 'f_highlights', 'f_note']
-
-if st.session_state.should_clear_form:
-    for k in form_keys:
-        if k in st.session_state:
-            st.session_state[k] = ""
-    st.session_state.f_view_date = date.today()
-    st.session_state.show_form = False
-    st.session_state.should_clear_form = False
 
 for k in form_keys:
     if k not in st.session_state:
@@ -371,7 +361,7 @@ def show_details(item):
                     f_brief = st.text_input("1. 🔑 키워드", value=str(item.get('brief', '')))
                     f_high = st.text_area("2. ✨ 5문장 요약", value=str(item.get('highlights', '')), height=150)
                     f_note = st.text_area("3. 🌈 감상", value=str(item.get('note', '')), height=200)
-                    f_sum = st.text_area("🔗 원본 링크/정보", value=str(item.get('summary', '')), height=100)
+                    f_sum = st.text_area("🔗 정보 (링크 및 필사)", value=str(item.get('summary', '')), height=150)
                 else:
                     f_brief = st.text_input("1. 💎 DRIP", value=str(item.get('brief', '')))
                     f_note = st.text_area("2. 🖋️ PRISM", value=str(item.get('note', '')), height=300)
@@ -435,7 +425,7 @@ def show_details(item):
                     ("🔑 키워드", "brief", "#0E6245"),
                     ("✨ 5문장 요약", "highlights", "#7D5600"),
                     ("🌈 감상", "note", "#1E425E"),
-                    ("🔗 정보", "summary", "#444")
+                    ("🔗 정보 (링크/필사)", "summary", "#444")
                 ]
             else:
                 sections = [
@@ -467,7 +457,7 @@ def show_details(item):
                     if item.get('note') and str(item.get('note')).strip():
                         share_text += f"🌈 감상:\n{item.get('note')}\n\n"
                     if item.get('summary') and str(item.get('summary')).strip():
-                        share_text += f"🔗 원본 링크:\n{item.get('summary')}\n\n"
+                        share_text += f"🔗 원본 링크/정보:\n{item.get('summary')}\n\n"
                 else:
                     if item.get('brief') and str(item.get('brief')).strip():
                         share_text += f"💎 DRIP\n{item.get('brief')}\n\n"
@@ -524,7 +514,7 @@ def show_plan_details(item):
                     f_brief = st.text_input("1. 🔑 키워드", value=str(rich_data.get('brief', '')))
                     f_high = st.text_area("2. ✨ 5문장 요약", value=str(rich_data.get('highlights', '')), height=150)
                     f_note = st.text_area("3. 🌈 감상", value=str(rich_data.get('note', '')), height=200)
-                    f_sum = st.text_area("🔗 원본 링크/정보", value=str(rich_data.get('summary', '')), height=100)
+                    f_sum = st.text_area("🔗 정보 (링크 및 필사)", value=str(rich_data.get('summary', '')), height=150)
                 else:
                     f_brief = st.text_input("1. 💎 DRIP", value=str(rich_data.get('brief', '')))
                     f_note = st.text_area("2. 🖋️ PRISM", value=str(rich_data.get('note', '')), height=300)
@@ -584,7 +574,7 @@ def show_plan_details(item):
                     ("🔑 키워드", "brief", "#0E6245"),
                     ("✨ 5문장 요약", "highlights", "#7D5600"),
                     ("🌈 감상", "note", "#1E425E"),
-                    ("🔗 정보", "summary", "#444")
+                    ("🔗 정보 (링크/필사)", "summary", "#444")
                 ]
             else:
                 sections = [
@@ -616,7 +606,7 @@ def show_plan_details(item):
                     if rich_data.get('note') and str(rich_data.get('note')).strip():
                         share_text += f"🌈 감상:\n{rich_data.get('note')}\n\n"
                     if rich_data.get('summary') and str(rich_data.get('summary')).strip():
-                        share_text += f"🔗 원본 링크:\n{rich_data.get('summary')}\n\n"
+                        share_text += f"🔗 원본 링크/정보:\n{rich_data.get('summary')}\n\n"
                 else:
                     if rich_data.get('brief') and str(rich_data.get('brief')).strip():
                         share_text += f"💎 DRIP\n{rich_data.get('brief')}\n\n"
@@ -753,10 +743,12 @@ if is_admin and tab_w:
                 else:
                     st.info("검색 결과가 없습니다.")
 
-        # else 블록 밖으로 꺼내어 검색창 입력 여부와 무관하게 표시되도록 수정
+        # 직접 입력 로직 수정 - 깔끔하게 버튼 누르면 바로 열리게 수정했습니다!
         if not st.session_state.show_form:
             if st.button("✏️ 직접 입력"):
-                st.session_state.should_clear_form = True
+                for k in form_keys:
+                    st.session_state[k] = ""
+                st.session_state.f_view_date = date.today()
                 st.session_state.show_form = True
                 st.rerun()
 
@@ -783,7 +775,7 @@ if is_admin and tab_w:
                     st.text_input("1. 🔑 키워드", key="f_brief")
                     st.text_area("2. ✨ 5문장 요약", key="f_highlights", height=150)
                     st.text_area("3. 🌈 감상", key="f_note", height=200)
-                    st.text_area("🔗 원본 링크/정보", key="f_summary", height=100)
+                    st.text_area("🔗 정보 (링크 및 필사)", key="f_summary", height=150)
                 else:
                     st.text_input("1. 💎 DRIP", key="f_brief")
                     st.text_area("2. 🖋️ PRISM", key="f_note", height=300)
@@ -809,7 +801,10 @@ if is_admin and tab_w:
                         st.cache_data.clear() 
                         try: supabase.table("archive").upsert(new_record).execute()
                         except: pass
-                        st.success("✅ 아카이브 저장 완료!"); st.session_state.should_clear_form = True; time.sleep(0.8); st.rerun()
+                        st.success("✅ 아카이브 저장 완료!")
+                        st.session_state.show_form = False
+                        time.sleep(0.8)
+                        st.rerun()
                     except Exception as e: st.error(f"❌ 오류: {e}")
                 else: st.warning("제목을 입력해 주세요.")
             
@@ -826,11 +821,14 @@ if is_admin and tab_w:
                     conn.commit()
                     try: supabase.table("plan").upsert({"plan_date": str(st.session_state.f_view_date), "category": str(category), "title": st.session_state.f_title.strip(), "memo": memo_payload}).execute()
                     except: pass
-                    st.success("🗓️ 일정표에 추가되었습니다!"); st.session_state.should_clear_form = True; time.sleep(0.8); st.rerun()
+                    st.success("🗓️ 일정표에 추가되었습니다!")
+                    st.session_state.show_form = False
+                    time.sleep(0.8)
+                    st.rerun()
                 else: st.warning("제목을 입력해 주세요.")
 
             if col_btn3.button("❌ 닫기", use_container_width=True):
-                st.session_state.should_clear_form = True
+                st.session_state.show_form = False
                 st.rerun()
 
         st.divider()
