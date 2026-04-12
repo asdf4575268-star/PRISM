@@ -348,7 +348,7 @@ def show_details(item):
                 st.rerun()
         with t_col3: 
             # 팝업 내 폼을 제거하고 데이터를 메인 폼으로 보냅니다!
-            if st.button("✏️ 불러와서 수정", key=f"edit_{item['id']}", use_container_width=True, type="primary"):
+            if st.button("✏️ 수정", key=f"edit_{item['id']}", use_container_width=True, type="primary"):
                 st.session_state.edit_target_id = item['id']
                 st.session_state.edit_source = 'archive'
                 st.session_state.main_category_radio = cat
@@ -414,7 +414,7 @@ def show_details(item):
                 ("🔑 키워드", "brief", "#0E6245"),
                 ("✨ 5문장 요약", "highlights", "#7D5600"),
                 ("🌈 감상", "note", "#1E425E"),
-                ("🔗 정보 (링크 및 필사)", "summary", "#444")
+                ("🔗 정보 및 필사)", "summary", "#444")
             ]
         else:
             sections = [
