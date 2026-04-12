@@ -466,7 +466,7 @@ def show_plan_details(item):
                 except: pass
                 st.rerun()
         with t_col3: 
-            if st.button("✏️ 불러와서 수정", key=f"edit_plan_{item['id']}", use_container_width=True, type="primary"):
+            if st.button("✏️ 수정", key=f"edit_plan_{item['id']}", use_container_width=True, type="primary"):
                 st.session_state.edit_target_id = item['id']
                 st.session_state.edit_source = 'plan'
                 st.session_state.main_category_radio = cat
