@@ -144,11 +144,11 @@ if "main_nav" not in st.session_state: st.session_state.main_nav = "🖋️ WRIT
 
 form_keys = ['f_title', 'f_creator', 'f_date', 'f_venue', 'f_img', 'f_video', 'f_summary', 'f_brief', 'f_highlights', 'f_note']
 
+# 데이터 비우기 로직 (창을 강제로 닫는 부분 삭제!)
 if st.session_state.should_clear_form:
     for k in form_keys:
         st.session_state[k] = ""
     st.session_state.f_view_date = date.today()
-    st.session_state.show_form = False
     st.session_state.edit_target_id = None
     st.session_state.edit_source = None
     st.session_state.should_clear_form = False
@@ -347,8 +347,7 @@ def show_details(item):
                 except: pass
                 st.rerun()
         with t_col3: 
-            # 팝업 내 폼을 제거하고 데이터를 메인 폼으로 보냅니다!
-            if st.button("✏️ 수정", key=f"edit_{item['id']}", use_container_width=True, type="primary"):
+            if st.button("✏️ 불러와서 수정", key=f"edit_{item['id']}", use_container_width=True, type="primary"):
                 st.session_state.edit_target_id = item['id']
                 st.session_state.edit_source = 'archive'
                 st.session_state.main_category_radio = cat
@@ -373,7 +372,6 @@ def show_details(item):
 
     col_img, col_txt = st.columns([0.3, 0.7])
     
-    # 뷰어 모드 렌더링
     with col_img:
         if item.get('img_url') and str(item.get('img_url')) != "None": 
             st.image(item['img_url'], use_container_width=True)
@@ -414,7 +412,7 @@ def show_details(item):
                 ("🔑 키워드", "brief", "#0E6245"),
                 ("✨ 5문장 요약", "highlights", "#7D5600"),
                 ("🌈 감상", "note", "#1E425E"),
-                ("🔗 정보 및 필사)", "summary", "#444")
+                ("🔗 정보 (링크 및 필사)", "summary", "#444")
             ]
         else:
             sections = [
@@ -466,7 +464,7 @@ def show_plan_details(item):
                 except: pass
                 st.rerun()
         with t_col3: 
-            if st.button("✏️ 수정", key=f"edit_plan_{item['id']}", use_container_width=True, type="primary"):
+            if st.button("✏️ 불러와서 수정", key=f"edit_plan_{item['id']}", use_container_width=True, type="primary"):
                 st.session_state.edit_target_id = item['id']
                 st.session_state.edit_source = 'plan'
                 st.session_state.main_category_radio = cat
@@ -491,7 +489,6 @@ def show_plan_details(item):
         
     col_img, col_txt = st.columns([0.3, 0.7])
     
-    # 뷰어 모드
     with col_img:
         if rich_data.get('img_url') and str(rich_data.get('img_url')) != "None": 
             st.image(rich_data['img_url'], use_container_width=True)
@@ -693,6 +690,7 @@ if is_admin and tab_w:
     if not st.session_state.show_form:
         if st.button("✏️ 직접 입력"):
             st.session_state.should_clear_form = True
+            st.session_state.show_form = True  # <--- 창을 강제로 엽니다!
             st.rerun()
 
     # 여기서부터 메인 폼입니다. 업데이트/신규 작성이 모두 이곳에서 이루어집니다.
@@ -764,6 +762,7 @@ if is_admin and tab_w:
                     st.cache_data.clear()
                     st.success("✅ 안전하게 수정되었습니다!")
                     st.session_state.should_clear_form = True
+                    st.session_state.show_form = False  # <--- 완료 후 닫기
                     time.sleep(0.8)
                     st.rerun()
                 else: st.warning("제목을 입력해 주세요.")
@@ -786,6 +785,7 @@ if is_admin and tab_w:
                         except: pass
                         st.success("✅ 아카이브 저장 완료!")
                         st.session_state.should_clear_form = True
+                        st.session_state.show_form = False  # <--- 완료 후 닫기
                         time.sleep(0.8)
                         st.rerun()
                     except Exception as e: st.error(f"❌ 오류: {e}")
@@ -806,12 +806,14 @@ if is_admin and tab_w:
                     except: pass
                     st.success("🗓️ 일정표에 추가되었습니다!")
                     st.session_state.should_clear_form = True
+                    st.session_state.show_form = False  # <--- 완료 후 닫기
                     time.sleep(0.8)
                     st.rerun()
                 else: st.warning("제목을 입력해 주세요.")
 
         if col_btn3.button("❌ 닫기/취소", use_container_width=True):
             st.session_state.should_clear_form = True
+            st.session_state.show_form = False # <--- 창 닫기
             st.rerun()
 
     st.divider()
