@@ -499,7 +499,6 @@ if IS_ADMIN and tab_w:
         with cr:
             # 카테고리가 스크랩일 때 기사 원본과 필사 영역을 명확히 분리
             if category == "SCRAP":
-                st.markdown("#### 🗺️")
                 st.text_area("📰 ORIGINAL", key="f_summary", height=150)
                 st.text_area("✍️ HAND WRITE/BREIF5", key="f_note", height=150)
                 st.text_input("🎯 KEY CONTEXT(argument)", key="f_brief")
