@@ -427,9 +427,9 @@ tab_w = (st.session_state.main_nav == "🖋️ WRITE")
 # ----------------- [WRITE 탭] -----------------
 if IS_ADMIN and tab_w:
     category = st.radio("📂 CATEGORY", CATEGORIES, horizontal=True, key="main_category_radio")
-    search_query = st.text_input(f"🔍 {category} 검색 (결과 클릭 시 자동 입력)")
+    search_query = st.text_input(f"🔍 {category} search")
     
-    # API 검색 처리
+    # API search 처리
     if search_query:
         if category == "SCRAP":
             if st.button("✨ 가져오기"):
@@ -613,7 +613,7 @@ elif not tab_w:
     if not all_df.empty:
         if search_query_archive := st.text_input("🔍", key="global_search"):
             mask = (all_df['title'].str.contains(search_query_archive, case=False, na=False) | all_df['creator'].str.contains(search_query_archive, case=False, na=False) | all_df['summary'].str.contains(search_query_archive, case=False, na=False) | all_df['note'].str.contains(search_query_archive, case=False, na=False) | all_df['venue'].str.contains(search_query_archive, case=False, na=False))
-            all_df = all_df[mask]; st.markdown(f"**'{search_query_archive}'** 검색 결과 ({len(all_df)})"); st.divider()
+            all_df = all_df[mask]; st.markdown(f"**'{search_query_archive}'** search 결과 ({len(all_df)})"); st.divider()
 
         all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
         main_df, scrap_df = all_df[all_df['category'] != "SCRAP"], all_df[all_df['category'] == "SCRAP"]
@@ -647,7 +647,7 @@ elif not tab_w:
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
                 c_data = main_df[main_df['category'] == c_name]
-                if c_data.empty: st.info(f"검색 결과 없음: {c_name}" if search_query_archive else f"데이터 없음: {c_name}")
+                if c_data.empty: st.info(f"search 결과 없음: {c_name}" if search_query_archive else f"데이터 없음: {c_name}")
                 else:
                     items = c_data.to_dict('records')
                     music_cls = "music-tab-style" if c_name == "MUSIC" else ""
@@ -705,5 +705,5 @@ elif not tab_w:
                                     if row['highlights']: st.markdown(f"**💡 핵심 사례(논거) 및 구조:**<br>{row['highlights'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
                                     
                                     if st.button("✏️ 수정", key=f"scr_btn_{row['id']}"): show_details(row)
-                    else: st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
+                    else: st.info("해당 태그나 search어에 맞는 스크랩이 없습니다.")
                 else: st.info("스크랩 기록이 없습니다.")
