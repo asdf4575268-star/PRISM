@@ -139,7 +139,7 @@ if "should_clear_form" not in st.session_state: st.session_state.should_clear_fo
 
 if "edit_target_id" not in st.session_state: st.session_state.edit_target_id = None
 if "edit_source" not in st.session_state: st.session_state.edit_source = None
-if "main_nav" not in st.session_state: st.session_state.main_nav = "🖋️ WRITE" if st.session_state.is_logged_in else "📂 ARCHIVE"
+if "main_nav" not in st.session_state: st.session_state.main_nav = "🖋️ 작성" if st.session_state.is_logged_in else "📂 아카이브"
 
 form_keys = ['f_title', 'f_creator', 'f_date', 'f_venue', 'f_img', 'f_video', 'f_summary', 'f_brief', 'f_highlights', 'f_note']
 
@@ -171,7 +171,7 @@ with st.sidebar:
                 cookie_manager.set("admin_logged_in", "yes", expires_at=datetime.now() + timedelta(days=30))
                 st.session_state.user_password = input_password 
                 st.session_state.is_logged_in = True
-                st.session_state.main_nav = "🖋️ WRITE"
+                st.session_state.main_nav = "🖋️ 작성"
                 time.sleep(0.5)
                 st.rerun()
             else:
@@ -182,7 +182,7 @@ with st.sidebar:
             cookie_manager.set("admin_logged_in", "no")
             st.session_state.is_logged_in = False
             st.session_state.user_password = ""
-            st.session_state.main_nav = "📂 ARCHIVE"
+            st.session_state.main_nav = "📂 아카이브"
             time.sleep(0.5)
             st.rerun()
         st.divider()
@@ -345,7 +345,7 @@ def show_details(item):
                 except: pass
                 st.rerun()
         with t_col3: 
-            if st.button("✏️ 불러와서 수정", key=f"edit_{item['id']}", use_container_width=True, type="primary"):
+            if st.button("✏️ 수정", key=f"edit_{item['id']}", use_container_width=True, type="primary"):
                 st.session_state.edit_target_id = item['id']
                 st.session_state.edit_source = 'archive'
                 st.session_state.main_category_radio = cat
@@ -364,7 +364,7 @@ def show_details(item):
                 except: st.session_state.f_view_date = date.today()
                 
                 st.session_state.show_form = True
-                st.session_state.main_nav = "🖋️ WRITE"
+                st.session_state.main_nav = "🖋️ 작성"
                 st.rerun()
         st.divider()
 
@@ -462,7 +462,7 @@ def show_plan_details(item):
                 except: pass
                 st.rerun()
         with t_col3: 
-            if st.button("✏️ 불러와서 수정", key=f"edit_plan_{item['id']}", use_container_width=True, type="primary"):
+            if st.button("✏️ 수정", key=f"edit_plan_{item['id']}", use_container_width=True, type="primary"):
                 st.session_state.edit_target_id = item['id']
                 st.session_state.edit_source = 'plan'
                 st.session_state.main_category_radio = cat
@@ -481,7 +481,7 @@ def show_plan_details(item):
                 except: st.session_state.f_view_date = date.today()
                 
                 st.session_state.show_form = True
-                st.session_state.main_nav = "🖋️ WRITE"
+                st.session_state.main_nav = "🖋️ 작성"
                 st.rerun()
         st.divider()
         
@@ -588,16 +588,16 @@ st.markdown(f"""<div class="header-wrap"><img src="data:image/png;base64,{logo_b
 
 if is_admin:
     st.markdown("""<style>div[role="radiogroup"] > label { font-weight: bold; font-size: 1.1em; padding-right: 15px; }</style>""", unsafe_allow_html=True)
-    st.radio("메뉴", ["🖋️ WRITE", "📂 ARCHIVE"], horizontal=True, label_visibility="collapsed", key="main_nav")
+    st.radio("메뉴", ["🖋️ 작성", "📂 아카이브"], horizontal=True, label_visibility="collapsed", key="main_nav")
 else:
-    st.session_state.main_nav = "📂 ARCHIVE"
+    st.session_state.main_nav = "📂 아카이브"
 
-tab_w = (st.session_state.main_nav == "🖋️ WRITE")
-tab_a = (st.session_state.main_nav == "📂 ARCHIVE")
+tab_w = (st.session_state.main_nav == "🖋️ 작성")
+tab_a = (st.session_state.main_nav == "📂 아카이브")
 
 # --- [WRITE 탭 (메인 화면)] ---
 if is_admin and tab_w:
-    category = st.radio("📂 category", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"], horizontal=True, key="main_category_radio")
+    category = st.radio("📂 카테고리", ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"], horizontal=True, key="main_category_radio")
     search_query = st.text_input(f"🔍 {category} 검색")
     
     if search_query:
@@ -789,7 +789,7 @@ if is_admin and tab_w:
                         except Exception as e: st.error(f"❌ 오류: {e}")
                     else: st.warning("제목을 입력해 주세요.")
                 
-                if col_btn2.button("🗓️ 일정표에 계획 등록 (주간/일간)", use_container_width=True):
+                if col_btn2.button("🗓️ Weekly Contents에 계획 등록", use_container_width=True):
                     if st.session_state.f_title.strip():
                         rich_data = {
                             "creator": st.session_state.f_creator.strip(), "rel_date": st.session_state.f_date.strip(), "venue": st.session_state.f_venue.strip(),
@@ -802,7 +802,7 @@ if is_admin and tab_w:
                         conn.commit()
                         try: supabase.table("plan").upsert({"plan_date": str(st.session_state.f_view_date), "category": str(category), "title": st.session_state.f_title.strip(), "memo": memo_payload}).execute()
                         except: pass
-                        st.success("🗓️ 일정표에 추가되었습니다!")
+                        st.success("🗓️ Weekly Contents에 추가되었습니다!")
                         st.session_state.should_clear_form = True
                         st.session_state.show_form = False
                         time.sleep(0.8)
@@ -823,7 +823,8 @@ if is_admin and tab_w:
     view_monday = this_monday + pd.Timedelta(weeks=st.session_state.week_offset); view_sunday = view_monday + pd.Timedelta(days=6)
     with col_c:
         iso_year, iso_week, _ = view_monday.isocalendar()
-        st.markdown(f"<h4 style='text-align: center; margin-top:0;'>📅 {iso_year}-{iso_week}주차 일정계획표 <span style='font-size:0.75em; color:#aaa;'>({view_monday.strftime('%m.%d')} ~ {view_sunday.strftime('%m.%d')})</span></h4>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='text-align: center; margin-top:0;'>📅 Weekly Contents ({iso_week}주차)</h3>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center; color: #888; font-size: 0.9em; margin-bottom: 20px;'>{view_monday.strftime('%m.%d')} ~ {view_sunday.strftime('%m.%d')}</p>", unsafe_allow_html=True)
     with col_r:
         if st.button("➡️", use_container_width=True): st.session_state.week_offset += 1; st.rerun()
             
@@ -831,29 +832,34 @@ if is_admin and tab_w:
     plan_df = pd.read_sql_query("SELECT * FROM plan ORDER BY plan_date ASC", conn)
     if not plan_df.empty: plan_df['p_dt'] = pd.to_datetime(plan_df['plan_date'])
     cat_emojis = {"BOOKS": "📚", "MUSIC": "🎧", "MOVIES": "🎞️", "SERIES": "📽️", "STAGE": "🎭", "SCRAP": "📰"}
-    weekdays = ["월", "화", "수", "목", "금", "토", "일"]
     
-    cal_cols = st.columns(7)
-    for i in range(7):
-        curr_date = view_monday + pd.Timedelta(days=i)
-        is_today = curr_date.date() == date.today()
-        day_color = "#3399FF" if is_today else "#E2E2E2"
-        bg_color = "rgba(51, 153, 255, 0.15)" if is_today else "transparent"
-        with cal_cols[i]:
-            st.markdown(f"""<div style='text-align: center; background-color: {bg_color}; padding: 10px 0; border-radius: 8px; margin-bottom: 12px;'><span style='color: {day_color}; font-weight: bold; font-size: 1.1em;'>{curr_date.strftime('%m.%d')}</span><br><span style='color: {day_color}; font-size: 0.9em;'>{weekdays[i]}</span></div>""", unsafe_allow_html=True)
-            day_data = plan_df[plan_df['p_dt'].dt.date == curr_date.date()] if not plan_df.empty else pd.DataFrame()
-            if day_data.empty: st.markdown("<div style='text-align: center; color:#666; font-size:0.8em; margin-top: 20px;'>일정 없음</div>", unsafe_allow_html=True)
-            else:
-                for _, row in day_data.iterrows():
-                    emoji = cat_emojis.get(row['category'], "📌")
-                    try: rich_data = json.loads(row['memo']); img_url = rich_data.get('img_url', '')
-                    except: img_url = ""
-                    if img_url and img_url.strip() and img_url != "None":
-                        st.markdown(f"""<div style='position: relative; width: 100%; aspect-ratio: 1/1; border-radius: 6px; overflow: hidden; margin-bottom: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); background-color: #2A2A2A; display: flex; align-items: center; justify-content: center;'><img src="{img_url}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'"><div style="position: absolute; top: 4px; left: 4px; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px; font-size: 12px;">{emoji}</div></div>""", unsafe_allow_html=True)
-                    else:
-                        st.markdown(f"""<div style='background-color: #2A2A2A; padding: 10px; border-radius: 6px; border-left: 4px solid #3399FF; margin-bottom: 5px; min-height: 80px; display: flex; align-items: center; justify-content: center; text-align: center;'><div style='font-size: 0.85em; font-weight: bold; line-height: 1.3;'>{emoji}<br>{row['title']}</div></div>""", unsafe_allow_html=True)
-                    if st.button("🔍", key=f"dtl_cal_{row['id']}", use_container_width=True): show_plan_details(row)
-                    st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
+    week_data = plan_df[(plan_df['p_dt'].dt.date >= view_monday.date()) & (plan_df['p_dt'].dt.date <= view_sunday.date())] if not plan_df.empty else pd.DataFrame()
+
+    if week_data.empty:
+        st.markdown("<div style='text-align: center; color:#666; padding: 20px;'>예정된 콘텐츠가 없습니다.</div>", unsafe_allow_html=True)
+    else:
+        grid_cols = 5
+        items = week_data.to_dict('records')
+        for i in range(0, len(items), grid_cols):
+            cols = st.columns(grid_cols)
+            for j in range(grid_cols):
+                if i + j < len(items):
+                    row = items[i + j]
+                    with cols[j]:
+                        emoji = cat_emojis.get(row['category'], "📌")
+                        date_str = row['plan_date'][5:].replace('-', '.')
+                        st.markdown(f"<div style='text-align:center; font-size: 0.9em; color: #3399FF; margin-bottom: 5px; font-weight: bold;'>{date_str}</div>", unsafe_allow_html=True)
+                        
+                        try: rich_data = json.loads(row['memo']); img_url = rich_data.get('img_url', '')
+                        except: img_url = ""
+                        
+                        if img_url and img_url.strip() and img_url != "None":
+                            st.markdown(f"""<div style='position: relative; width: 100%; aspect-ratio: 1/1; border-radius: 6px; overflow: hidden; margin-bottom: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); background-color: #2A2A2A; display: flex; align-items: center; justify-content: center;'><img src="{img_url}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'"><div style="position: absolute; top: 4px; left: 4px; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px; font-size: 12px;">{emoji}</div></div>""", unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"""<div style='background-color: #2A2A2A; padding: 10px; border-radius: 6px; border-left: 4px solid #3399FF; margin-bottom: 5px; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; text-align: center;'><div style='font-size: 0.85em; font-weight: bold; line-height: 1.3;'>{emoji}<br>{row['title']}</div></div>""", unsafe_allow_html=True)
+                        
+                        if st.button("✏️ 수정", key=f"dtl_cal_{row['id']}", use_container_width=True): show_plan_details(row)
+                        st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
 
 # --- [ARCHIVE 탭] ---
 if tab_a:
@@ -864,29 +870,29 @@ if tab_a:
         search_query_archive = st.text_input("🔍", key="global_search")
         if search_query_archive:
             mask = (all_df['title'].str.contains(search_query_archive, case=False, na=False) | all_df['creator'].str.contains(search_query_archive, case=False, na=False) | all_df['summary'].str.contains(search_query_archive, case=False, na=False) | all_df['note'].str.contains(search_query_archive, case=False, na=False) | all_df['venue'].str.contains(search_query_archive, case=False, na=False))
-            all_df = all_df[mask]; st.markdown(f"**'{search_query_archive}'** 검색 결과: 총 **{len(all_df)}**건"); st.divider()
+            all_df = all_df[mask]; st.markdown(f"**'{search_query_archive}'** 검색 결과 ({len(all_df)})"); st.divider()
 
         all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
         main_df = all_df[all_df['category'] != "SCRAP"]; scrap_df = all_df[all_df['category'] == "SCRAP"]
         cat_order = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE"]
         cat_emojis = {"BOOKS": "📚", "MUSIC": "🎧", "MOVIES": "🎞️", "SERIES": "📽️", "STAGE": "🎭"}
         
-        tab_titles = [f"📅 ALL ({len(main_df)})"] + [f"{cat_emojis[c]}{c} ({len(main_df[main_df['category'] == c])})" for c in cat_order]
-        if is_admin: tab_titles.append(f"🔐 SCRAP ({len(scrap_df)})")
+        tab_titles = [f"📅 전체 ({len(main_df)})"] + [f"{cat_emojis[c]} {c} ({len(main_df[main_df['category'] == c])})" for c in cat_order]
+        if is_admin: tab_titles.append(f"🔐 스크랩 ({len(scrap_df)})")
         sub_tabs = st.tabs(tab_titles)
         grid_cols = 6
 
         with sub_tabs[0]:
             years = sorted(main_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
             if years:
-                year_options = {y: f"{y}({len(main_df[main_df['v_dt'].dt.year == y])})" for y in years}
+                year_options = {y: f"{y} ({len(main_df[main_df['v_dt'].dt.year == y])})" for y in years}
                 sel_y = st.selectbox("📅 연도 선택", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
                 y_df = main_df[main_df['v_dt'].dt.year == sel_y]
                 
                 for m in range(12, 0, -1):
                     m_data = y_df[y_df['v_dt'].dt.month == m]
                     if not m_data.empty:
-                        st.subheader(f"🗓️ {m}월 (총 {len(m_data)}건)")
+                        st.subheader(f"🗓️ {m}월 ({len(m_data)})")
                         items = m_data.to_dict('records')
                         for i in range(0, len(items), grid_cols):
                             cols = st.columns(grid_cols)
@@ -951,7 +957,7 @@ if tab_a:
                         for w in weeks:
                             w_data = display_scrap_df[display_scrap_df['year_week'] == w]
                             y_str, w_str = w.split('-')
-                            st.subheader(f"🗓️ {y_str}-{int(w_str)}주차 스크랩 (총 {len(w_data)}건)")
+                            st.subheader(f"🗓️ {y_str}-{int(w_str)}주차 ({len(w_data)})")
                             for _, row in w_data.iterrows():
                                 with st.expander(f"👉 [{row['venue']}] {row['title']} ({row['view_date']})"):
                                     summary_text = str(row['summary'])
@@ -965,6 +971,6 @@ if tab_a:
                                     if row['brief']: st.write(f"**🎯 중심맥락(논지):** {row['brief']}")
                                     if row['highlights']: st.markdown(f"**💡 핵심 사례(논거):**<br>{row['highlights'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
                                     if row['note']: st.markdown(f"**🏗️ 글 구성:**<br>{row['note'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
-                                    if st.button("상세보기 / 수정", key=f"scr_btn_{row['id']}"): show_details(row)
+                                    if st.button("✏️ 수정", key=f"scr_btn_{row['id']}"): show_details(row)
                     else: st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else: st.info("스크랩 기록이 없습니다.")
