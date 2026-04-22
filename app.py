@@ -267,7 +267,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
             try: st.session_state.f_view_date = pd.to_datetime(data_dict.get(date_key)).date()
             except: st.session_state.f_view_date = date.today()
             
-            st.session_state.main_nav = "🖋️ 작성"
+            st.session_state.main_nav = "🖋️ WRITE"
             st.rerun()
         st.divider()
 
@@ -329,7 +329,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
 
     if IS_ADMIN and is_plan:
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("✅ 완료 (아카이브로 이동)", key=f"done_plan_{item_id}", use_container_width=True, type="primary"):
+        if st.button("✅ 완료", key=f"done_plan_{item_id}", use_container_width=True, type="primary"):
             conn = get_connection()
             new_record = {
                 "category": cat, "title": data_dict['title'], "creator": data_dict.get("creator", ""), "rel_date": data_dict.get("rel_date", ""),
@@ -475,7 +475,7 @@ if IS_ADMIN and tab_w:
     if is_update:
         st.info("🚨 현재 데이터 수정 모드입니다. (완료 후 저장 버튼을 눌러주세요)")
     else:
-        st.markdown(f"#### 📝 신규 작성 ({category})")
+        st.markdown(f"#### 📝NEW ({category})")
         
     with st.container(border=True):
         cl, cr = st.columns([0.4, 0.6])
