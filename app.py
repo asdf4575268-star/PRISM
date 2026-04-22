@@ -455,7 +455,18 @@ if IS_ADMIN and tab_w:
                             tracks = [t['trackName'] for t in requests.get(f"https://itunes.apple.com/lookup?id={m['collection_id']}&entity=song").json().get("results", []) if t.get('wrapperType') == 'track']
                             if tracks: tl_text = "💿 트랙리스트\n" + "\n".join([f"{i+1}. {t}" for i, t in enumerate(tracks)])
                         except: pass
-                    st.session_state.update(edit_target_id=None, edit_source=None, f_title=m['title'], f_creator=m['creator'], f_date=m['date'], f_img=m['img'], f_venue=m['venue'], f_summary=f"{m.get('url', '')}\n\n" if m.get('url') else "", f_highlights=tl_text, f_note="", f_brief="", f_video="")
+                    
+                    # 💡 변경된 부분: 앨범 URL과 트랙리스트를 합쳐서 summary(SIGHT)에 넣습니다.
+                    combined_summary = f"{m.get('url', '')}\n\n{tl_text}".strip()
+                    
+                    st.session_state.update(
+                        edit_target_id=None, edit_source=None, 
+                        f_title=m['title'], f_creator=m['creator'], f_date=m['date'], 
+                        f_img=m['img'], f_venue=m['venue'], 
+                        f_summary=combined_summary,  # 👈 SIGHT(기본 정보) 영역으로 이동됨
+                        f_highlights="",             # 👈 SENSE 영역은 깔끔하게 비움
+                        f_note="", f_brief="", f_video=""
+                    )
                     st.rerun()
         elif category == "STAGE":
             if res := search_kopis(search_query):
