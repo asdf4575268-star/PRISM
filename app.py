@@ -499,11 +499,11 @@ if IS_ADMIN and tab_w:
         with cr:
             # 카테고리가 스크랩일 때 기사 원본과 필사 영역을 명확히 분리
             if category == "SCRAP":
-                st.markdown("#### 🗺️ 기사 스크랩 및 직접 필사")
-                st.text_area("📰 기사 원본 (텍스트 및 링크 복사)", key="f_summary", height=150)
-                st.text_area("✍️ 직접 필사하기", key="f_note", height=150)
-                st.text_input("🎯 중심맥락(논지)", key="f_brief")
-                st.text_area("💡 핵심 사례(논거) 및 구조", key="f_highlights", height=100)
+                st.markdown("#### 🗺️")
+                st.text_area("📰 ORIGINAL", key="f_summary", height=150)
+                st.text_area("✍️ HAND WRITE/BREIF5", key="f_note", height=150)
+                st.text_input("🎯 KEY CONTEXT(argument)", key="f_brief")
+                st.text_area("💡 CORE EXAMPLE(case) 및 구조", key="f_highlights", height=100)
             else:
                 st.text_input("1. 💎 DRIP", key="f_brief")
                 st.text_area("2. 🖋️ PRISM", key="f_note", height=300)
