@@ -311,10 +311,10 @@ def render_item_details(data_dict, item_id, is_plan=False):
             ("🎯 중심맥락(논지)", "brief", "#0E6245"),
             ("💡 핵심 사례(논거) 및 구조", "highlights", "#7D5600")
         ] if cat == "SCRAP" else [
-            ("💎 DRIP", "brief", "#E50914"), 
-            ("🖋️ PRISM", "note", "#1E425E"),
             ("💡 SIGHT", "summary", "#0E6245"), 
             ("🔖 SENSE", "highlights", "#7D5600")
+            ("💎 DRIP", "brief", "#E50914"), 
+            ("🖋️ PRISM", "note", "#1E425E")
         ]
             
         for label, key, color in sections:
@@ -504,11 +504,11 @@ if IS_ADMIN and tab_w:
                 st.text_input("🎯 KEY CONTEXT(argument)", key="f_brief")
                 st.text_area("💡 CORE EXAMPLE(case)/DESIGN", key="f_highlights", height=100)
             else:
-                st.text_input("1. 💎 DRIP", key="f_brief")
-                st.text_area("2. 🖋️ PRISM", key="f_note", height=300)
-                st.text_area("3. 💡 SIGHT (API 연동 시 기본 정보 자동입력)", key="f_summary", height=150)
-                st.text_area("4. 🔖 SENSE", key="f_highlights", height=150)
-        
+                st.text_area("1. 💡 SIGHT (API 연동 시 기본 정보 자동입력)", key="f_summary", height=150)
+                st.text_area("2. 🔖 SENSE", key="f_highlights", height=150)
+                st.text_input("3. 💎 DRIP", key="f_brief")
+                st.text_area("4. 🖋️ PRISM", key="f_note", height=300)
+
         st.markdown("<br>", unsafe_allow_html=True)
         cb1, cb2, cb3 = st.columns([0.4, 0.4, 0.2])
         
