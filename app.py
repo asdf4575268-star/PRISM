@@ -137,14 +137,12 @@ if "show_form" not in st.session_state: st.session_state.show_form = False
 if "week_offset" not in st.session_state: st.session_state.week_offset = 0
 if "should_clear_form" not in st.session_state: st.session_state.should_clear_form = False
 
-# 수정(Update) 관련 State 변수들 추가
 if "edit_target_id" not in st.session_state: st.session_state.edit_target_id = None
 if "edit_source" not in st.session_state: st.session_state.edit_source = None
 if "main_nav" not in st.session_state: st.session_state.main_nav = "🖋️ WRITE" if st.session_state.is_logged_in else "📂 ARCHIVE"
 
 form_keys = ['f_title', 'f_creator', 'f_date', 'f_venue', 'f_img', 'f_video', 'f_summary', 'f_brief', 'f_highlights', 'f_note']
 
-# 데이터 비우기 로직 (창을 강제로 닫는 부분 삭제!)
 if st.session_state.should_clear_form:
     for k in form_keys:
         st.session_state[k] = ""
@@ -404,15 +402,15 @@ def show_details(item):
             st.write(f"**{creator_text}**")
             
         st.write(f"**📅 {item.get('rel_date')} | 📍 {item.get('venue')}**")
-        st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿 감상일: {item.get("view_date")}</p>', unsafe_allow_html=True)
+        st.markdown(f'<p style="color: #E2E2E2; font-weight: bold; font-size: 1.1em;">🍿 감상/완료일: {item.get("view_date")}</p>', unsafe_allow_html=True)
         st.divider()
         
         if cat == "SCRAP":
             sections = [
-                ("🔑 키워드", "brief", "#0E6245"),
-                ("✨ 5문장 요약", "highlights", "#7D5600"),
-                ("🌈 감상", "note", "#1E425E"),
-                ("🔗 정보 (링크 및 필사)", "summary", "#444")
+                ("✍️ 필사 (원본 텍스트 및 링크)", "summary", "#444"),
+                ("🎯 중심맥락(논지)", "brief", "#0E6245"),
+                ("💡 핵심 사례(논거)", "highlights", "#7D5600"),
+                ("🏗️ 글 구성", "note", "#1E425E")
             ]
         else:
             sections = [
@@ -435,10 +433,10 @@ def show_details(item):
             else: share_text += "\n"
             
             if cat == "SCRAP":
-                if item.get('brief') and str(item.get('brief')).strip(): share_text += f"🔑 키워드:\n{item.get('brief')}\n\n"
-                if item.get('highlights') and str(item.get('highlights')).strip(): share_text += f"✨ 5문장 요약:\n{item.get('highlights')}\n\n"
-                if item.get('note') and str(item.get('note')).strip(): share_text += f"🌈 감상:\n{item.get('note')}\n\n"
-                if item.get('summary') and str(item.get('summary')).strip(): share_text += f"🔗 원본 링크/정보:\n{item.get('summary')}\n\n"
+                if item.get('summary') and str(item.get('summary')).strip(): share_text += f"✍️ 필사 (원본 텍스트 및 링크):\n{item.get('summary')}\n\n"
+                if item.get('brief') and str(item.get('brief')).strip(): share_text += f"🎯 중심맥락(논지):\n{item.get('brief')}\n\n"
+                if item.get('highlights') and str(item.get('highlights')).strip(): share_text += f"💡 핵심 사례(논거):\n{item.get('highlights')}\n\n"
+                if item.get('note') and str(item.get('note')).strip(): share_text += f"🏗️ 글 구성:\n{item.get('note')}\n\n"
             else:
                 if item.get('brief') and str(item.get('brief')).strip(): share_text += f"💎 DRIP\n{item.get('brief')}\n\n"
                 if item.get('note') and str(item.get('note')).strip(): share_text += f"🖋️ PRISM\n{item.get('note')}\n\n"
@@ -520,10 +518,10 @@ def show_plan_details(item):
         
         if cat == "SCRAP":
             sections = [
-                ("🔑 키워드", "brief", "#0E6245"),
-                ("✨ 5문장 요약", "highlights", "#7D5600"),
-                ("🌈 감상", "note", "#1E425E"),
-                ("🔗 정보 (링크/필사)", "summary", "#444")
+                ("✍️ 필사 (원본 텍스트 및 링크)", "summary", "#444"),
+                ("🎯 중심맥락(논지)", "brief", "#0E6245"),
+                ("💡 핵심 사례(논거)", "highlights", "#7D5600"),
+                ("🏗️ 글 구성", "note", "#1E425E")
             ]
         else:
             sections = [
@@ -546,10 +544,10 @@ def show_plan_details(item):
             else: share_text += "\n"
             
             if cat == "SCRAP":
-                if rich_data.get('brief') and str(rich_data.get('brief')).strip(): share_text += f"🔑 키워드:\n{rich_data.get('brief')}\n\n"
-                if rich_data.get('highlights') and str(rich_data.get('highlights')).strip(): share_text += f"✨ 5문장 요약:\n{rich_data.get('highlights')}\n\n"
-                if rich_data.get('note') and str(rich_data.get('note')).strip(): share_text += f"🌈 감상:\n{rich_data.get('note')}\n\n"
-                if rich_data.get('summary') and str(rich_data.get('summary')).strip(): share_text += f"🔗 원본 링크/정보:\n{rich_data.get('summary')}\n\n"
+                if rich_data.get('summary') and str(rich_data.get('summary')).strip(): share_text += f"✍️ 필사 (원본 텍스트 및 링크):\n{rich_data.get('summary')}\n\n"
+                if rich_data.get('brief') and str(rich_data.get('brief')).strip(): share_text += f"🎯 중심맥락(논지):\n{rich_data.get('brief')}\n\n"
+                if rich_data.get('highlights') and str(rich_data.get('highlights')).strip(): share_text += f"💡 핵심 사례(논거):\n{rich_data.get('highlights')}\n\n"
+                if rich_data.get('note') and str(rich_data.get('note')).strip(): share_text += f"🏗️ 글 구성:\n{rich_data.get('note')}\n\n"
             else:
                 if rich_data.get('brief') and str(rich_data.get('brief')).strip(): share_text += f"💎 DRIP\n{rich_data.get('brief')}\n\n"
                 if rich_data.get('note') and str(rich_data.get('note')).strip(): share_text += f"🖋️ PRISM\n{rich_data.get('note')}\n\n"
@@ -690,131 +688,131 @@ if is_admin and tab_w:
     if not st.session_state.show_form:
         if st.button("✏️ 직접 입력"):
             st.session_state.should_clear_form = True
-            st.session_state.show_form = True  # <--- 창을 강제로 엽니다!
+            st.session_state.show_form = True
             st.rerun()
 
-    # 여기서부터 메인 폼입니다. 업데이트/신규 작성이 모두 이곳에서 이루어집니다.
+    # 메인 폼 (UI 정돈을 위해 Container 활용)
     if st.session_state.show_form:
         is_update = st.session_state.edit_target_id is not None
         if is_update:
             st.info(f"🚨 현재 데이터 수정 모드입니다. (완료 후 저장 버튼을 눌러주세요)")
             
-        st.divider()
-        
-        cl, cr = st.columns([0.4, 0.6])
-        with cl:
-            st.text_input("🖼️ 이미지 URL", key="f_img")
-            st.text_input("🎬 관련 영상(URL) 또는 제목/메모", key="f_video")
+        with st.container(border=True):
+            cl, cr = st.columns([0.4, 0.6])
+            with cl:
+                st.text_input("🖼️ 이미지 URL", key="f_img")
+                st.text_input("🎬 관련 영상(URL) 또는 제목/메모", key="f_video")
+                
+                if st.session_state.f_img and st.session_state.f_img.strip() and st.session_state.f_img != "None": 
+                    st.image(st.session_state.f_img, use_container_width=True)
+                
+                st.text_input("📌 제목", key="f_title")
+                creator_label = "👤 창작자/매체" if category == "SCRAP" else "👤 창작자"
+                st.text_input(creator_label, key="f_creator")
+                st.text_input("📅 작품 날짜", key="f_date")
+                st.text_input("📍 장소/플랫폼", key="f_venue")
+                st.date_input("🍿 감상 완료/예정일 (주간 독서 등 일정계획 시 활용)", key="f_view_date")
             
-            if st.session_state.f_img and st.session_state.f_img.strip() and st.session_state.f_img != "None": 
-                st.image(st.session_state.f_img, use_container_width=True)
+            with cr:
+                if category == "SCRAP":
+                    st.markdown("#### 🗺️ 필사 및 설계도")
+                    st.text_area("✍️ 필사 (원본 텍스트 및 링크)", key="f_summary", height=150)
+                    st.text_input("1. 🎯 중심맥락(논지)", key="f_brief")
+                    st.text_area("2. 💡 핵심 사례(논거)", key="f_highlights", height=100)
+                    st.text_area("3. 🏗️ 글 구성", key="f_note", height=100)
+                else:
+                    st.text_input("1. 💎 DRIP", key="f_brief")
+                    st.text_area("2. 🖋️ PRISM", key="f_note", height=300)
+                    st.text_area("3. 💡 SIGHT (API 연동 시 기본 정보 자동입력)", key="f_summary", height=150)
+                    st.text_area("4. 🔖 SENSE", key="f_highlights", height=150)
             
-            st.text_input("📌 제목", key="f_title")
-            creator_label = "👤 창작자/매체" if category == "SCRAP" else "👤 창작자"
-            st.text_input(creator_label, key="f_creator")
-            st.text_input("📅 작품 날짜", key="f_date")
-            st.text_input("📍 장소/플랫폼", key="f_venue")
-            st.date_input("🍿 감상 완료/예정일", key="f_view_date")
-        
-        with cr:
-            if category == "SCRAP":
-                st.text_input("1. 🔑 키워드", key="f_brief")
-                st.text_area("2. ✨ 5문장 요약", key="f_highlights", height=150)
-                st.text_area("3. 🌈 감상", key="f_note", height=200)
-                st.text_area("🔗 정보 (링크 및 필사)", key="f_summary", height=150)
+            st.markdown("<br>", unsafe_allow_html=True)
+            col_btn1, col_btn2, col_btn3 = st.columns([0.4, 0.4, 0.2])
+            
+            if is_update:
+                if col_btn1.button("💾 수정 내용 저장", use_container_width=True, type="primary"):
+                    if st.session_state.f_title.strip():
+                        conn = get_connection()
+                        if st.session_state.edit_source == 'archive':
+                            new_record = {
+                                "category": str(category), "title": st.session_state.f_title.strip(), "creator": st.session_state.f_creator.strip(), 
+                                "rel_date": st.session_state.f_date.strip(), "venue": st.session_state.f_venue.strip(), "summary": st.session_state.f_summary.strip(), 
+                                "brief": st.session_state.f_brief.strip(), "highlights": st.session_state.f_highlights.strip(), "note": st.session_state.f_note.strip(), 
+                                "img_url": st.session_state.f_img.strip(), "img_url2": st.session_state.f_video.strip(), "view_date": str(st.session_state.f_view_date)
+                            }
+                            conn.execute("""UPDATE archive SET category=?, title=?, creator=?, rel_date=?, venue=?, summary=?, brief=?, highlights=?, note=?, img_url=?, img_url2=?, view_date=? WHERE id=?""", 
+                                         (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], new_record["note"], new_record["img_url"], new_record["img_url2"], new_record["view_date"], st.session_state.edit_target_id))
+                            try: supabase.table("archive").update(new_record).eq("id", st.session_state.edit_target_id).execute()
+                            except: pass
+                        else: # 'plan' 수정
+                            rich_data = {
+                                "creator": st.session_state.f_creator.strip(), "rel_date": st.session_state.f_date.strip(), "venue": st.session_state.f_venue.strip(),
+                                "summary": st.session_state.f_summary.strip(), "brief": st.session_state.f_brief.strip(), "highlights": st.session_state.f_highlights.strip(),
+                                "note": st.session_state.f_note.strip(), "img_url": st.session_state.f_img.strip(), "img_url2": st.session_state.f_video.strip()
+                            }
+                            memo_payload = json.dumps(rich_data, ensure_ascii=False)
+                            conn.execute("UPDATE plan SET category=?, title=?, plan_date=?, memo=? WHERE id=?", 
+                                         (str(category), st.session_state.f_title.strip(), str(st.session_state.f_view_date), memo_payload, st.session_state.edit_target_id))
+                            try: supabase.table("plan").update({"category": str(category), "title": st.session_state.f_title.strip(), "plan_date": str(st.session_state.f_view_date), "memo": memo_payload}).eq("id", st.session_state.edit_target_id).execute()
+                            except: pass
+                            
+                        conn.commit()
+                        st.cache_data.clear()
+                        st.success("✅ 안전하게 수정되었습니다!")
+                        st.session_state.should_clear_form = True
+                        st.session_state.show_form = False
+                        time.sleep(0.8)
+                        st.rerun()
+                    else: st.warning("제목을 입력해 주세요.")
             else:
-                st.text_input("1. 💎 DRIP", key="f_brief")
-                st.text_area("2. 🖋️ PRISM", key="f_note", height=300)
-                st.text_area("3. 💡 SIGHT (API 연동 시 기본 정보 자동입력)", key="f_summary", height=150)
-                st.text_area("4. 🔖 SENSE", key="f_highlights", height=150)
-            
-        st.markdown("<br>", unsafe_allow_html=True)
-        col_btn1, col_btn2, col_btn3 = st.columns([0.4, 0.4, 0.2])
-        
-        if is_update:
-            if col_btn1.button("💾 수정 내용 저장", use_container_width=True, type="primary"):
-                if st.session_state.f_title.strip():
-                    conn = get_connection()
-                    if st.session_state.edit_source == 'archive':
+                if col_btn1.button("✅ 아카이브 직접 저장", use_container_width=True, type="primary"):
+                    if st.session_state.f_title.strip():
                         new_record = {
                             "category": str(category), "title": st.session_state.f_title.strip(), "creator": st.session_state.f_creator.strip(), 
                             "rel_date": st.session_state.f_date.strip(), "venue": st.session_state.f_venue.strip(), "summary": st.session_state.f_summary.strip(), 
                             "brief": st.session_state.f_brief.strip(), "highlights": st.session_state.f_highlights.strip(), "note": st.session_state.f_note.strip(), 
-                            "img_url": st.session_state.f_img.strip(), "img_url2": st.session_state.f_video.strip(), "view_date": str(st.session_state.f_view_date)
+                            "img_url": st.session_state.f_img.strip(), "img_url2": st.session_state.f_video.strip(), 
+                            "save_date": str(date.today()), "view_date": str(st.session_state.f_view_date)
                         }
-                        conn.execute("""UPDATE archive SET category=?, title=?, creator=?, rel_date=?, venue=?, summary=?, brief=?, highlights=?, note=?, img_url=?, img_url2=?, view_date=? WHERE id=?""", 
-                                     (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], new_record["note"], new_record["img_url"], new_record["img_url2"], new_record["view_date"], st.session_state.edit_target_id))
-                        try: supabase.table("archive").update(new_record).eq("id", st.session_state.edit_target_id).execute()
-                        except: pass
-                    else: # 'plan' 수정
+                        try:
+                            conn = get_connection()
+                            conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], new_record["note"], new_record["img_url"], new_record["img_url2"], new_record["save_date"], new_record["view_date"]))
+                            conn.commit()
+                            st.cache_data.clear() 
+                            try: supabase.table("archive").upsert(new_record).execute()
+                            except: pass
+                            st.success("✅ 아카이브 저장 완료!")
+                            st.session_state.should_clear_form = True
+                            st.session_state.show_form = False
+                            time.sleep(0.8)
+                            st.rerun()
+                        except Exception as e: st.error(f"❌ 오류: {e}")
+                    else: st.warning("제목을 입력해 주세요.")
+                
+                if col_btn2.button("🗓️ 일정표에 계획 등록 (주간/일간)", use_container_width=True):
+                    if st.session_state.f_title.strip():
                         rich_data = {
                             "creator": st.session_state.f_creator.strip(), "rel_date": st.session_state.f_date.strip(), "venue": st.session_state.f_venue.strip(),
                             "summary": st.session_state.f_summary.strip(), "brief": st.session_state.f_brief.strip(), "highlights": st.session_state.f_highlights.strip(),
                             "note": st.session_state.f_note.strip(), "img_url": st.session_state.f_img.strip(), "img_url2": st.session_state.f_video.strip()
                         }
                         memo_payload = json.dumps(rich_data, ensure_ascii=False)
-                        conn.execute("UPDATE plan SET category=?, title=?, plan_date=?, memo=? WHERE id=?", 
-                                     (str(category), st.session_state.f_title.strip(), str(st.session_state.f_view_date), memo_payload, st.session_state.edit_target_id))
-                        try: supabase.table("plan").update({"category": str(category), "title": st.session_state.f_title.strip(), "plan_date": str(st.session_state.f_view_date), "memo": memo_payload}).eq("id", st.session_state.edit_target_id).execute()
-                        except: pass
-                        
-                    conn.commit()
-                    st.cache_data.clear()
-                    st.success("✅ 안전하게 수정되었습니다!")
-                    st.session_state.should_clear_form = True
-                    st.session_state.show_form = False  # <--- 완료 후 닫기
-                    time.sleep(0.8)
-                    st.rerun()
-                else: st.warning("제목을 입력해 주세요.")
-        else:
-            if col_btn1.button("✅ 아카이브 저장", use_container_width=True, type="primary"):
-                if st.session_state.f_title.strip():
-                    new_record = {
-                        "category": str(category), "title": st.session_state.f_title.strip(), "creator": st.session_state.f_creator.strip(), 
-                        "rel_date": st.session_state.f_date.strip(), "venue": st.session_state.f_venue.strip(), "summary": st.session_state.f_summary.strip(), 
-                        "brief": st.session_state.f_brief.strip(), "highlights": st.session_state.f_highlights.strip(), "note": st.session_state.f_note.strip(), 
-                        "img_url": st.session_state.f_img.strip(), "img_url2": st.session_state.f_video.strip(), 
-                        "save_date": str(date.today()), "view_date": str(st.session_state.f_view_date)
-                    }
-                    try:
                         conn = get_connection()
-                        conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", (new_record["category"], new_record["title"], new_record["creator"], new_record["rel_date"], new_record["venue"], new_record["summary"], new_record["brief"], new_record["highlights"], new_record["note"], new_record["img_url"], new_record["img_url2"], new_record["save_date"], new_record["view_date"]))
+                        conn.execute("INSERT INTO plan (plan_date, category, title, memo) VALUES (?,?,?,?)", (str(st.session_state.f_view_date), str(category), st.session_state.f_title.strip(), memo_payload))
                         conn.commit()
-                        st.cache_data.clear() 
-                        try: supabase.table("archive").upsert(new_record).execute()
+                        try: supabase.table("plan").upsert({"plan_date": str(st.session_state.f_view_date), "category": str(category), "title": st.session_state.f_title.strip(), "memo": memo_payload}).execute()
                         except: pass
-                        st.success("✅ 아카이브 저장 완료!")
+                        st.success("🗓️ 일정표에 추가되었습니다!")
                         st.session_state.should_clear_form = True
-                        st.session_state.show_form = False  # <--- 완료 후 닫기
+                        st.session_state.show_form = False
                         time.sleep(0.8)
                         st.rerun()
-                    except Exception as e: st.error(f"❌ 오류: {e}")
-                else: st.warning("제목을 입력해 주세요.")
-            
-            if col_btn2.button("🗓️ 일정 추가", use_container_width=True):
-                if st.session_state.f_title.strip():
-                    rich_data = {
-                        "creator": st.session_state.f_creator.strip(), "rel_date": st.session_state.f_date.strip(), "venue": st.session_state.f_venue.strip(),
-                        "summary": st.session_state.f_summary.strip(), "brief": st.session_state.f_brief.strip(), "highlights": st.session_state.f_highlights.strip(),
-                        "note": st.session_state.f_note.strip(), "img_url": st.session_state.f_img.strip(), "img_url2": st.session_state.f_video.strip()
-                    }
-                    memo_payload = json.dumps(rich_data, ensure_ascii=False)
-                    conn = get_connection()
-                    conn.execute("INSERT INTO plan (plan_date, category, title, memo) VALUES (?,?,?,?)", (str(st.session_state.f_view_date), str(category), st.session_state.f_title.strip(), memo_payload))
-                    conn.commit()
-                    try: supabase.table("plan").upsert({"plan_date": str(st.session_state.f_view_date), "category": str(category), "title": st.session_state.f_title.strip(), "memo": memo_payload}).execute()
-                    except: pass
-                    st.success("🗓️ 일정표에 추가되었습니다!")
-                    st.session_state.should_clear_form = True
-                    st.session_state.show_form = False  # <--- 완료 후 닫기
-                    time.sleep(0.8)
-                    st.rerun()
-                else: st.warning("제목을 입력해 주세요.")
+                    else: st.warning("제목을 입력해 주세요.")
 
-        if col_btn3.button("❌ 닫기/취소", use_container_width=True):
-            st.session_state.should_clear_form = True
-            st.session_state.show_form = False # <--- 창 닫기
-            st.rerun()
+            if col_btn3.button("❌ 닫기/취소", use_container_width=True):
+                st.session_state.should_clear_form = True
+                st.session_state.show_form = False
+                st.rerun()
 
     st.divider()
     
@@ -825,7 +823,7 @@ if is_admin and tab_w:
     view_monday = this_monday + pd.Timedelta(weeks=st.session_state.week_offset); view_sunday = view_monday + pd.Timedelta(days=6)
     with col_c:
         iso_year, iso_week, _ = view_monday.isocalendar()
-        st.markdown(f"<h4 style='text-align: center; margin-top:0;'>📅 {iso_year}-{iso_week}주차 <span style='font-size:0.75em; color:#aaa;'>({view_monday.strftime('%m.%d')} ~ {view_sunday.strftime('%m.%d')})</span></h4>", unsafe_allow_html=True)
+        st.markdown(f"<h4 style='text-align: center; margin-top:0;'>📅 {iso_year}-{iso_week}주차 일정계획표 <span style='font-size:0.75em; color:#aaa;'>({view_monday.strftime('%m.%d')} ~ {view_sunday.strftime('%m.%d')})</span></h4>", unsafe_allow_html=True)
     with col_r:
         if st.button("➡️", use_container_width=True): st.session_state.week_offset += 1; st.rerun()
             
@@ -882,13 +880,13 @@ if tab_a:
             years = sorted(main_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True)
             if years:
                 year_options = {y: f"{y}({len(main_df[main_df['v_dt'].dt.year == y])})" for y in years}
-                sel_y = st.selectbox("📅 선택", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
+                sel_y = st.selectbox("📅 연도 선택", options=list(year_options.keys()), format_func=lambda x: year_options[x], key="archive_year_sel")
                 y_df = main_df[main_df['v_dt'].dt.year == sel_y]
                 
                 for m in range(12, 0, -1):
                     m_data = y_df[y_df['v_dt'].dt.month == m]
                     if not m_data.empty:
-                        st.subheader(f"🗓️ {m}월")
+                        st.subheader(f"🗓️ {m}월 (총 {len(m_data)}건)")
                         items = m_data.to_dict('records')
                         for i in range(0, len(items), grid_cols):
                             cols = st.columns(grid_cols)
@@ -953,16 +951,20 @@ if tab_a:
                         for w in weeks:
                             w_data = display_scrap_df[display_scrap_df['year_week'] == w]
                             y_str, w_str = w.split('-')
-                            st.subheader(f"🗓️ {y_str}-{int(w_str)}주차 스크랩")
+                            st.subheader(f"🗓️ {y_str}-{int(w_str)}주차 스크랩 (총 {len(w_data)}건)")
                             for _, row in w_data.iterrows():
                                 with st.expander(f"👉 [{row['venue']}] {row['title']} ({row['view_date']})"):
                                     summary_text = str(row['summary'])
                                     if summary_text.startswith("http"):
                                         url = summary_text.split('\n')[0]
                                         st.markdown(f"**[🔗 원본 기사 보러가기]({url})**")
-                                    if row['brief']: st.write(f"**🔑 키워드:** {row['brief']}")
-                                    if row['highlights']: st.markdown(f"**✨ 5문장 요약:**<br>{row['highlights'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
-                                    if row['note']: st.markdown(f"**🌈 감상:**<br>{row['note'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
+                                        
+                                    if row['summary'] and not row['summary'].startswith("http"): st.markdown(f"**✍️ 필사:**<br>{str(row['summary']).replace(chr(10), '<br>')}", unsafe_allow_html=True)
+                                    elif row['summary'] and "\n" in row['summary']: st.markdown(f"**✍️ 필사:**<br>{str(row['summary']).split(chr(10), 1)[1].replace(chr(10), '<br>')}", unsafe_allow_html=True)
+                                    
+                                    if row['brief']: st.write(f"**🎯 중심맥락(논지):** {row['brief']}")
+                                    if row['highlights']: st.markdown(f"**💡 핵심 사례(논거):**<br>{row['highlights'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
+                                    if row['note']: st.markdown(f"**🏗️ 글 구성:**<br>{row['note'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
                                     if st.button("상세보기 / 수정", key=f"scr_btn_{row['id']}"): show_details(row)
                     else: st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else: st.info("스크랩 기록이 없습니다.")
