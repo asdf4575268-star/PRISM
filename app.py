@@ -312,7 +312,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
             ("💡 핵심 사례(논거) 및 구조", "highlights", "#7D5600")
         ] if cat == "SCRAP" else [
             ("💡 SIGHT", "summary", "#0E6245"), 
-            ("🔖 SENSE", "highlights", "#7D5600")
+            ("🔖 SENSE", "highlights", "#7D5600"),
             ("💎 DRIP", "brief", "#E50914"), 
             ("🖋️ PRISM", "note", "#1E425E")
         ]
