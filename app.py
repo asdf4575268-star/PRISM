@@ -377,7 +377,7 @@ with st.sidebar:
                 cookie_manager.set("admin_logged_in", "yes", expires_at=datetime.now() + timedelta(days=30))
                 st.session_state.user_password = input_password 
                 st.session_state.is_logged_in = True
-                st.session_state.main_nav = "🖋️ 작성"
+                st.session_state.main_nav = "🖋️ WRITE"
                 time.sleep(0.5)
                 st.rerun()
             else: st.error("비밀번호가 틀렸습니다.")
@@ -415,9 +415,9 @@ st.markdown(f"""<style>.header-wrap {{ display: flex; align-items: center; gap: 
 
 if IS_ADMIN:
     st.markdown("""<style>div[role="radiogroup"] > label { font-weight: bold; font-size: 1.1em; padding-right: 15px; }</style>""", unsafe_allow_html=True)
-    st.radio("메뉴", ["🖋️ 작성", "📂 아카이브"], horizontal=True, label_visibility="collapsed", key="main_nav")
+    st.radio("메뉴", ["🖋️ WRITE", "📂 ARCHIVE"], horizontal=True, label_visibility="collapsed", key="main_nav")
 
-tab_w = (st.session_state.main_nav == "🖋️ 작성")
+tab_w = (st.session_state.main_nav == "🖋️ WRITE")
 
 # ----------------- [WRITE 탭] -----------------
 if IS_ADMIN and tab_w:
