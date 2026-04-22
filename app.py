@@ -502,7 +502,7 @@ if IS_ADMIN and tab_w:
                 st.text_area("📰 ORIGINAL", key="f_summary", height=150)
                 st.text_area("✍️ HAND WRITE/BREIF5", key="f_note", height=150)
                 st.text_input("🎯 KEY CONTEXT(argument)", key="f_brief")
-                st.text_area("💡 CORE EXAMPLE(case) 및 구조", key="f_highlights", height=100)
+                st.text_area("💡 CORE EXAMPLE(case)/DESIGN", key="f_highlights", height=100)
             else:
                 st.text_input("1. 💎 DRIP", key="f_brief")
                 st.text_area("2. 🖋️ PRISM", key="f_note", height=300)
