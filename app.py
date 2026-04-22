@@ -542,15 +542,15 @@ if IS_ADMIN and tab_w:
             return True
 
         if is_update:
-            if cb1.button("💾 수정 내용 저장", use_container_width=True, type="primary"):
+            if cb1.button("💾 수정 저장", use_container_width=True, type="primary"):
                 if save_data(is_update_mode=True): st.success("✅ 안전하게 수정되었습니다!"); time.sleep(0.8); st.rerun()
                 else: st.warning("제목을 입력해 주세요.")
         else:
-            if cb1.button("✅ 아카이브 직접 저장", use_container_width=True, type="primary"):
+            if cb1.button("✅ 아카이브 저장", use_container_width=True, type="primary"):
                 if save_data(to_archive=True): st.success("✅ 아카이브 저장 완료!"); time.sleep(0.8); st.rerun()
                 else: st.warning("제목을 입력해 주세요.")
-            if cb2.button("🗓️ Weekly Contents에 계획 등록", use_container_width=True):
-                if save_data(to_archive=False): st.success("🗓️ Weekly Contents에 추가되었습니다!"); time.sleep(0.8); st.rerun()
+            if cb2.button("🗓️ Weekly Contents 등록", use_container_width=True):
+                if save_data(to_archive=False): st.success("🗓️ Weekly Contents 추가 완료!"); time.sleep(0.8); st.rerun()
                 else: st.warning("제목을 입력해 주세요.")
 
         # 창을 숨기는 대신, 내용만 깔끔하게 지워주는 버튼으로 교체합니다.
