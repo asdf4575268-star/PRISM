@@ -46,7 +46,7 @@ if "should_clear_form" not in st.session_state: st.session_state.should_clear_fo
 if "edit_target_id" not in st.session_state: st.session_state.edit_target_id = None
 if "edit_source" not in st.session_state: st.session_state.edit_source = None
 if "main_nav" not in st.session_state: 
-    st.session_state.main_nav = "🖋️ 작성" if st.session_state.is_logged_in else "📂 아카이브"
+    st.session_state.main_nav = "🖋️ WRITE" if st.session_state.is_logged_in else "📂 ARCHIVE"
 if 'f_view_date' not in st.session_state: st.session_state.f_view_date = date.today()
 
 for k in FORM_KEYS:
