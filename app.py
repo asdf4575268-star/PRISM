@@ -480,7 +480,7 @@ if IS_ADMIN and tab_w:
     if is_update:
         st.info("🚨 현재 데이터 수정 모드입니다. (완료 후 저장 버튼을 눌러주세요)")
     else:
-        st.markdown(f"#### 📝 NEW ({category})")
+        st.markdown(f"#### 📝")
         
     with st.container(border=True):
         cl, cr = st.columns([0.4, 0.6])
