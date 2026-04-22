@@ -480,7 +480,7 @@ if IS_ADMIN and tab_w:
     if is_update:
         st.info("🚨 현재 데이터 수정 모드입니다. (완료 후 저장 버튼을 눌러주세요)")
     else:
-        st.markdown(f"#### 📝 신규 작성 ({category})")
+        st.markdown(f"#### 📝 NEW ({category})")
         
     with st.container(border=True):
         cl, cr = st.columns([0.4, 0.6])
@@ -491,7 +491,7 @@ if IS_ADMIN and tab_w:
                 st.image(st.session_state.f_img, use_container_width=True)
             
             st.text_input("📌 제목", key="f_title")
-            st.text_input("👤 창작자/매체" if category == "SCRAP" else "👤 창작자", key="f_creator")
+            st.text_input("👤 창작자" if category == "SCRAP" else "👤 창작자", key="f_creator")
             st.text_input("📅 작품 날짜", key="f_date")
             st.text_input("📍 장소/플랫폼", key="f_venue")
             st.date_input("🍿 감상 완료/예정일 (주간 계획 시 활용)", key="f_view_date")
@@ -551,14 +551,14 @@ if IS_ADMIN and tab_w:
                 if save_data(is_update_mode=True): st.success("✅ 안전하게 수정되었습니다!"); time.sleep(0.8); st.rerun()
                 else: st.warning("제목을 입력해 주세요.")
         else:
-            if cb1.button("✅ 아카이브 직접 저장", use_container_width=True, type="primary"):
+            if cb1.button("✅ 아카이브 저장", use_container_width=True, type="primary"):
                 if save_data(to_archive=True): st.success("✅ 아카이브 저장 완료!"); time.sleep(0.8); st.rerun()
                 else: st.warning("제목을 입력해 주세요.")
-            if cb2.button("🗓️ Weekly Contents에 계획 등록", use_container_width=True):
+            if cb2.button("🗓️ Weekly Contents 등록", use_container_width=True):
                 if save_data(to_archive=False): st.success("🗓️ Weekly Contents에 추가되었습니다!"); time.sleep(0.8); st.rerun()
                 else: st.warning("제목을 입력해 주세요.")
 
-        if cb3.button("🔄 내용 비우기", use_container_width=True):
+        if cb3.button("🔄 비우기", use_container_width=True):
             st.session_state.should_clear_form = True
             st.rerun()
 
