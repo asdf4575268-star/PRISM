@@ -447,7 +447,7 @@ tab_w = (st.session_state.main_nav == "🖋️ WRITE")
 # ----------------- [WRITE 탭] -----------------
 if IS_ADMIN and tab_w:
     category = st.radio("📂 CATEGORY", CATEGORIES, horizontal=True, key="main_category_radio")
-    search_query = st.text_input(f"🔍 {category} 검색 (결과 클릭 시 자동 입력)")
+    search_query = st.text_input(f"🔍 {category} 검색")
     
     # API 검색 처리
     if search_query:
@@ -502,7 +502,7 @@ if IS_ADMIN and tab_w:
     if is_update:
         st.info("🚨 현재 데이터 수정 모드")
     else:
-        st.markdown(f"#### 📝 WRITE ({category})")
+        st.markdown(f"####)")
         
     with st.container(border=True):
         cl, cr = st.columns([0.4, 0.6])
@@ -520,7 +520,6 @@ if IS_ADMIN and tab_w:
         
         with cr:
             if category == "SCRAP":
-                st.markdown("#### 🗺️ SCRAP / HANDWRITE")
                 st.text_area("📰 QUOTE(url)", key="f_summary", height=150)
                 st.text_area("✍️ HANDWRITE(brief)", key="f_note", height=150)
                 st.text_input("🎯 CONTEXT(argument)", key="f_brief")
