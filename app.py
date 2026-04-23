@@ -504,7 +504,7 @@ if IS_ADMIN and tab_w:
             st.text_input("👤 창작자/매체" if category == "SCRAP" else "👤 창작자", key="f_creator")
             st.text_input("📅 작품 날짜", key="f_date")
             st.text_input("📍 장소/플랫폼", key="f_venue")
-            st.date_input("🍿 감상 완료/예정일 (주간 계획 시 활용)", key="f_view_date")
+            st.date_input("🍿 감상 완료/예정일", key="f_view_date")
         
         with cr:
             if category == "SCRAP":
