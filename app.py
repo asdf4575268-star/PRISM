@@ -489,9 +489,7 @@ if IS_ADMIN and tab_w:
     # 입력 폼
     is_update = st.session_state.edit_target_id is not None
     if is_update:
-        st.info("🚨 현재 데이터 수정 모드입니다. (완료 후 저장 버튼을 눌러주세요)")
-    else:
-        st.markdown(f"#### 📝")
+        st.info("🚨 현재 데이터 수정 모드입니다. (완료 후 저장 버튼을 눌러주세요)
         
     with st.container(border=True):
         cl, cr = st.columns([0.4, 0.6])
