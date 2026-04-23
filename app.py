@@ -502,7 +502,7 @@ if IS_ADMIN and tab_w:
     if is_update:
         st.info("🚨 현재 데이터 수정 모드")
     else:
-        st.markdown(f"####)")
+        st.markdown(f"")
         
     with st.container(border=True):
         cl, cr = st.columns([0.4, 0.6])
