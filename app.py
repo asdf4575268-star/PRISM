@@ -304,17 +304,16 @@ def render_item_details(data_dict, item_id, is_plan=False):
         st.markdown(f'<p style="color: {date_color}; font-weight: bold; font-size: 1.1em;">{date_label}: {date_val}</p>', unsafe_allow_html=True)
         st.divider()
         
-        # 스크랩 영역 표시 완벽 분리
         sections = [
             ("📰 기사 원본/링크", "summary", "#444"), 
             ("✍️ 직접 필사", "note", "#1E425E"),
-            ("🎯 중심맥락(논지)", "brief", "#0E6245"),
-            ("💡 핵심 사례(논거) 및 구조", "highlights", "#7D5600")
+            ("🎯 CONTEXT(argument)", "brief", "#0E6245"),
+            ("💡 EXAMPLES(evidence)", "highlights", "#7D5600")
         ] if cat == "SCRAP" else [
-            ("💡 SIGHT", "summary", "#0E6245"), 
-            ("🔖 SENSE", "highlights", "#7D5600"),
             ("💎 DRIP", "brief", "#E50914"), 
-            ("🖋️ PRISM", "note", "#1E425E")
+            ("🖋️ PRISM", "note", "#1E425E"),
+            ("💡 SIGHT", "summary", "#0E6245"), 
+            ("🔖 SENSE", "highlights", "#7D5600")
         ]
             
         for label, key, color in sections:
@@ -325,11 +324,20 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
         
         st.markdown("<br>", unsafe_allow_html=True)
+        
         with st.expander("🔗 외부에 리뷰 공유하기 (복사)"):
             share_text = f"[{cat}] {data_dict.get('title')}\n" + (f"👤 {creator_text}\n\n" if creator_text else "\n")
-            for label, key, _ in sections:
-                if data_dict.get(key) and str(data_dict.get(key)).strip():
-                    share_text += f"{label}:\n{data_dict.get(key)}\n\n"
+            
+            if cat == "SCRAP":
+                for label, key, _ in sections:
+                    if data_dict.get(key) and str(data_dict.get(key)).strip():
+                        share_text += f"{label}:\n{data_dict.get(key)}\n\n"
+            else:
+                if data_dict.get('brief') and str(data_dict.get('brief')).strip():
+                    share_text += f"💎 DRIP:\n{data_dict.get('brief')}\n\n"
+                if data_dict.get('note') and str(data_dict.get('note')).strip():
+                    share_text += f"🖋️ PRISM:\n{data_dict.get('note')}\n\n"
+                    
             st.code(share_text.strip(), language="markdown")
 
     if IS_ADMIN and is_plan:
@@ -422,14 +430,14 @@ if IS_ADMIN:
     st.markdown("""<style>div[role="radiogroup"] > label { font-weight: bold; font-size: 1.1em; padding-right: 15px; }</style>""", unsafe_allow_html=True)
     st.radio("메뉴", ["🖋️ WRITE", "📂 ARCHIVE"], horizontal=True, label_visibility="collapsed", key="main_nav")
 
-tab_w = (st.session_state.main_nav == "🖋️ WRITE")
+tab_w = (st.session_state.main_nav == "🖋️ ")
 
 # ----------------- [WRITE 탭] -----------------
 if IS_ADMIN and tab_w:
-    category = st.radio("📂 CATEGORY", CATEGORIES, horizontal=True, key="main_category_radio")
-    search_query = st.text_input(f"🔍 {category} search")
+    category = st.radio("📂 카테고리", CATEGORIES, horizontal=True, key="main_category_radio")
+    search_query = st.text_input(f"🔍 {category} 검색 (결과 클릭 시 자동 입력)")
     
-    # API search 처리
+    # API 검색 처리
     if search_query:
         if category == "SCRAP":
             if st.button("✨ 가져오기"):
@@ -456,17 +464,8 @@ if IS_ADMIN and tab_w:
                             if tracks: tl_text = "💿 트랙리스트\n" + "\n".join([f"{i+1}. {t}" for i, t in enumerate(tracks)])
                         except: pass
                     
-                    # 💡 변경된 부분: 앨범 URL과 트랙리스트를 합쳐서 summary(SIGHT)에 넣습니다.
                     combined_summary = f"{m.get('url', '')}\n\n{tl_text}".strip()
-                    
-                    st.session_state.update(
-                        edit_target_id=None, edit_source=None, 
-                        f_title=m['title'], f_creator=m['creator'], f_date=m['date'], 
-                        f_img=m['img'], f_venue=m['venue'], 
-                        f_summary=combined_summary,  # 👈 SIGHT(기본 정보) 영역으로 이동됨
-                        f_highlights="",             # 👈 SENSE 영역은 깔끔하게 비움
-                        f_note="", f_brief="", f_video=""
-                    )
+                    st.session_state.update(edit_target_id=None, edit_source=None, f_title=m['title'], f_creator=m['creator'], f_date=m['date'], f_img=m['img'], f_venue=m['venue'], f_summary=combined_summary, f_highlights="", f_note="", f_brief="", f_video="")
                     st.rerun()
         elif category == "STAGE":
             if res := search_kopis(search_query):
@@ -489,7 +488,9 @@ if IS_ADMIN and tab_w:
     # 입력 폼
     is_update = st.session_state.edit_target_id is not None
     if is_update:
-        st.info("🚨 현재 데이터 수정 모드입니다. (완료 후 저장 버튼을 눌러주세요)
+        st.info("🚨 현재 데이터 수정 모드입니다. (완료 후 저장 버튼을 눌러주세요)")
+    else:
+        st.markdown(f"#### 📝 신규 WRITE ({category})")
         
     with st.container(border=True):
         cl, cr = st.columns([0.4, 0.6])
@@ -500,24 +501,24 @@ if IS_ADMIN and tab_w:
                 st.image(st.session_state.f_img, use_container_width=True)
             
             st.text_input("📌 제목", key="f_title")
-            st.text_input("👤 창작자" if category == "SCRAP" else "👤 창작자", key="f_creator")
+            st.text_input("👤 창작자/매체" if category == "SCRAP" else "👤 창작자", key="f_creator")
             st.text_input("📅 작품 날짜", key="f_date")
             st.text_input("📍 장소/플랫폼", key="f_venue")
             st.date_input("🍿 감상 완료/예정일 (주간 계획 시 활용)", key="f_view_date")
         
         with cr:
-            # 카테고리가 스크랩일 때 기사 원본과 필사 영역을 명확히 분리
             if category == "SCRAP":
-                st.text_area("📰 ORIGINAL", key="f_summary", height=150)
-                st.text_area("✍️ HAND WRITE/BREIF5", key="f_note", height=150)
-                st.text_input("🎯 KEY CONTEXT(argument)", key="f_brief")
-                st.text_area("💡 CORE EXAMPLE(case)/DESIGN", key="f_highlights", height=100)
+                st.markdown("#### 🗺️ 기사 스크랩 및 직접 필사")
+                st.text_area("📰 QUOTE", key="f_summary", height=150)
+                st.text_area("✍️ HANDWRITE", key="f_note", height=150)
+                st.text_input("🎯 CONTEXT(argument)", key="f_brief")
+                st.text_area("💡 EXAMPLES(evidence)", key="f_highlights", height=100)
             else:
-                st.text_area("1. 💡 SIGHT (API 연동 시 기본 정보 자동입력)", key="f_summary", height=150)
-                st.text_area("2. 🔖 SENSE", key="f_highlights", height=150)
-                st.text_input("3. 💎 DRIP", key="f_brief")
-                st.text_area("4. 🖋️ PRISM", key="f_note", height=300)
-
+                st.text_input("1. 💎 DRIP", key="f_brief")
+                st.text_area("2. 🖋️ PRISM", key="f_note", height=300)
+                st.text_area("3. 💡 SIGHT ", key="f_summary", height=150)
+                st.text_area("4. 🔖 SENSE", key="f_highlights", height=150)
+        
         st.markdown("<br>", unsafe_allow_html=True)
         cb1, cb2, cb3 = st.columns([0.4, 0.4, 0.2])
         
@@ -555,15 +556,15 @@ if IS_ADMIN and tab_w:
             return True
 
         if is_update:
-            if cb1.button("💾 수정 내용 저장", use_container_width=True, type="primary"):
+            if cb1.button("💾 수정 저장", use_container_width=True, type="primary"):
                 if save_data(is_update_mode=True): st.success("✅ 안전하게 수정되었습니다!"); time.sleep(0.8); st.rerun()
                 else: st.warning("제목을 입력해 주세요.")
         else:
             if cb1.button("✅ ARCHIVE 저장", use_container_width=True, type="primary"):
                 if save_data(to_archive=True): st.success("✅ ARCHIVE 저장 완료!"); time.sleep(0.8); st.rerun()
                 else: st.warning("제목을 입력해 주세요.")
-            if cb2.button("🗓️ Weekly Contents 등록", use_container_width=True):
-                if save_data(to_archive=False): st.success("🗓️ Weekly Contents에 추가되었습니다!"); time.sleep(0.8); st.rerun()
+            if cb2.button("🗓️ Weekly Contents에 등록", use_container_width=True):
+                if save_data(to_archive=False): st.success("🗓️ Weekly Contents에 추가 완료!"); time.sleep(0.8); st.rerun()
                 else: st.warning("제목을 입력해 주세요.")
 
         if cb3.button("🔄 비우기", use_container_width=True):
@@ -609,7 +610,6 @@ if IS_ADMIN and tab_w:
                         else:
                             st.markdown(f"""<div style='background-color: #2A2A2A; padding: 10px; border-radius: 6px; border-left: 4px solid #3399FF; margin-bottom: 5px; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; text-align: center;'><div style='font-size: 2em; font-weight: bold; line-height: 1.3;'>{emoji}</div></div>""", unsafe_allow_html=True)
                         
-                        # "수정" 대신 제목으로 버튼 라벨링
                         short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
                         if st.button(f"✏️ {short_title}", key=f"dtl_cal_{row['id']}", use_container_width=True): show_plan_details(row)
 
@@ -621,13 +621,13 @@ elif not tab_w:
     if not all_df.empty:
         if search_query_archive := st.text_input("🔍", key="global_search"):
             mask = (all_df['title'].str.contains(search_query_archive, case=False, na=False) | all_df['creator'].str.contains(search_query_archive, case=False, na=False) | all_df['summary'].str.contains(search_query_archive, case=False, na=False) | all_df['note'].str.contains(search_query_archive, case=False, na=False) | all_df['venue'].str.contains(search_query_archive, case=False, na=False))
-            all_df = all_df[mask]; st.markdown(f"**'{search_query_archive}'** search 결과 ({len(all_df)})"); st.divider()
+            all_df = all_df[mask]; st.markdown(f"**'{search_query_archive}'** 검색 결과 ({len(all_df)})"); st.divider()
 
         all_df['v_dt'] = pd.to_datetime(all_df['view_date'], errors='coerce')
         main_df, scrap_df = all_df[all_df['category'] != "SCRAP"], all_df[all_df['category'] == "SCRAP"]
         cat_order = CATEGORIES[:-1]
         
-        tab_titles = [f"📅 ALL ({len(main_df)})"] + [f"{CAT_EMOJIS[c]} {c} ({len(main_df[main_df['category'] == c])})" for c in cat_order]
+        tab_titles = [f"📅 전체 ({len(main_df)})"] + [f"{CAT_EMOJIS[c]} {c} ({len(main_df[main_df['category'] == c])})" for c in cat_order]
         if IS_ADMIN: tab_titles.append(f"🔐 스크랩 ({len(scrap_df)})")
         sub_tabs = st.tabs(tab_titles)
         grid_cols = 6
@@ -655,7 +655,7 @@ elif not tab_w:
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
                 c_data = main_df[main_df['category'] == c_name]
-                if c_data.empty: st.info(f"search 결과 없음: {c_name}" if search_query_archive else f"데이터 없음: {c_name}")
+                if c_data.empty: st.info(f"검색 결과 없음: {c_name}" if search_query_archive else f"데이터 없음: {c_name}")
                 else:
                     items = c_data.to_dict('records')
                     music_cls = "music-tab-style" if c_name == "MUSIC" else ""
@@ -701,17 +701,16 @@ elif not tab_w:
                             st.subheader(f"🗓️ {y_str}-{int(w_str)}주차 ({len(w_data)})")
                             for _, row in w_data.iterrows():
                                 with st.expander(f"👉 [{row['venue']}] {row['title']} ({row['view_date']})"):
-                                    # 분리된 필드에 맞게 ARCHIVE 출력 방식도 깔끔하게 변경
                                     summary_text = str(row['summary'])
                                     if summary_text.startswith("http"):
-                                        st.markdown(f"**[🔗 원본 기사 보러가기]({summary_text.split(chr(10))[0]})**")
+                                        st.markdown(f"**[🔗 scrap]({summary_text.split(chr(10))[0]})**")
                                     elif row['summary']: 
-                                        st.markdown(f"**📰 기사 원본:**<br>{str(row['summary']).replace(chr(10), '<br>')}", unsafe_allow_html=True)
+                                        st.markdown(f"**📰 ORIGINAL:**<br>{str(row['summary']).replace(chr(10), '<br>')}", unsafe_allow_html=True)
                                     
-                                    if row['note']: st.markdown(f"**✍️ 직접 필사:**<br>{row['note'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
-                                    if row['brief']: st.write(f"**🎯 중심맥락(논지):** {row['brief']}")
-                                    if row['highlights']: st.markdown(f"**💡 핵심 사례(논거) 및 구조:**<br>{row['highlights'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
+                                    if row['note']: st.markdown(f"**✍️ HANDWRITE:**<br>{row['note'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
+                                    if row['brief']: st.write(f"**🎯 CONTEXT(argument):** {row['brief']}")
+                                    if row['highlights']: st.markdown(f"**💡 EXAMPLE(evidence):**<br>{row['highlights'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
                                     
                                     if st.button("✏️ 수정", key=f"scr_btn_{row['id']}"): show_details(row)
-                    else: st.info("해당 태그나 search어에 맞는 스크랩이 없습니다.")
+                    else: st.info("해당 태그나 검색어에 맞는 스크랩이 없습니다.")
                 else: st.info("스크랩 기록이 없습니다.")
