@@ -434,8 +434,8 @@ tab_w = (st.session_state.main_nav == "🖋️ WRITE")
 
 # ----------------- [WRITE 탭] -----------------
 if IS_ADMIN and tab_w:
-    category = st.radio("📂 카테고리", CATEGORIES, horizontal=True, key="main_category_radio")
-    search_query = st.text_input(f"🔍 {category} 검색 (결과 클릭 시 자동 입력)")
+    category = st.radio("📂 CATEGORY", CATEGORIES, horizontal=True, key="main_category_radio")
+    search_query = st.text_input(f"🔍 {category}")
     
     # API 검색 처리
     if search_query:
