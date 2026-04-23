@@ -46,7 +46,7 @@ if "should_clear_form" not in st.session_state: st.session_state.should_clear_fo
 if "edit_target_id" not in st.session_state: st.session_state.edit_target_id = None
 if "edit_source" not in st.session_state: st.session_state.edit_source = None
 if "main_nav" not in st.session_state: 
-    st.session_state.main_nav = "🖋️ WRITE" if st.session_state.is_logged_in else "📂 아카이브"
+    st.session_state.main_nav = "🖋️ WRITE" if st.session_state.is_logged_in else "📂 ARCHIVE"
 if 'f_view_date' not in st.session_state: st.session_state.f_view_date = date.today()
 
 for k in FORM_KEYS:
@@ -354,7 +354,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
 
     if IS_ADMIN and is_plan:
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("✅ 완료 (아카이브로 이동)", key=f"done_plan_{item_id}", use_container_width=True, type="primary"):
+        if st.button("✅ 완료 (ARCHIVE 이동)", key=f"done_plan_{item_id}", use_container_width=True, type="primary"):
             conn = get_connection()
             new_record = {
                 "category": cat, "title": data_dict['title'], "creator": data_dict.get("creator", ""), "rel_date": data_dict.get("rel_date", ""),
@@ -370,9 +370,9 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 supabase.table("archive").upsert(new_record).execute()
                 supabase.table("plan").delete().eq("id", item_id).execute()
             except: pass
-            st.success("🎉 아카이브로 이동 완료!"); time.sleep(0.5); st.rerun()
+            st.success("🎉 ARCHIVE 저장완료!"); time.sleep(0.5); st.rerun()
 
-@st.dialog("📋 아카이브 기록", width="large")
+@st.dialog("📋 ARCHIVE", width="large")
 def show_details(item): render_item_details(item if isinstance(item, dict) else item.to_dict(), item['id'], is_plan=False)
 
 @st.dialog("🗓️ 상세 정보", width="large")
@@ -412,7 +412,7 @@ with st.sidebar:
             cookie_manager.set("admin_logged_in", "no")
             st.session_state.is_logged_in = False
             st.session_state.user_password = ""
-            st.session_state.main_nav = "📂 아카이브"
+            st.session_state.main_nav = "📂 ARCHIVE"
             time.sleep(0.5)
             st.rerun()
         st.divider()
@@ -440,7 +440,7 @@ st.markdown(f"""<style>.header-wrap {{ display: flex; align-items: center; gap: 
 
 if IS_ADMIN:
     st.markdown("""<style>div[role="radiogroup"] > label { font-weight: bold; font-size: 1.1em; padding-right: 15px; }</style>""", unsafe_allow_html=True)
-    st.radio("메뉴", ["🖋️ WRITE", "📂 아카이브"], horizontal=True, label_visibility="collapsed", key="main_nav")
+    st.radio("메뉴", ["🖋️ WRITE", "📂 ARCHIVE"], horizontal=True, label_visibility="collapsed", key="main_nav")
 
 tab_w = (st.session_state.main_nav == "🖋️ WRITE")
 
@@ -572,7 +572,7 @@ if IS_ADMIN and tab_w:
                 if save_data(is_update_mode=True): st.success("✅ 수정 완료!"); time.sleep(0.8); st.rerun()
                 else: st.warning("제목을 입력해 주세요.")
         else:
-            if cb1.button("✅ 아카이브 저장", use_container_width=True, type="primary"):
+            if cb1.button("✅ ARCHIVE 저장", use_container_width=True, type="primary"):
                 if save_data(to_archive=True): st.success("✅ 저장 완료!"); time.sleep(0.8); st.rerun()
                 else: st.warning("제목을 입력해 주세요.")
             if cb2.button("🗓️ Weekly Contents 등록", use_container_width=True):
