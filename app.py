@@ -32,6 +32,9 @@ CATEGORIES = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"]
 CAT_EMOJIS = {"BOOKS": "📚", "MUSIC": "🎧", "MOVIES": "🎞️", "SERIES": "📽️", "STAGE": "🎭", "SCRAP": "📰"}
 FORM_KEYS = ['f_title', 'f_creator', 'f_date', 'f_venue', 'f_img', 'f_video', 'f_summary', 'f_brief', 'f_highlights', 'f_note']
 
+def get_kst_today():
+    return (datetime.utcnow() + timedelta(hours=9)).date()
+
 # ==========================================
 # 2. STATE INITIALIZATION (상태 중앙 관리)
 # ==========================================
@@ -47,7 +50,7 @@ if "edit_target_id" not in st.session_state: st.session_state.edit_target_id = N
 if "edit_source" not in st.session_state: st.session_state.edit_source = None
 if "main_nav" not in st.session_state: 
     st.session_state.main_nav = "🖋️ WRITE" if st.session_state.is_logged_in else "📂 ARCHIVE"
-if 'f_view_date' not in st.session_state: st.session_state.f_view_date = date.today()
+if 'f_view_date' not in st.session_state: st.session_state.f_view_date = get_kst_today()
 
 for k in FORM_KEYS:
     if k not in st.session_state: st.session_state[k] = ""
@@ -55,7 +58,7 @@ for k in FORM_KEYS:
 # 초기화 버튼을 눌렀을 때 폼 비우기
 if st.session_state.should_clear_form:
     for k in FORM_KEYS: st.session_state[k] = ""
-    st.session_state.f_view_date = date.today()
+    st.session_state.f_view_date = get_kst_today()
     st.session_state.edit_target_id = None
     st.session_state.edit_source = None
     st.session_state.should_clear_form = False
@@ -301,7 +304,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
             st.session_state.f_summary = safe_str(data_dict.get('summary'))
             date_key = 'plan_date' if is_plan else 'view_date'
             try: st.session_state.f_view_date = pd.to_datetime(data_dict.get(date_key)).date()
-            except: st.session_state.f_view_date = date.today()
+            except: st.session_state.f_view_date = get_kst_today()
             
             st.session_state.main_nav = "🖋️ WRITE"
             st.rerun()
@@ -360,7 +363,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 "category": cat, "title": data_dict['title'], "creator": data_dict.get("creator", ""), "rel_date": data_dict.get("rel_date", ""),
                 "venue": data_dict.get("venue", ""), "summary": data_dict.get("summary", ""), "brief": data_dict.get("brief", ""), 
                 "highlights": data_dict.get("highlights", ""), "note": data_dict.get("note", ""), "img_url": data_dict.get("img_url", ""), 
-                "img_url2": data_dict.get("img_url2", ""), "save_date": str(date.today()), "view_date": data_dict['plan_date']
+                "img_url2": data_dict.get("img_url2", ""), "save_date": str(get_kst_today()), "view_date": data_dict['plan_date']
             }
             conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", tuple(new_record.values()))
             conn.execute("DELETE FROM plan WHERE id=?", (item_id,))
@@ -454,21 +457,19 @@ if IS_ADMIN and tab_w:
         if category == "SCRAP":
             if st.button("✨ 가져오기"):
                 if s := scrape_url(search_query):
-                    st.session_state.update(
-                        edit_target_id=None, 
-                        edit_source=None, 
-                        f_title=s['title'], 
-                        f_creator='', 
-                        f_date=str(date.today()), 
-                        f_view_date=date.today(),  # 감상 완료/예정일을 오늘로 설정
-                        f_img=s['img'], 
-                        f_venue=s['venue'], 
-                        f_summary=s['summary'], 
-                        f_highlights="", 
-                        f_note="", 
-                        f_brief="", 
-                        f_video=""
-                    )
+                    st.session_state.edit_target_id = None
+                    st.session_state.edit_source = None
+                    st.session_state.f_title = s['title']
+                    st.session_state.f_creator = ''
+                    st.session_state.f_date = ""
+                    st.session_state.f_view_date = get_kst_today()
+                    st.session_state.f_img = s['img']
+                    st.session_state.f_venue = s['venue']
+                    st.session_state.f_summary = s['summary']
+                    st.session_state.f_highlights = ""
+                    st.session_state.f_note = ""
+                    st.session_state.f_brief = ""
+                    st.session_state.f_video = ""
                     st.rerun()
                 else: st.error("URL 정보를 가져올 수 없습니다.")
         elif category == "BOOKS":
@@ -565,7 +566,7 @@ if IS_ADMIN and tab_w:
                     except: pass
             else:
                 if to_archive:
-                    data.update({"save_date": str(date.today()), "view_date": str(st.session_state.f_view_date)})
+                    data.update({"save_date": str(get_kst_today()), "view_date": str(st.session_state.f_view_date)})
                     conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", tuple(data.values()))
                     try: supabase.table("archive").upsert(data).execute()
                     except: pass
@@ -603,7 +604,7 @@ if IS_ADMIN and tab_w:
     with col_l:
         if st.button("⬅️", use_container_width=True): st.session_state.week_offset -= 1; st.rerun()
     
-    today_ts = pd.Timestamp(date.today()); view_monday = today_ts - pd.Timedelta(days=today_ts.weekday()) + pd.Timedelta(weeks=st.session_state.week_offset)
+    today_ts = pd.Timestamp(get_kst_today()); view_monday = today_ts - pd.Timedelta(days=today_ts.weekday()) + pd.Timedelta(weeks=st.session_state.week_offset)
     view_sunday = view_monday + pd.Timedelta(days=6)
     
     with col_c:
@@ -697,7 +698,7 @@ elif not tab_w:
         if IS_ADMIN:
             with sub_tabs[-1]:
                 if not scrap_df.empty:
-                    week_scrap = scrap_df[scrap_df['v_dt'] >= (pd.Timestamp.today() - pd.Timedelta(days=pd.Timestamp.today().weekday()))]
+                    week_scrap = scrap_df[scrap_df['v_dt'] >= (pd.Timestamp(get_kst_today()) - pd.Timedelta(days=pd.Timestamp(get_kst_today()).weekday()))]
                     keywords = []
                     for text in week_scrap['summary'].fillna('') + " " + week_scrap['note'].fillna('') + " " + week_scrap['brief'].fillna('') + " " + week_scrap['highlights'].fillna(''):
                         keywords.extend(re.findall(r"#(\w+)", str(text)))
