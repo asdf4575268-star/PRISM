@@ -458,8 +458,8 @@ if IS_ADMIN and tab_w:
                     st.session_state.edit_source = None
                     st.session_state.f_title = s['title']
                     st.session_state.f_creator = ''
-                    st.session_state.f_date = ""  # 기사 발행일은 직접 입력하도록 빈칸 처리
-                    st.session_state.f_view_date = date.today()  # 감상일은 오늘로 자동 설정
+                    st.session_state.f_date = str(date.today())
+                    st.session_state.f_view_date = date.today()
                     st.session_state.f_img = s['img']
                     st.session_state.f_venue = s['venue']
                     st.session_state.f_summary = s['summary']
