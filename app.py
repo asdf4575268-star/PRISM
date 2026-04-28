@@ -454,7 +454,21 @@ if IS_ADMIN and tab_w:
         if category == "SCRAP":
             if st.button("✨ 가져오기"):
                 if s := scrape_url(search_query):
-                    st.session_state.update(edit_target_id=None, edit_source=None, f_title=s['title'], f_creator='', f_date=str(date.today()), f_img=s['img'], f_venue=s['venue'], f_summary=s['summary'], f_highlights="", f_note="", f_brief="", f_video="")
+                    st.session_state.update(
+                        edit_target_id=None, 
+                        edit_source=None, 
+                        f_title=s['title'], 
+                        f_creator='', 
+                        f_date=str(date.today()), 
+                        f_view_date=date.today(),  # 감상 완료/예정일을 오늘로 설정
+                        f_img=s['img'], 
+                        f_venue=s['venue'], 
+                        f_summary=s['summary'], 
+                        f_highlights="", 
+                        f_note="", 
+                        f_brief="", 
+                        f_video=""
+                    )
                     st.rerun()
                 else: st.error("URL 정보를 가져올 수 없습니다.")
         elif category == "BOOKS":
