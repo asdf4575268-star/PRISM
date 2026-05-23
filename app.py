@@ -322,7 +322,9 @@ def render_item_details(data_dict, item_id, is_plan=False):
         if img_url and str(img_url) != "None": st.image(img_url, use_container_width=True)
         
         memo_content = data_dict.get('img_url2', '')
-        if memo_content and str(memo_content) != "None":
+        # Pandas의 NaN 및 비어있는 값을 안전하게 걸러내고 문자열로 변환합니다.
+        if pd.notna(memo_content) and str(memo_content).strip() not in ["", "None", "nan", "NaN"]:
+            memo_content = str(memo_content).strip()
             url_match = re.search(r'(https?://[^\s]+)', memo_content)
             if url_match:
                 media_url = url_match.group(1)
