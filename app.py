@@ -360,25 +360,84 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 st.markdown(str(val).replace('\n', '  \n'))
                 st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
 
-    if IS_ADMIN and is_plan:
+        if IS_ADMIN and is_plan:
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("✅ 완료 (ARCHIVE 이동)", key=f"done_plan_{item_id}", use_container_width=True, type="primary"):
-            conn = get_connection()
-            new_record = {
-                "category": cat, "title": data_dict['title'], "creator": data_dict.get("creator", ""), "rel_date": data_dict.get("rel_date", ""),
-                "venue": data_dict.get("venue", ""), "summary": data_dict.get("summary", ""), "brief": data_dict.get("brief", ""), 
-                "highlights": data_dict.get("highlights", ""), "note": data_dict.get("note", ""), "img_url": data_dict.get("img_url", ""), 
-                "img_url2": data_dict.get("img_url2", ""), "save_date": str(get_kst_today()), "view_date": data_dict['plan_date']
-            }
-            conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", tuple(new_record.values()))
-            conn.execute("DELETE FROM plan WHERE id=?", (item_id,))
-            conn.commit()
-            st.cache_data.clear()
-            try: 
-                supabase.table("archive").upsert(new_record).execute()
-                supabase.table("plan").delete().eq("id", item_id).execute()
-            except: pass
-            st.success("🎉 ARCHIVE 저장완료!"); time.sleep(0.5); st.rerun()
+        
+        # 현재 콘텐츠의 상태 파악 (기본값은 감상 중)
+        current_plan_type = data_dict.get('plan_type', 'CONSUME')
+        
+        if current_plan_type == 'CONSUME':
+            # [감상 중] 상태일 때 노출되는 버튼
+            btn_label = "📝 감상 완료 (노트 작성 중으로 전환)"
+            if st.button(btn_label, key=f"to_note_{item_id}", use_container_width=True, type="secondary"):
+                conn = get_connection()
+                
+                # 상태를 'NOTE(작성 중)'로 변경하고 날짜를 오늘로 갱신
+                next_plan_data = {**data_dict}
+                next_plan_data['plan_type'] = 'NOTE'
+                today_str = str(get_kst_today())
+                
+                next_memo_payload = json.dumps(next_plan_data, ensure_ascii=False)
+                
+                # 기존 계획의 내용(memo)과 날짜를 업데이트
+                conn.execute(
+                    "UPDATE plan SET plan_date=?, memo=? WHERE id=?", 
+                    (today_str, next_memo_payload, item_id)
+                )
+                conn.commit()
+                st.cache_data.clear()
+                
+                try:
+                    supabase.table("plan").update({
+                        "plan_date": today_str, 
+                        "memo": next_memo_payload
+                    }).eq("id", item_id).execute()
+                except:
+                    pass
+                
+                st.success("📝 감상을 완료했습니다. '작성 중' 단계로 전환되었습니다!")
+                time.sleep(0.8)
+                st.rerun()
+                
+        elif current_plan_type == 'NOTE':
+            # [작성 중] 상태일 때 노출되는 버튼
+            btn_label = "✅ 작성 완료 (아카이브로 이동)"
+            if st.button(btn_label, key=f"to_archive_{item_id}", use_container_width=True, type="primary"):
+                conn = get_connection()
+                
+                # 아카이브 레코드 생성
+                new_record = {
+                    "category": cat, 
+                    "title": data_dict['title'], 
+                    "creator": data_dict.get("creator", ""), 
+                    "rel_date": data_dict.get("rel_date", ""),
+                    "venue": data_dict.get("venue", ""), 
+                    "summary": data_dict.get("summary", ""), 
+                    "brief": data_dict.get("brief", ""), 
+                    "highlights": data_dict.get("highlights", ""), 
+                    "note": data_dict.get("note", ""), 
+                    "img_url": data_dict.get("img_url", ""), 
+                    "img_url2": data_dict.get("img_url2", ""), 
+                    "save_date": str(get_kst_today()), 
+                    "view_date": data_dict['plan_date']
+                }
+                
+                # Local SQLite 및 Supabase 아카이브 적재
+                conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", tuple(new_record.values()))
+                try: supabase.table("archive").upsert(new_record).execute()
+                except: pass
+                
+                # 주간 계획(plan) 테이블에서는 삭제
+                conn.execute("DELETE FROM plan WHERE id=?", (item_id,))
+                conn.commit()
+                st.cache_data.clear()
+                
+                try: supabase.table("plan").delete().eq("id", item_id).execute()
+                except: pass
+                
+                st.success("🎉 최종 작성이 완료되어 아카이브로 안전하게 이동되었습니다!")
+                time.sleep(0.8)
+                st.rerun()
 
 @st.dialog("📋 ARCHIVE", width="large")
 def show_details(item): render_item_details(item if isinstance(item, dict) else item.to_dict(), item['id'], is_plan=False)
