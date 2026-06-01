@@ -361,43 +361,43 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
 
         if IS_ADMIN and is_plan:
-        st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("<br>", unsafe_allow_html=True)
         
-        # 현재 콘텐츠의 상태 파악 (기본값은 감상 중)
-        current_plan_type = data_dict.get('plan_type', 'CONSUME')
+            # 현재 콘텐츠의 상태 파악 (기본값은 감상 중)
+            current_plan_type = data_dict.get('plan_type', 'CONSUME')
         
-        if current_plan_type == 'CONSUME':
-            # [감상 중] 상태일 때 노출되는 버튼
-            btn_label = "📝 감상 완료 (노트 작성 중으로 전환)"
-            if st.button(btn_label, key=f"to_note_{item_id}", use_container_width=True, type="secondary"):
-                conn = get_connection()
+            if current_plan_type == 'CONSUME':
+                # [감상 중] 상태일 때 노출되는 버튼
+                btn_label = "📝 감상 완료 (노트 작성 중으로 전환)"
+                if st.button(btn_label, key=f"to_note_{item_id}", use_container_width=True, type="secondary"):
+                    conn = get_connection()
                 
-                # 상태를 'NOTE(작성 중)'로 변경하고 날짜를 오늘로 갱신
-                next_plan_data = {**data_dict}
-                next_plan_data['plan_type'] = 'NOTE'
-                today_str = str(get_kst_today())
+                    # 상태를 'NOTE(작성 중)'로 변경하고 날짜를 오늘로 갱신
+                    next_plan_data = {**data_dict}
+                    next_plan_data['plan_type'] = 'NOTE'
+                    today_str = str(get_kst_today())
                 
-                next_memo_payload = json.dumps(next_plan_data, ensure_ascii=False)
+                    next_memo_payload = json.dumps(next_plan_data, ensure_ascii=False)
                 
-                # 기존 계획의 내용(memo)과 날짜를 업데이트
-                conn.execute(
-                    "UPDATE plan SET plan_date=?, memo=? WHERE id=?", 
-                    (today_str, next_memo_payload, item_id)
-                )
-                conn.commit()
-                st.cache_data.clear()
+                    # 기존 계획의 내용(memo)과 날짜를 업데이트
+                        conn.execute(
+                        "UPDATE plan SET plan_date=?, memo=? WHERE id=?", 
+                        (today_str, next_memo_payload, item_id)
+                    )
+                    conn.commit()
+                    st.cache_data.clear()
                 
-                try:
-                    supabase.table("plan").update({
-                        "plan_date": today_str, 
-                        "memo": next_memo_payload
-                    }).eq("id", item_id).execute()
-                except:
-                    pass
+                    try:
+                        supabase.table("plan").update({
+                            "plan_date": today_str, 
+                            "memo": next_memo_payload
+                        }).eq("id", item_id).execute()
+                    except:
+                        pass
                 
-                st.success("📝 감상을 완료했습니다. '작성 중' 단계로 전환되었습니다!")
-                time.sleep(0.8)
-                st.rerun()
+                    st.success("📝 감상을 완료했습니다. '작성 중' 단계로 전환되었습니다!")
+                    time.sleep(0.8)
+                    st.rerun()
                 
         elif current_plan_type == 'NOTE':
             # [작성 중] 상태일 때 노출되는 버튼
