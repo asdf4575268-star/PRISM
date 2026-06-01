@@ -539,7 +539,7 @@ if IS_ADMIN and tab_w:
             
             # 주간 계획용 서브 카테고리 분리 셀렉터
             pt_idx = 0 if st.session_state.get('f_plan_type', 'CONSUME') == 'CONSUME' else 1
-            plan_type_ui = st.radio("🗓️ 주간 계획 구분 (등록 시 적용)", ["🍿 읽거나 볼 콘텐츠", "📝 작성할 노트"], index=pt_idx, horizontal=True)
+            plan_type_ui = st.radio("🗓️ 주간 계획", ["🍿I'm WATCHING", "📝 I MADE IT"], index=pt_idx, horizontal=True)
         
         with cr:
             if category == "SCRAP":
@@ -663,14 +663,14 @@ if IS_ADMIN and tab_w:
                             short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
                             if st.button(f"✏️ {short_title}", key=f"dtl_cal_{key_prefix}_{row['id']}", use_container_width=True): show_plan_details(row)
 
-        st.markdown("#### 🍿 이번 주 읽거나 볼 콘텐츠")
+        st.markdown("#### 🍿 I'm Watching")
         if not consume_items:
             st.markdown("<div style='color:#666; padding-left: 10px; margin-bottom: 20px;'>등록된 콘텐츠가 없습니다.</div>", unsafe_allow_html=True)
         else:
             draw_plan_grid(consume_items, "consume")
             
         st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("#### 📝 이번 주 작성할 노트")
+        st.markdown("#### 📝 I Made it")
         if not note_items:
             st.markdown("<div style='color:#666; padding-left: 10px; margin-bottom: 20px;'>등록된 노트 일정이 없습니다.</div>", unsafe_allow_html=True)
         else:
