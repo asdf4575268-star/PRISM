@@ -513,6 +513,23 @@ tab_w = (st.session_state.main_nav == "🖋️ WRITE")
 
 # ----------------- [WRITE 탭] -----------------
 if IS_ADMIN and tab_w:
+    # 소형 Weekly 컨텐츠 전용 스타일 빌드 및 전체 양식 여백 최적화
+    st.markdown("""<style>
+    .sm-cal-box { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.4); background: #222; display: flex; align-items: center; justify-content: center; margin-bottom: 3px; }
+    .sm-cal-box img { width: 100%; height: 100%; object-fit: cover; }
+    .sm-badge-cat { position: absolute; top: 3px; left: 3px; background: rgba(0, 0, 0, 0.7); padding: 1px 4px; border-radius: 3px; font-size: 10px; z-index: 5; }
+    .sm-date-label { text-align: center; font-size: 0.78rem; color: #3399FF; font-weight: bold; margin-bottom: 2px; }
+    
+    /* Streamlit 컴팩트 버튼 패딩 세팅 */
+    div.compact-btn-wrapper div[data-testid="stBaseButton-secondary"] {
+        padding: 1px 4px !important;
+        font-size: 11px !important;
+        min-height: 24px !important;
+        height: 24px !important;
+    }
+    div.compact-btn-wrapper p { font-size: 11px !important; line-height: 24px !important; }
+    </style>""", unsafe_allow_html=True)
+
     category = st.radio("📂 CATEGORY", CATEGORIES, horizontal=True, key="main_category_radio")
     search_query = st.text_input(f"🔍 {category} 검색")
     
@@ -577,11 +594,78 @@ if IS_ADMIN and tab_w:
 
     st.divider()
 
+    # --- [위치 이동] Weekly Contents 영역을 입력 폼의 상단으로 배치 ---
+    col_l, col_c, col_r = st.columns([0.08, 0.84, 0.08])
+    with col_l:
+        st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+        if st.button("⬅️", use_container_width=True, key="w_prev_week"): st.session_state.week_offset -= 1; st.rerun()
+    
+    today_ts = pd.Timestamp(get_kst_today()); view_monday = today_ts - pd.Timedelta(days=today_ts.weekday()) + pd.Timedelta(weeks=st.session_state.week_offset)
+    view_sunday = view_monday + pd.Timedelta(days=6)
+    
+    with col_c:
+        st.markdown(f"<h4 style='text-align: center; margin: 0; font-weight: bold;'>📅 Weekly Contents ({view_monday.isocalendar().week}주차)</h4><p style='text-align: center; color: #888; font-size: 0.85em; margin-bottom: 12px;'>{view_monday.strftime('%m.%d')} ~ {view_sunday.strftime('%m.%d')}</p>", unsafe_allow_html=True)
+    with col_r:
+        st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+        if st.button("➡️", use_container_width=True, key="w_next_week"): st.session_state.week_offset += 1; st.rerun()
+            
+    plan_df = pd.read_sql_query("SELECT * FROM plan ORDER BY plan_date ASC", get_connection())
+    if not plan_df.empty: 
+        plan_df['p_dt'] = pd.to_datetime(plan_df['plan_date'])
+        def extract_p_type(m_str):
+            try: return json.loads(m_str).get('plan_type', 'CONSUME')
+            except: return 'CONSUME'
+        plan_df['plan_type'] = plan_df['memo'].apply(extract_p_type)
+
+    week_data = plan_df[(plan_df['p_dt'].dt.date >= view_monday.date()) & (plan_df['p_dt'].dt.date <= view_sunday.date())] if not plan_df.empty else pd.DataFrame()
+
+    if week_data.empty: 
+        st.markdown("<div style='text-align: center; color:#666; font-size:0.9em; padding: 10px; background-color:#151515; border-radius:6px;'>예정된 주간 콘텐츠가 없습니다.</div>", unsafe_allow_html=True)
+    else:
+        consume_items = week_data[week_data['plan_type'] == 'CONSUME'].to_dict('records')
+        note_items = week_data[week_data['plan_type'] == 'NOTE'].to_dict('records')
+        
+        # 박스를 소형화하기 위해 기존 5열 구조에서 -> 8열 구조로 대폭 확장
+        grid_cols = 8
+
+        def draw_plan_grid(items_list, key_prefix):
+            for i in range(0, len(items_list), grid_cols):
+                cols = st.columns(grid_cols)
+                for j in range(grid_cols):
+                    if i + j < len(items_list):
+                        row = items_list[i + j]
+                        with cols[j]:
+                            emoji = CAT_EMOJIS.get(row['category'], "📌")
+                            st.markdown(f"<div class='sm-date-label'>{row['plan_date'][5:].replace('-', '.')}</div>", unsafe_allow_html=True)
+                            try: img_url = json.loads(row['memo']).get('img_url', '')
+                            except: img_url = ""
+                            
+                            if img_url and img_url.strip() and img_url != "None":
+                                st.markdown(f"""<div class='sm-cal-box'><div class='sm-badge-cat'>{emoji}</div><img src="{img_url}" onerror="this.style.display='none'"></div>""", unsafe_allow_html=True)
+                            else:
+                                st.markdown(f"""<div class='sm-cal-box' style='border-left: 3px solid #3399FF;'><div style='font-size: 1.4em;'>{emoji}</div></div>""", unsafe_allow_html=True)
+                            
+                            # 박스 크기에 맞춰 노출 타이틀 글자 수 조절 (7글자 제한)
+                            short_title = row['title'][:7] + ".." if len(row['title']) > 7 else row['title']
+                            st.markdown("<div class='compact-btn-wrapper'>", unsafe_allow_html=True)
+                            if st.button(f"{short_title}", key=f"dtl_cal_{key_prefix}_{row['id']}", use_container_width=True): show_plan_details(row)
+                            st.markdown("</div>", unsafe_allow_html=True)
+
+        if consume_items:
+            st.markdown("<p style='font-weight: bold; margin-bottom: 5px; font-size: 0.9em; color:#bbb;'>🍿 I'm Watching</p>", unsafe_allow_html=True)
+            draw_plan_grid(consume_items, "consume")
+            
+        if note_items:
+            st.markdown("<p style='font-weight: bold; margin-top: 10px; margin-bottom: 5px; font-size: 0.9em; color:#bbb;'>📝 I Made it</p>", unsafe_allow_html=True)
+            draw_plan_grid(note_items, "note")
+
+    st.divider()
+
+    # --- 입력 폼 영역 ---
     is_update = st.session_state.edit_target_id is not None
     if is_update:
         st.info("🚨 현재 데이터 수정 모드 (작성 중 화면 새로고침 차단됨)")
         
-    # st.form으로 전체 입력을 감싸 글자 입력/복사 시 발생하는 새로고침 랙 현상을 완벽 차단
     with st.form(key="prism_write_form", clear_on_submit=False):
         cl, cr = st.columns([0.4, 0.6])
         with cl:
@@ -596,16 +680,15 @@ if IS_ADMIN and tab_w:
             st.text_input("📍 장소/플랫폼", key="f_venue")
             st.date_input("🍿 감상 완료/예정일 (주간 계획 시 활용)", key="f_view_date")
             
-            # 주간 계획용 서브 카테고리 분리 셀렉터
             pt_idx = 0 if st.session_state.get('f_plan_type', 'CONSUME') == 'CONSUME' else 1
-            plan_type_ui = st.radio("🗓️ 주간 계획", ["🍿I'm WATCHING", "📝 I MADE IT"], index=pt_idx, horizontal=True)
+            plan_type_ui = st.radio("🗓️ 주간 계획 분류", ["🍿I'm WATCHING", "📝 I MADE IT"], index=pt_idx, horizontal=True)
         
         with cr:
             if category == "SCRAP":
                 st.text_area("📰 QUOTE(url)", key="f_summary", height=150)
                 st.text_area("✍️ HANDWRITE(brief)", key="f_note", height=150)
                 st.text_input("🎯 CONTEXT(argument)", key="f_brief")
-                st.text_area("💡 EXAMPLS(evidences)/STRUCTURE", key="f_highlights", height=100)
+                st.text_area("💡 EXAMPLS(evidences)/STRUCTURE", key="f_highlights", height=120)
             else:
                 st.text_input("1. 💎 DRIP", key="f_brief")
                 st.text_area("2. 🖋️ PRISM", key="f_note", height=300)
@@ -650,9 +733,8 @@ if IS_ADMIN and tab_w:
             st.session_state.should_clear_form = True
             return True
 
-        chosen_p_type = 'NOTE' if plan_type_ui == "📝 작성할 노트" else 'CONSUME'
+        chosen_p_type = 'NOTE' if plan_type_ui == "📝 I MADE IT" else 'CONSUME'
         
-        # Form 내부 양식 제출 버튼 처리
         if is_update:
             if cb1.form_submit_button("💾 수정 저장", use_container_width=True, type="primary"):
                 if save_data(is_update_mode=True, p_type=chosen_p_type): st.success("✅ 수정 완료!"); time.sleep(0.8); st.rerun()
@@ -665,75 +747,9 @@ if IS_ADMIN and tab_w:
                 if save_data(to_archive=False, p_type=chosen_p_type): st.success("🗓️ 추가 완료!"); time.sleep(0.8); st.rerun()
                 else: st.warning("제목을 입력해 주세요.")
 
-        if cb3.form_submit_button("🔄 내용 비우기", use_container_width=True):
+        if cb3.form_submit_button("🔄 비우기", use_container_width=True):
             st.session_state.should_clear_form = True
             st.rerun()
-
-    st.divider()
-    
-    # Weekly Contents 뷰어 영역
-    col_l, col_c, col_r = st.columns([0.1, 0.8, 0.1])
-    with col_l:
-        if st.button("⬅️", use_container_width=True): st.session_state.week_offset -= 1; st.rerun()
-    
-    today_ts = pd.Timestamp(get_kst_today()); view_monday = today_ts - pd.Timedelta(days=today_ts.weekday()) + pd.Timedelta(weeks=st.session_state.week_offset)
-    view_sunday = view_monday + pd.Timedelta(days=6)
-    
-    with col_c:
-        st.markdown(f"<h3 style='text-align: center; margin-top:0;'>📅 Weekly Contents ({view_monday.isocalendar().week}주차)</h3><p style='text-align: center; color: #888; font-size: 0.9em; margin-bottom: 20px;'>{view_monday.strftime('%m.%d')} ~ {view_sunday.strftime('%m.%d')}</p>", unsafe_allow_html=True)
-    with col_r:
-        if st.button("➡️", use_container_width=True): st.session_state.week_offset += 1; st.rerun()
-            
-    plan_df = pd.read_sql_query("SELECT * FROM plan ORDER BY plan_date ASC", get_connection())
-    if not plan_df.empty: 
-        plan_df['p_dt'] = pd.to_datetime(plan_df['plan_date'])
-        def extract_p_type(m_str):
-            try: return json.loads(m_str).get('plan_type', 'CONSUME')
-            except: return 'CONSUME'
-        plan_df['plan_type'] = plan_df['memo'].apply(extract_p_type)
-
-    week_data = plan_df[(plan_df['p_dt'].dt.date >= view_monday.date()) & (plan_df['p_dt'].dt.date <= view_sunday.date())] if not plan_df.empty else pd.DataFrame()
-
-    if week_data.empty: st.markdown("<div style='text-align: center; color:#666; padding: 20px;'>예정된 콘텐츠가 없습니다.</div>", unsafe_allow_html=True)
-    else:
-        # 두 개의 서브 카테고리 데이터 분리 필터링
-        consume_items = week_data[week_data['plan_type'] == 'CONSUME'].to_dict('records')
-        note_items = week_data[week_data['plan_type'] == 'NOTE'].to_dict('records')
-        grid_cols = 5
-
-        # 공통 그리드 출력 헬퍼 함수
-        def draw_plan_grid(items_list, key_prefix):
-            for i in range(0, len(items_list), grid_cols):
-                cols = st.columns(grid_cols)
-                for j in range(grid_cols):
-                    if i + j < len(items_list):
-                        row = items_list[i + j]
-                        with cols[j]:
-                            emoji = CAT_EMOJIS.get(row['category'], "📌")
-                            st.markdown(f"<div style='text-align:center; font-size: 0.9em; color: #3399FF; margin-bottom: 5px; font-weight: bold;'>{row['plan_date'][5:].replace('-', '.')}</div>", unsafe_allow_html=True)
-                            try: img_url = json.loads(row['memo']).get('img_url', '')
-                            except: img_url = ""
-                            
-                            if img_url and img_url.strip() and img_url != "None":
-                                st.markdown(f"""<div style='position: relative; width: 100%; aspect-ratio: 1/1; border-radius: 6px; overflow: hidden; margin-bottom: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); background-color: #2A2A2A; display: flex; align-items: center; justify-content: center;'><img src="{img_url}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'"><div style="position: absolute; top: 4px; left: 4px; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px; font-size: 12px;">{emoji}</div></div>""", unsafe_allow_html=True)
-                            else:
-                                st.markdown(f"""<div style='background-color: #2A2A2A; padding: 10px; border-radius: 6px; border-left: 4px solid #3399FF; margin-bottom: 5px; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; text-align: center;'><div style='font-size: 2em; font-weight: bold; line-height: 1.3;'>{emoji}</div></div>""", unsafe_allow_html=True)
-                            
-                            short_title = row['title'][:10] + "..." if len(row['title']) > 10 else row['title']
-                            if st.button(f"✏️ {short_title}", key=f"dtl_cal_{key_prefix}_{row['id']}", use_container_width=True): show_plan_details(row)
-
-        st.markdown("#### 🍿 I'm Watching")
-        if not consume_items:
-            st.markdown("<div style='color:#666; padding-left: 10px; margin-bottom: 20px;'>등록된 콘텐츠가 없습니다.</div>", unsafe_allow_html=True)
-        else:
-            draw_plan_grid(consume_items, "consume")
-            
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("#### 📝 I Made it")
-        if not note_items:
-            st.markdown("<div style='color:#666; padding-left: 10px; margin-bottom: 20px;'>등록된 노트 일정이 없습니다.</div>", unsafe_allow_html=True)
-        else:
-            draw_plan_grid(note_items, "note")
 
 # ----------------- [ARCHIVE 탭] -----------------
 elif not tab_w:
@@ -744,13 +760,11 @@ elif not tab_w:
     .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: yellow; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; } 
     .badge-date { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; } 
     
-    /* 태블릿 세로 모드 및 모바일 화면 기준 (가로 해상도 992px 이하) */
     @media (max-width: 992px) { 
         [data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; } 
         div[data-testid="column"] { min-width: 100% !important; flex: 1 1 100% !important; margin-bottom: 15px !important; } 
     } 
     
-    /* 데스크탑 및 태블릿 가로 모드 기준 (가로 해상도 993px 이상) */
     @media (min-width: 993px) { 
         [data-testid="stHorizontalBlock"] { display: flex !important; flex-wrap: nowrap !important; gap: 10px !important; } 
         [data-testid="column"] { flex: 1 1 0% !important; min-width: 0 !important; } 
