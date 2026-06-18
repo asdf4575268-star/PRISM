@@ -737,7 +737,25 @@ if IS_ADMIN and tab_w:
 
 # ----------------- [ARCHIVE 탭] -----------------
 elif not tab_w:
-    st.markdown("""<style>.cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1.4; overflow: hidden; border-radius: 8px; margin-top: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); background: #1e1e1e; display: flex; align-items: center; justify-content: center; } .cal-img-box img { width: 100%; height: 100%; object-fit: cover; } .music-tab-style { aspect-ratio: 1/1 !important; } .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: yellow; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; } .badge-date { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; } @media (min-width: 600px) { [data-testid="stHorizontalBlock"] { display: flex !important; flex-wrap: nowrap !important; gap: 10px !important; } [data-testid="column"] { flex: 1 1 0% !important; min-width: 0 !important; } }</style>""", unsafe_allow_html=True)
+    st.markdown("""<style>
+    .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1.4; overflow: hidden; border-radius: 8px; margin-top: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); background: #1e1e1e; display: flex; align-items: center; justify-content: center; } 
+    .cal-img-box img { width: 100%; height: 100%; object-fit: cover; } 
+    .music-tab-style { aspect-ratio: 1/1 !important; } 
+    .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: yellow; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; } 
+    .badge-date { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; } 
+    
+    /* 태블릿 세로 모드 및 모바일 화면 기준 (가로 해상도 992px 이하) */
+    @media (max-width: 992px) { 
+        [data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; } 
+        div[data-testid="column"] { min-width: 100% !important; flex: 1 1 100% !important; margin-bottom: 15px !important; } 
+    } 
+    
+    /* 데스크탑 및 태블릿 가로 모드 기준 (가로 해상도 993px 이상) */
+    @media (min-width: 993px) { 
+        [data-testid="stHorizontalBlock"] { display: flex !important; flex-wrap: nowrap !important; gap: 10px !important; } 
+        [data-testid="column"] { flex: 1 1 0% !important; min-width: 0 !important; } 
+    }
+    </style>""", unsafe_allow_html=True)
     all_df = get_all_data()
 
     if not all_df.empty:
