@@ -583,7 +583,7 @@ tab_w = (st.session_state.main_nav == "🖋️ WRITE")
 # ----------------- [WRITE 탭] -----------------
 if IS_ADMIN and tab_w:
     st.markdown("""<style>
-    .sm-cal-box { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); background: #1E293B; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; border: 1px solid #334155; transition: all 0.2s ease; }
+    .sm-cal-box { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); background: #1E293B; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; border: 1px solid #334155; transition: all 0.2s ease; }
     .sm-cal-box:hover { transform: translateY(-2px); border-color: #6366F1; box-shadow: 0 6px 14px rgba(99, 102, 241, 0.2); }
     .sm-cal-box img { width: 100%; height: 100%; object-fit: cover; }
     .sm-badge-cat { position: absolute; top: 4px; left: 4px; background: rgba(15, 23, 42, 0.8); padding: 2px 5px; border-radius: 4px; font-size: 10px; z-index: 5; border: 1px solid rgba(255,255,255,0.05); }
