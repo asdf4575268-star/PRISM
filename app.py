@@ -70,7 +70,69 @@ if st.session_state.user_password == st.secrets["ADMIN_PASSWORD"]:
 IS_ADMIN = st.session_state.is_logged_in
 
 # ==========================================
-# 3. DATABASE & CLOUD SYNC (데이터베이스)
+# 3. GLOBAL DESIGN SYSTEM INJECTION (디자인 시스템 정의)
+# ==========================================
+st.markdown("""
+<style>
+    /* 전체 배경 톤 및 베이스 레이아웃 최적화 */
+    .stApp {
+        background-color: #0F172A !important;
+        color: #F1F5F9 !important;
+    }
+    
+    /* 폼 컨테이너 고급화 */
+    div[data-testid="stForm"] {
+        background-color: #1E293B !important;
+        border: 1px solid #334155 !important;
+        border-radius: 16px !important;
+        padding: 24px !important;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3) !important;
+    }
+    
+    /* 인풋 상자 테두리 가공 */
+    div[data-testid="stTextInput"] input, div[data-testid="stTextArea"] textarea, div[data-testid="stDateInput"] input {
+        background-color: #0F172A !important;
+        border: 1px solid #334155 !important;
+        border-radius: 8px !important;
+        color: #F1F5F9 !important;
+        transition: all 0.2s ease;
+    }
+    div[data-testid="stTextInput"] input:focus, div[data-testid="stTextArea"] textarea:focus {
+        border-color: #6366F1 !important;
+        box-shadow: 0 0 0 1px #6366F1 !important;
+    }
+    
+    /* 네비게이션용 라디오 그룹 고급 세그먼트화 */
+    div[role="radiogroup"] {
+        background-color: #1E293B !important;
+        padding: 4px !important;
+        border-radius: 12px !important;
+        border: 1px solid #334155 !important;
+        gap: 4px !important;
+    }
+    div[role="radiogroup"] > label {
+        background: transparent !important;
+        color: #94A3B8 !important;
+        padding: 6px 16px !important;
+        border-radius: 8px !important;
+        font-weight: bold !important;
+        font-size: 1.0rem !important;
+        transition: all 0.2s ease !important;
+        border: none !important;
+    }
+    div[role="radiogroup"] > label[data-checked="true"] {
+        background: linear-gradient(135deg, #4F46E5 0%, #3B82F6 100%) !important;
+        color: #FFFFFF !important;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
+    }
+    div[role="radiogroup"] > label[data-checked="true"] p {
+        color: #FFFFFF !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ==========================================
+# 4. DATABASE & CLOUD SYNC (데이터베이스)
 # ==========================================
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -143,7 +205,7 @@ auto_sync_on_startup()
 def safe_str(val): return "" if val is None or str(val) == "None" else str(val)
 
 # ==========================================
-# 4. API & SEARCH FUNCTIONS (외부 API 통신)
+# 5. API & SEARCH FUNCTIONS (외부 API 통신)
 # ==========================================
 def search_books(query):
     headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
@@ -236,7 +298,7 @@ def scrape_url(url):
     except: return None
 
 # ==========================================
-# 5. UI COMPONENTS (공통 다이얼로그 렌더링)
+# 6. UI COMPONENTS (공통 다이얼로그 렌더링)
 # ==========================================
 def render_item_details(data_dict, item_id, is_plan=False):
     cat = data_dict.get('category')
@@ -254,7 +316,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
     share_text += "\n"
     
     sections = [
-        ("📰 QUOTE(url)", "summary", "#444"), 
+        ("📰 QUOTE(url)", "summary", "#334155"), 
         ("✍️ HANDWRITE(brief)", "note", "#1E425E"),
         ("🎯 CONTEXT(argument)", "brief", "#0E6245"),
         ("💡 EXAMPLS(evidences)/STRUCTURE", "highlights", "#7D5600")
@@ -332,14 +394,14 @@ def render_item_details(data_dict, item_id, is_plan=False):
             if url_match:
                 media_url = url_match.group(1)
                 text_part = memo_content.replace(media_url, '').strip(' /|-')
-                if text_part: st.markdown(f'<div style="background-color: #1a1a1a; border-left: 4px solid #E50914; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">📎 {text_part}</div>', unsafe_allow_html=True)
+                if text_part: st.markdown(f'<div style="background-color: #0F172A; border-left: 4px solid #6366F1; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">📎 {text_part}</div>', unsafe_allow_html=True)
                 if re.search(r'\.(jpg|jpeg|png|webp|gif)', media_url, re.IGNORECASE) or "image.tmdb.org" in media_url:
                     st.image(media_url, use_container_width=True)
                 else:
                     try: st.video(media_url)
                     except: st.markdown(f"**[🔗 첨부 링크 보러가기]({media_url})**")
             else: 
-                st.markdown(f'<div style="background-color: #1a1a1a; border-left: 4px solid #E50914; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">📎 {memo_content}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="background-color: #0F172A; border-left: 4px solid #6366F1; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">📎 {memo_content}</div>', unsafe_allow_html=True)
     
     with col_txt:
         st.markdown(f'# {data_dict.get("title")}')
@@ -349,16 +411,16 @@ def render_item_details(data_dict, item_id, is_plan=False):
         
         date_label = "🗓️ 예정일" if is_plan else "🍿 감상/완료일"
         date_val = data_dict.get('plan_date') if is_plan else data_dict.get('view_date')
-        date_color = "#E50914" if is_plan else "#E2E2E2"
+        date_color = "#6366F1" if is_plan else "#E2E8F0"
         st.markdown(f'<p style="color: {date_color}; font-weight: bold; font-size: 1.1em;">{date_label}: {date_val}</p>', unsafe_allow_html=True)
         st.divider()
             
         for label, key, color in sections:
             val = data_dict.get(key)
             if val and str(val).strip():
-                st.markdown(f'<div style="display: inline-block; background-color: {color}; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px; font-weight: bold;">{label}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="display: inline-block; background-color: {color}; color: white; padding: 4px 14px; border-radius: 20px; font-size: 0.75rem; margin-bottom: 10px; font-weight: bold; text-transform: uppercase;">{label}</div>', unsafe_allow_html=True)
                 st.markdown(str(val).replace('\n', '  \n'))
-                st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
+                st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #334155;'>", unsafe_allow_html=True)
 
         if IS_ADMIN and is_plan:
             st.markdown("<br>", unsafe_allow_html=True)
@@ -452,7 +514,7 @@ def show_plan_details(item):
     render_item_details(combined_data, item_dict['id'], is_plan=True)
 
 # ==========================================
-# 6. MAIN APPLICATION ROUTING & VIEWS
+# 7. MAIN APPLICATION ROUTING & VIEWS
 # ==========================================
 def get_base64(path):
     try:
@@ -502,32 +564,45 @@ with st.sidebar:
         st.button("📥 클라우드 복구", key="restore_2", on_click=restore_from_supabase, use_container_width=True)
 
 # 헤더 타이틀 및 네비게이션
-st.markdown(f"""<style>.header-wrap {{ display: flex; align-items: center; gap: 6px; }} .header-wrap h1 {{ margin: 0; letter-spacing: -1px; }}</style>
-<div class="header-wrap"><img src="data:image/png;base64,{get_base64('logo.png')}" width="90"><h1>PRISM ARCHIVE</h1></div>""", unsafe_allow_html=True)
+st.markdown(f"""
+<div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding: 12px 0; border-bottom: 1px solid #334155;">
+    <img src="data:image/png;base64,{get_base64('logo.png')}" width="75" style="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
+    <div>
+        <h1 style="margin: 0; font-size: 2.1rem; font-weight: 800; letter-spacing: -1px; background: linear-gradient(45deg, #FFFFFF, #94A3B8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">PRISM ARCHIVE</h1>
+        <p style="margin: 0; color: #64748B; font-size: 0.85rem; font-weight: 500;">Premium Media & Thought Record Space</p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 if IS_ADMIN:
-    st.markdown("""<style>div[role="radiogroup"] > label { font-weight: bold; font-size: 1.1em; padding-right: 15px; }</style>""", unsafe_allow_html=True)
     st.radio("메뉴", ["🖋️ WRITE", "📂 ARCHIVE"], horizontal=True, label_visibility="collapsed", key="main_nav")
+    st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
 
 tab_w = (st.session_state.main_nav == "🖋️ WRITE")
 
 # ----------------- [WRITE 탭] -----------------
 if IS_ADMIN and tab_w:
-    # 소형 Weekly 컨텐츠 전용 스타일 빌드 및 전체 양식 여백 최적화
     st.markdown("""<style>
-    .sm-cal-box { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.4); background: #222; display: flex; align-items: center; justify-content: center; margin-bottom: 3px; }
+    .sm-cal-box { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); background: #1E293B; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; border: 1px solid #334155; transition: all 0.2s ease; }
+    .sm-cal-box:hover { transform: translateY(-2px); border-color: #6366F1; box-shadow: 0 6px 14px rgba(99, 102, 241, 0.2); }
     .sm-cal-box img { width: 100%; height: 100%; object-fit: cover; }
-    .sm-badge-cat { position: absolute; top: 3px; left: 3px; background: rgba(0, 0, 0, 0.7); padding: 1px 4px; border-radius: 3px; font-size: 10px; z-index: 5; }
-    .sm-date-label { text-align: center; font-size: 0.78rem; color: #3399FF; font-weight: bold; margin-bottom: 2px; }
+    .sm-badge-cat { position: absolute; top: 4px; left: 4px; background: rgba(15, 23, 42, 0.8); padding: 2px 5px; border-radius: 4px; font-size: 10px; z-index: 5; border: 1px solid rgba(255,255,255,0.05); }
+    .sm-date-label { text-align: center; font-size: 0.75rem; color: #6366F1; font-weight: 700; margin-bottom: 3px; letter-spacing: 0.5px; }
     
-    /* Streamlit 컴팩트 버튼 패딩 세팅 */
     div.compact-btn-wrapper div[data-testid="stBaseButton-secondary"] {
-        padding: 1px 4px !important;
+        padding: 2px 4px !important;
         font-size: 11px !important;
-        min-height: 24px !important;
-        height: 24px !important;
+        min-height: 26px !important;
+        height: 26px !important;
+        border-radius: 6px !important;
+        background-color: #1E293B !important;
+        border: 1px solid #334155 !important;
     }
-    div.compact-btn-wrapper p { font-size: 11px !important; line-height: 24px !important; }
+    div.compact-btn-wrapper div[data-testid="stBaseButton-secondary"]:hover {
+        border-color: #6366F1 !important;
+        color: #6366F1 !important;
+    }
+    div.compact-btn-wrapper p { font-size: 11px !important; line-height: 24px !important; font-weight: 600; }
     </style>""", unsafe_allow_html=True)
 
     category = st.radio("📂 CATEGORY", CATEGORIES, horizontal=True, key="main_category_radio")
@@ -594,7 +669,7 @@ if IS_ADMIN and tab_w:
 
     st.divider()
 
-    # --- [위치 이동] Weekly Contents 영역을 입력 폼의 상단으로 배치 ---
+    # --- Weekly Contents 영역 ---
     col_l, col_c, col_r = st.columns([0.08, 0.84, 0.08])
     with col_l:
         st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
@@ -604,7 +679,7 @@ if IS_ADMIN and tab_w:
     view_sunday = view_monday + pd.Timedelta(days=6)
     
     with col_c:
-        st.markdown(f"<h4 style='text-align: center; margin: 0; font-weight: bold;'>📅 Weekly Contents ({view_monday.isocalendar().week}주차)</h4><p style='text-align: center; color: #888; font-size: 0.85em; margin-bottom: 12px;'>{view_monday.strftime('%m.%d')} ~ {view_sunday.strftime('%m.%d')}</p>", unsafe_allow_html=True)
+        st.markdown(f"<h4 style='text-align: center; margin: 0; font-weight: 800; color: #F1F5F9;'>📅 Weekly Contents ({view_monday.isocalendar().week}주차)</h4><p style='text-align: center; color: #64748B; font-size: 0.85em; margin-bottom: 12px; font-weight: 500;'>{view_monday.strftime('%m.%d')} ~ {view_sunday.strftime('%m.%d')}</p>", unsafe_allow_html=True)
     with col_r:
         st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
         if st.button("➡️", use_container_width=True, key="w_next_week"): st.session_state.week_offset += 1; st.rerun()
@@ -620,12 +695,11 @@ if IS_ADMIN and tab_w:
     week_data = plan_df[(plan_df['p_dt'].dt.date >= view_monday.date()) & (plan_df['p_dt'].dt.date <= view_sunday.date())] if not plan_df.empty else pd.DataFrame()
 
     if week_data.empty: 
-        st.markdown("<div style='text-align: center; color:#666; font-size:0.9em; padding: 10px; background-color:#151515; border-radius:6px;'>예정된 주간 콘텐츠가 없습니다.</div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: center; color:#64748B; font-size:0.9em; padding: 16px; background-color:#1E293B; border-radius:10px; border: 1px dashed #334155; font-weight:500;'>예정된 주간 콘텐츠가 없습니다.</div>", unsafe_allow_html=True)
     else:
         consume_items = week_data[week_data['plan_type'] == 'CONSUME'].to_dict('records')
         note_items = week_data[week_data['plan_type'] == 'NOTE'].to_dict('records')
         
-        # 박스를 소형화하기 위해 기존 5열 구조에서 -> 8열 구조로 대폭 확장
         grid_cols = 8
 
         def draw_plan_grid(items_list, key_prefix):
@@ -643,20 +717,19 @@ if IS_ADMIN and tab_w:
                             if img_url and img_url.strip() and img_url != "None":
                                 st.markdown(f"""<div class='sm-cal-box'><div class='sm-badge-cat'>{emoji}</div><img src="{img_url}" onerror="this.style.display='none'"></div>""", unsafe_allow_html=True)
                             else:
-                                st.markdown(f"""<div class='sm-cal-box' style='border-left: 3px solid #3399FF;'><div style='font-size: 1.4em;'>{emoji}</div></div>""", unsafe_allow_html=True)
+                                st.markdown(f"""<div class='sm-cal-box' style='border-left: 3px solid #6366F1;'><div style='font-size: 1.4em;'>{emoji}</div></div>""", unsafe_allow_html=True)
                             
-                            # 박스 크기에 맞춰 노출 타이틀 글자 수 조절 (7글자 제한)
                             short_title = row['title'][:7] + ".." if len(row['title']) > 7 else row['title']
                             st.markdown("<div class='compact-btn-wrapper'>", unsafe_allow_html=True)
                             if st.button(f"{short_title}", key=f"dtl_cal_{key_prefix}_{row['id']}", use_container_width=True): show_plan_details(row)
                             st.markdown("</div>", unsafe_allow_html=True)
 
         if consume_items:
-            st.markdown("<p style='font-weight: bold; margin-bottom: 5px; font-size: 0.9em; color:#bbb;'>🍿 I'm Watching</p>", unsafe_allow_html=True)
+            st.markdown("<p style='font-weight: 700; margin-bottom: 6px; font-size: 0.9em; color:#94A3B8; letter-spacing:0.5px;'>🍿 I'm Watching</p>", unsafe_allow_html=True)
             draw_plan_grid(consume_items, "consume")
             
         if note_items:
-            st.markdown("<p style='font-weight: bold; margin-top: 10px; margin-bottom: 5px; font-size: 0.9em; color:#bbb;'>📝 I Made it</p>", unsafe_allow_html=True)
+            st.markdown("<p style='font-weight: 700; margin-top: 14px; margin-bottom: 6px; font-size: 0.9em; color:#94A3B8; letter-spacing:0.5px;'>📝 I Made it</p>", unsafe_allow_html=True)
             draw_plan_grid(note_items, "note")
 
     st.divider()
@@ -754,26 +827,44 @@ if IS_ADMIN and tab_w:
 # ----------------- [ARCHIVE 탭] -----------------
 elif not tab_w:
     st.markdown("""<style>
-    .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1.4; overflow: hidden; border-radius: 8px; margin-top: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); background: #1e1e1e; display: flex; align-items: center; justify-content: center; } 
-    .cal-img-box img { width: 100%; height: 100%; object-fit: cover; } 
+    /* 미디어 커버 카드 인프라 업그레이드 */
+    .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1.4; overflow: hidden; border-radius: 12px; margin-top: 8px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3); background: #1E293B; display: flex; align-items: center; justify-content: center; border: 1px solid #334155; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); } 
+    .cal-img-box:hover { transform: translateY(-5px); border-color: #6366F1; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.5); }
+    .cal-img-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; } 
+    .cal-img-box:hover img { transform: scale(1.04); }
     .music-tab-style { aspect-ratio: 1/1 !important; } 
-    .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.7); color: yellow; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; } 
-    .badge-date { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; z-index: 10; } 
+    
+    /* 카드 장식 배지 글래스모피즘 효과 */
+    .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); color: #FBBF24; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; z-index: 10; letter-spacing: 0.5px; border: 1px solid rgba(255,255,255,0.05); } 
+    .badge-date { position: absolute; bottom: 8px; right: 8px; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); color: #E2E8F0; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 600; z-index: 10; border: 1px solid rgba(255,255,255,0.05); } 
+    
+    /* 타이틀 텍스트 보정 스트림릿 컴포넌트 처리 */
+    div[data-testid="stColumn"] button {
+        background-color: transparent !important;
+        border: none !important;
+        color: #E2E8F0 !important;
+        padding: 4px 0px !important;
+        text-align: left !important;
+        font-weight: 600 !important;
+        font-size: 0.95rem !important;
+    }
+    div[data-testid="stColumn"] button:hover {
+        color: #6366F1 !important;
+    }
     
     @media (max-width: 992px) { 
         [data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; } 
         div[data-testid="column"] { min-width: 100% !important; flex: 1 1 100% !important; margin-bottom: 15px !important; } 
     } 
-    
     @media (min-width: 993px) { 
-        [data-testid="stHorizontalBlock"] { display: flex !important; flex-wrap: nowrap !important; gap: 10px !important; } 
+        [data-testid="stHorizontalBlock"] { display: flex !important; flex-wrap: nowrap !important; gap: 12px !important; } 
         [data-testid="column"] { flex: 1 1 0% !important; min-width: 0 !important; } 
     }
     </style>""", unsafe_allow_html=True)
     all_df = get_all_data()
 
     if not all_df.empty:
-        if search_query_archive := st.text_input("🔍", key="global_search"):
+        if search_query_archive := st.text_input("🔍 아카이브 내 실시간 통합 검색", key="global_search"):
             mask = (all_df['title'].str.contains(search_query_archive, case=False, na=False) | all_df['creator'].str.contains(search_query_archive, case=False, na=False) | all_df['summary'].str.contains(search_query_archive, case=False, na=False) | all_df['note'].str.contains(search_query_archive, case=False, na=False) | all_df['venue'].str.contains(search_query_archive, case=False, na=False))
             all_df = all_df[mask]; st.markdown(f"**'{search_query_archive}'** 검색 결과 ({len(all_df)})"); st.divider()
 
@@ -788,13 +879,14 @@ elif not tab_w:
 
         with sub_tabs[0]:
             if years := sorted(main_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True):
-                sel_y = st.selectbox("📅 YEAR", options=years, format_func=lambda y: f"{y} ({len(main_df[main_df['v_dt'].dt.year == y])})", key="archive_year_sel")
+                sel_y = st.selectbox("📅 YEAR", options=years, format_func=lambda y: f"{y} 년도 ({len(main_df[main_df['v_dt'].dt.year == y])})", key="archive_year_sel")
+                st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
                 y_df = main_df[main_df['v_dt'].dt.year == sel_y]
                 
                 for m in range(12, 0, -1):
                     m_data = y_df[y_df['v_dt'].dt.month == m]
                     if not m_data.empty:
-                        st.subheader(f"🗓️ {m}월 ({len(m_data)})")
+                        st.subheader(f"🗓 {m}월 ({len(m_data)})")
                         items = m_data.to_dict('records')
                         for i in range(0, len(items), grid_cols):
                             cols = st.columns(grid_cols)
