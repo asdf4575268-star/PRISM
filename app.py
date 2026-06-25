@@ -605,6 +605,86 @@ if IS_ADMIN and tab_w:
     div.compact-btn-wrapper p { font-size: 11px !important; line-height: 24px !important; font-weight: 600; }
     </style>""", unsafe_allow_html=True)
 
+    # ==========================================
+    # 1. [개선] Weekly Contents 최상단 대시보드 배치
+    # ==========================================
+    col_l, col_c, col_r = st.columns([0.08, 0.84, 0.08])
+    with col_l:
+        st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+        if st.button("⬅️", use_container_width=True, key="w_prev_week"): st.session_state.week_offset -= 1; st.rerun()
+    
+    today_ts = pd.Timestamp(get_kst_today()); view_monday = today_ts - pd.Timedelta(days=today_ts.weekday()) + pd.Timedelta(weeks=st.session_state.week_offset)
+    view_sunday = view_monday + pd.Timedelta(days=6)
+    
+    with col_c:
+        st.markdown(f"<h4 style='text-align: center; margin: 0; font-weight: 800; color: #F1F5F9;'>📅 Weekly Dashboard ({view_monday.isocalendar().week}주차)</h4><p style='text-align: center; color: #64748B; font-size: 0.85em; margin-bottom: 16px; font-weight: 500;'>{view_monday.strftime('%m.%d')} ~ {view_sunday.strftime('%m.%d')}</p>", unsafe_allow_html=True)
+    with col_r:
+        st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+        if st.button("➡️", use_container_width=True, key="w_next_week"): st.session_state.week_offset += 1; st.rerun()
+            
+    plan_df = pd.read_sql_query("SELECT * FROM plan ORDER BY plan_date ASC", get_connection())
+    if not plan_df.empty: 
+        plan_df['p_dt'] = pd.to_datetime(plan_df['plan_date'])
+        def extract_p_type(m_str):
+            try: return json.loads(m_str).get('plan_type', 'CONSUME')
+            except: return 'CONSUME'
+        plan_df['plan_type'] = plan_df['memo'].apply(extract_p_type)
+
+    week_data = plan_df[(plan_df['p_dt'].dt.date >= view_monday.date()) & (plan_df['p_dt'].dt.date <= view_sunday.date())] if not plan_df.empty else pd.DataFrame()
+
+    if week_data.empty: 
+        st.markdown("<div style='text-align: center; color:#64748B; font-size:0.9em; padding: 24px; background-color:#1E293B; border-radius:12px; border: 1px dashed #334155; font-weight:500; margin-bottom: 20px;'>예정된 주간 콘텐츠가 없습니다.</div>", unsafe_allow_html=True)
+    else:
+        consume_items = week_data[week_data['plan_type'] == 'CONSUME'].to_dict('records')
+        note_items = week_data[week_data['plan_type'] == 'NOTE'].to_dict('records')
+        
+        # 좌우 분할 구조 정의 및 격자 크기를 3열로 확대해 시인성 극대화
+        col_watching_side, col_made_side = st.columns(2)
+        grid_cols_sub = 3
+
+        def draw_plan_grid_sub(container, items_list, key_prefix):
+            with container:
+                for i in range(0, len(items_list), grid_cols_sub):
+                    sub_cols = st.columns(grid_cols_sub)
+                    for j in range(grid_cols_sub):
+                        if i + j < len(items_list):
+                            row = items_list[i + j]
+                            with sub_cols[j]:
+                                emoji = CAT_EMOJIS.get(row['category'], "📌")
+                                st.markdown(f"<div class='sm-date-label'>{row['plan_date'][5:].replace('-', '.')}</div>", unsafe_allow_html=True)
+                                try: img_url = json.loads(row['memo']).get('img_url', '')
+                                except: img_url = ""
+                                
+                                if img_url and img_url.strip() and img_url != "None":
+                                        st.markdown(f"""<div class='sm-cal-box'><div class='sm-badge-cat'>{emoji}</div><img src="{img_url}" onerror="this.style.display='none'"></div>""", unsafe_allow_html=True)
+                                else:
+                                    st.markdown(f"""<div class='sm-cal-box' style='border-left: 3px solid #6366F1;'><div style='font-size: 1.4em;'>{emoji}</div></div>""", unsafe_allow_html=True)
+                                
+                                short_title = row['title'][:7] + ".." if len(row['title']) > 7 else row['title']
+                                st.markdown("<div class='compact-btn-wrapper'>", unsafe_allow_html=True)
+                                if st.button(f"{short_title}", key=f"dtl_cal_{key_prefix}_{row['id']}", use_container_width=True): show_plan_details(row)
+                                st.markdown("</div>", unsafe_allow_html=True)
+
+        if consume_items:
+            col_watching_side.markdown("<p style='font-weight: 700; margin-bottom: 8px; font-size: 0.95em; color:#94A3B8; letter-spacing:0.5px;'>🍿 I'm Watching</p>", unsafe_allow_html=True)
+            draw_plan_grid_sub(col_watching_side, consume_items, "consume")
+        else:
+            col_watching_side.markdown("<p style='font-weight: 700; margin-bottom: 8px; font-size: 0.95em; color:#94A3B8; letter-spacing:0.5px;'>🍿 I'm Watching</p>", unsafe_allow_html=True)
+            col_watching_side.markdown("<div style='color:#64748B; font-size:0.85em; padding:20px; background:#1E293B; border-radius:10px; border:1px dashed #334155; text-align:center;'>진행 중인 콘텐츠가 없습니다.</div>", unsafe_allow_html=True)
+            
+        if note_items:
+            col_made_side.markdown("<p style='font-weight: 700; margin-bottom: 8px; font-size: 0.95em; color:#94A3B8; letter-spacing:0.5px;'>📝 I Made it (작성 중)</p>", unsafe_allow_html=True)
+            draw_plan_grid_sub(col_made_side, note_items, "note")
+        else:
+            col_made_side.markdown("<p style='font-weight: 700; margin-bottom: 8px; font-size: 0.95em; color:#94A3B8; letter-spacing:0.5px;'>📝 I Made it (작성 중)</p>", unsafe_allow_html=True)
+            col_made_side.markdown("<div style='color:#64748B; font-size:0.85em; padding:20px; background:#1E293B; border-radius:10px; border:1px dashed #334155; text-align:center;'>작성 중인 콘텐츠가 없습니다.</div>", unsafe_allow_html=True)
+
+    st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
+    st.divider()
+
+    # ==========================================
+    # 2. 외부 API 검색 및 수집 영역
+    # ==========================================
     category = st.radio("📂 CATEGORY", CATEGORIES, horizontal=True, key="main_category_radio")
     search_query = st.text_input(f"🔍 {category} 검색")
     
@@ -660,77 +740,13 @@ if IS_ADMIN and tab_w:
                     st.rerun()
         else: 
             if res := search_tmdb(search_query, category):
+                type_path = "movie" if category == "MOVIES" else "tv"
                 t_key, d_key = ('title', 'release_date') if category == 'MOVIES' else ('name', 'first_air_date')
                 sel = st.selectbox("결과 선택", list((opts := {f"🎬 {r.get(t_key)} ({str(r.get(d_key))[:4]})": r for r in res}).keys()))
                 if st.button("✨ 가져오기"):
                     s = opts[sel]; details = get_tmdb_details(s['id'], category)
                     st.session_state.update(edit_target_id=None, edit_source=None, f_title=s.get(t_key, ''), f_creator=details['creator'], f_date=s.get(d_key, ''), f_img=f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", f_venue=details['venue'], f_summary=s.get('overview', ''), f_highlights="", f_note="", f_brief="", f_video="", f_plan_type="CONSUME")
                     st.rerun()
-
-    st.divider()
-
-    # --- Weekly Contents 영역 ---
-    col_l, col_c, col_r = st.columns([0.08, 0.84, 0.08])
-    with col_l:
-        st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
-        if st.button("⬅️", use_container_width=True, key="w_prev_week"): st.session_state.week_offset -= 1; st.rerun()
-    
-    today_ts = pd.Timestamp(get_kst_today()); view_monday = today_ts - pd.Timedelta(days=today_ts.weekday()) + pd.Timedelta(weeks=st.session_state.week_offset)
-    view_sunday = view_monday + pd.Timedelta(days=6)
-    
-    with col_c:
-        st.markdown(f"<h4 style='text-align: center; margin: 0; font-weight: 800; color: #F1F5F9;'>📅 Weekly Contents ({view_monday.isocalendar().week}주차)</h4><p style='text-align: center; color: #64748B; font-size: 0.85em; margin-bottom: 12px; font-weight: 500;'>{view_monday.strftime('%m.%d')} ~ {view_sunday.strftime('%m.%d')}</p>", unsafe_allow_html=True)
-    with col_r:
-        st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
-        if st.button("➡️", use_container_width=True, key="w_next_week"): st.session_state.week_offset += 1; st.rerun()
-            
-    plan_df = pd.read_sql_query("SELECT * FROM plan ORDER BY plan_date ASC", get_connection())
-    if not plan_df.empty: 
-        plan_df['p_dt'] = pd.to_datetime(plan_df['plan_date'])
-        def extract_p_type(m_str):
-            try: return json.loads(m_str).get('plan_type', 'CONSUME')
-            except: return 'CONSUME'
-        plan_df['plan_type'] = plan_df['memo'].apply(extract_p_type)
-
-    week_data = plan_df[(plan_df['p_dt'].dt.date >= view_monday.date()) & (plan_df['p_dt'].dt.date <= view_sunday.date())] if not plan_df.empty else pd.DataFrame()
-
-    if week_data.empty: 
-        st.markdown("<div style='text-align: center; color:#64748B; font-size:0.9em; padding: 16px; background-color:#1E293B; border-radius:10px; border: 1px dashed #334155; font-weight:500;'>예정된 주간 콘텐츠가 없습니다.</div>", unsafe_allow_html=True)
-    else:
-        consume_items = week_data[week_data['plan_type'] == 'CONSUME'].to_dict('records')
-        note_items = week_data[week_data['plan_type'] == 'NOTE'].to_dict('records')
-        
-        grid_cols = 8
-
-        def draw_plan_grid(items_list, key_prefix):
-            for i in range(0, len(items_list), grid_cols):
-                cols = st.columns(grid_cols)
-                for j in range(grid_cols):
-                    if i + j < len(items_list):
-                        row = items_list[i + j]
-                        with cols[j]:
-                            emoji = CAT_EMOJIS.get(row['category'], "📌")
-                            st.markdown(f"<div class='sm-date-label'>{row['plan_date'][5:].replace('-', '.')}</div>", unsafe_allow_html=True)
-                            try: img_url = json.loads(row['memo']).get('img_url', '')
-                            except: img_url = ""
-                            
-                            if img_url and img_url.strip() and img_url != "None":
-                                st.markdown(f"""<div class='sm-cal-box'><div class='sm-badge-cat'>{emoji}</div><img src="{img_url}" onerror="this.style.display='none'"></div>""", unsafe_allow_html=True)
-                            else:
-                                st.markdown(f"""<div class='sm-cal-box' style='border-left: 3px solid #6366F1;'><div style='font-size: 1.4em;'>{emoji}</div></div>""", unsafe_allow_html=True)
-                            
-                            short_title = row['title'][:7] + ".." if len(row['title']) > 7 else row['title']
-                            st.markdown("<div class='compact-btn-wrapper'>", unsafe_allow_html=True)
-                            if st.button(f"{short_title}", key=f"dtl_cal_{key_prefix}_{row['id']}", use_container_width=True): show_plan_details(row)
-                            st.markdown("</div>", unsafe_allow_html=True)
-
-        if consume_items:
-            st.markdown("<p style='font-weight: 700; margin-bottom: 6px; font-size: 0.9em; color:#94A3B8; letter-spacing:0.5px;'>🍿 I'm Watching</p>", unsafe_allow_html=True)
-            draw_plan_grid(consume_items, "consume")
-            
-        if note_items:
-            st.markdown("<p style='font-weight: 700; margin-top: 14px; margin-bottom: 6px; font-size: 0.9em; color:#94A3B8; letter-spacing:0.5px;'>📝 I Made it</p>", unsafe_allow_html=True)
-            draw_plan_grid(note_items, "note")
 
     st.divider()
 
@@ -823,7 +839,6 @@ if IS_ADMIN and tab_w:
         if cb3.form_submit_button("🔄 비우기", use_container_width=True):
             st.session_state.should_clear_form = True
             st.rerun()
-
 # ----------------- [ARCHIVE 탭] -----------------
 elif not tab_w:
     st.markdown("""<style>
