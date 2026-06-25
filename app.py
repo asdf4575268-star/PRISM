@@ -53,7 +53,7 @@ if "main_nav" not in st.session_state:
     st.session_state.main_nav = "🖋️ WRITE" if st.session_state.is_logged_in else "📂 ARCHIVE"
 if 'f_view_date' not in st.session_state: st.session_state.f_view_date = get_kst_today()
 
-# 인라인 모달 수정을 위한 상태 변수
+# 인라인 모달 수정을 위한 상태 변수 추가
 if "editing_item_id" not in st.session_state: st.session_state.editing_item_id = None
 if "editing_item_source" not in st.session_state: st.session_state.editing_item_source = None
 
@@ -239,16 +239,6 @@ def scrape_url(url):
 # ==========================================
 # 5. UI COMPONENTS (공통 다이얼로그 렌더링)
 # ==========================================
-
-# 모달 전환 콜백 함수 선언 (새로고침 없이 상태 변경)
-def set_edit_mode(i_id, source):
-    st.session_state.editing_item_id = i_id
-    st.session_state.editing_item_source = source
-
-def clear_edit_mode():
-    st.session_state.editing_item_id = None
-    st.session_state.editing_item_source = None
-
 def render_item_details(data_dict, item_id, is_plan=False):
     cat = data_dict.get('category')
     creator_text = data_dict.get('creator', '')
@@ -257,10 +247,11 @@ def render_item_details(data_dict, item_id, is_plan=False):
     img_url = data_dict.get('img_url', '')
     table_name = "plan" if is_plan else "archive"
 
-    # --- [수정 완료] 새창(모달) 닫힘 방지 콜백 적용 ---
+    # --- [수정 사항] 새창(모달) 내부에서 직접 편집 모드로 진입했을 때 렌더링할 폼 설정 ---
     if st.session_state.get("editing_item_id") == item_id and st.session_state.get("editing_item_source") == table_name:
         st.markdown(f"### ✏️ 데이터 수정 ({cat})")
         
+        # st.form을 사용하여 내부 입력이 완료되어 제출 버튼을 누르기 전까지 새로고침을 완벽하게 억제
         with st.form(key=f"inline_edit_form_{table_name}_{item_id}", clear_on_submit=False):
             cl, cr = st.columns([0.4, 0.6])
             with cl:
@@ -290,8 +281,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
             
             cb1, cb2 = st.columns([0.5, 0.5])
             submit_btn = cb1.form_submit_button("💾 수정 저장", use_container_width=True, type="primary")
-            # 취소 버튼에는 on_click 콜백을 걸어 창 닫힘 없이 읽기 모드로 부드럽게 돌아가도록 함
-            cb2.form_submit_button("❌ 취소", use_container_width=True, on_click=clear_edit_mode)
+            cancel_btn = cb2.form_submit_button("❌ 취소", use_container_width=True)
             
             if submit_btn:
                 if not edit_title.strip():
@@ -318,12 +308,16 @@ def render_item_details(data_dict, item_id, is_plan=False):
                         except: pass
                     conn.commit()
                     st.cache_data.clear()
-                    
-                    # 성공적으로 저장 시 모달을 깔끔하게 닫고 새로고침
-                    clear_edit_mode()
+                    st.session_state.editing_item_id = None
+                    st.session_state.editing_item_source = None
                     st.success("✅ 수정 완료!")
                     time.sleep(0.5)
                     st.rerun()
+                    
+            if cancel_btn:
+                st.session_state.editing_item_id = None
+                st.session_state.editing_item_source = None
+                st.rerun()
         return
 
     # --- 공유용 텍스트 미리 조립 ---
@@ -369,8 +363,11 @@ def render_item_details(data_dict, item_id, is_plan=False):
             except: pass
             st.rerun()
             
-        # [콜백 적용] 버튼 클릭 시 on_click을 호출해 모달 내에서 읽기->수정 화면으로 새로고침 없이 즉시 전환
-        c2.button("✏️ 수정", key=f"edit_{table_name}_{item_id}", use_container_width=True, type="primary", on_click=set_edit_mode, args=(item_id, table_name))
+        # 수정 버튼 클릭 시 WRITE 탭으로 넘기지 않고 현재 다이얼로그를 에디터 형태로 토글 전환
+        if c2.button("✏️ 수정", key=f"edit_{table_name}_{item_id}", use_container_width=True, type="primary"):
+            st.session_state.editing_item_id = item_id
+            st.session_state.editing_item_source = table_name
+            st.rerun()
             
         with c3:
             with st.popover("🔗 공유", use_container_width=True):
