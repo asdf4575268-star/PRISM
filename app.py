@@ -660,7 +660,7 @@ if IS_ADMIN and tab_w:
                                 else:
                                     st.markdown(f"""<div class='sm-cal-box' style='border-left: 3px solid #6366F1;'><div style='font-size: 1.4em;'>{emoji}</div></div>""", unsafe_allow_html=True)
                                 
-                                short_title = row['title'][:7] + ".." if len(row['title']) > 7 else row['title']
+                                short_title = row['title'][:20] + ".." if len(row['title']) > 20 else row['title']
                                 st.markdown("<div class='compact-btn-wrapper'>", unsafe_allow_html=True)
                                 if st.button(f"{short_title}", key=f"dtl_cal_{key_prefix}_{row['id']}", use_container_width=True): show_plan_details(row)
                                 st.markdown("</div>", unsafe_allow_html=True)
@@ -911,7 +911,7 @@ elif not tab_w:
                                     img_style = 'style="height: auto; aspect-ratio: 1/1;"' if row["category"] == "MUSIC" else ""
                                     with cols[j]:
                                         st.markdown(f'<div class="cal-img-box"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}" {img_style}></div>', unsafe_allow_html=True)
-                                        if st.button(row['title'][:10] + "..." if len(row['title']) > 10 else row['title'], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
+                                        if st.button(row['title'][:20] + "..." if len(row['title']) > 20 else row['title'], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
 
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
