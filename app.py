@@ -569,7 +569,7 @@ st.markdown(f"""
     <img src="data:image/png;base64,{get_base64('logo.png')}" width="75" style="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
     <div>
         <h1 style="margin: 0; font-size: 2.1rem; font-weight: 800; letter-spacing: -1px; background: linear-gradient(45deg, #FFFFFF, #94A3B8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">PRISM ARCHIVE</h1>
-        <p style="margin: 0; color: #64748B; font-size: 0.85rem; font-weight: 500;">Premium Media & Thought Record Space</p>
+        <p style="margin: 0; color: #64748B; font-size: 0.85rem; font-weight: 500;">all right reserved by FLASHMAN</p>
     </div>
 </div>
 """, unsafe_allow_html=True)
