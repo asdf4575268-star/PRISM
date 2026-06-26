@@ -928,7 +928,7 @@ elif not tab_w:
                                 with cols[j]:
                                     img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
                                     st.markdown(f'<div class="cal-img-box {music_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{img_u}"></div>', unsafe_allow_html=True)
-                                    if st.button(row['title'][:20] + "..." if len(row['title']) > 10 else row['title'], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+                                    if st.button(row['title'][:20] + "..." if len(row['title']) > 20 else row['title'], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
 
         if IS_ADMIN:
             with sub_tabs[-1]:
