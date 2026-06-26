@@ -660,7 +660,7 @@ if IS_ADMIN and tab_w:
                                 else:
                                     st.markdown(f"""<div class='sm-cal-box' style='border-left: 3px solid #6366F1;'><div style='font-size: 1.4em;'>{emoji}</div></div>""", unsafe_allow_html=True)
                                 
-                                short_title = row['title'][:20] + ".." if len(row['title']) > 20 else row['title']
+                                short_title = row['title'][:19] + ".." if len(row['title']) > 19 else row['title']
                                 st.markdown("<div class='compact-btn-wrapper'>", unsafe_allow_html=True)
                                 if st.button(f"{short_title}", key=f"dtl_cal_{key_prefix}_{row['id']}", use_container_width=True): show_plan_details(row)
                                 st.markdown("</div>", unsafe_allow_html=True)
