@@ -53,8 +53,9 @@ if "main_nav" not in st.session_state:
     st.session_state.main_nav = "🖋️ WRITE" if st.session_state.is_logged_in else "📂 ARCHIVE"
 if 'f_view_date' not in st.session_state: st.session_state.f_view_date = get_kst_today()
 
-for k in FORM_KEYS:
-    if k not in st.session_state: st.session_state[k] = ""
+# 인라인 모달 수정을 위한 상태 변수 추가
+if "editing_item_id" not in st.session_state: st.session_state.editing_item_id = None
+if "editing_item_source" not in st.session_state: st.session_state.editing_item_source = None
 
 # 초기화 버튼을 눌렀을 때 폼 비우기
 if st.session_state.should_clear_form:
@@ -128,6 +129,45 @@ st.markdown("""
     div[role="radiogroup"] > label[data-checked="true"] p {
         color: #FFFFFF !important;
     }
+
+    /* 💡 [수정] 다이얼로그 위치 상단 조정 */
+    div[data-testid="stDialog"] > div {
+        align-items: flex-start !important; /* 모달을 화면 상단으로 밀어올림 */
+        padding-top: 5vh !important; /* 상단 여백 설정 */
+    }
+    
+    /* 💡 [수정] 이미지 클릭 버튼 스타일 투명화 */
+    .invisible-btn button {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        z-index: 20 !important; /* 뱃지보다 위에 있도록 설정 */
+        cursor: pointer !important;
+    }
+    .invisible-btn button:hover {
+        background: rgba(255, 255, 255, 0.05) !important; /* 호버 시 아주 옅은 오버레이 */
+    }
+    
+    /* 기존 이미지 카드 CSS 수정 (상대 위치 설정) */
+    .cal-img-container {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1/1.4;
+        border-radius: 12px;
+        margin-top: 8px;
+        overflow: hidden;
+    }
+    
+    .music-tab-container {
+        aspect-ratio: 1/1 !important;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -203,6 +243,29 @@ def auto_sync_on_startup():
 auto_sync_on_startup()
 
 def safe_str(val): return "" if val is None or str(val) == "None" else str(val)
+
+def switch_to_edit_mode(data_dict, item_id, table_name, cat):
+    st.session_state.edit_target_id = item_id
+    st.session_state.edit_source = table_name
+    st.session_state.main_category_radio = cat
+    
+    st.session_state.f_title = safe_str(data_dict.get('title'))
+    st.session_state.f_creator = safe_str(data_dict.get('creator'))
+    st.session_state.f_date = safe_str(data_dict.get('rel_date'))
+    st.session_state.f_venue = safe_str(data_dict.get('venue'))
+    st.session_state.f_img = safe_str(data_dict.get('img_url'))
+    st.session_state.f_video = safe_str(data_dict.get('img_url2'))
+    st.session_state.f_brief = safe_str(data_dict.get('brief'))
+    st.session_state.f_highlights = safe_str(data_dict.get('highlights'))
+    st.session_state.f_note = safe_str(data_dict.get('note'))
+    st.session_state.f_summary = safe_str(data_dict.get('summary'))
+    st.session_state.f_plan_type = data_dict.get('plan_type', 'CONSUME')
+    
+    date_key = 'plan_date' if table_name == 'plan' else 'view_date'
+    try: st.session_state.f_view_date = pd.to_datetime(data_dict.get(date_key)).date()
+    except: st.session_state.f_view_date = get_kst_today()
+    
+    st.session_state.main_nav = "🖋️ WRITE"
 
 # ==========================================
 # 5. API & SEARCH FUNCTIONS (외부 API 통신)
@@ -306,7 +369,8 @@ def render_item_details(data_dict, item_id, is_plan=False):
     rel_date = data_dict.get('rel_date', '')
     venue = data_dict.get('venue', '')
     img_url = data_dict.get('img_url', '')
-    
+    table_name = "plan" if is_plan else "archive"
+
     # --- 공유용 텍스트 미리 조립 ---
     share_text = f"[{cat}] {data_dict.get('title')}\n"
     if creator_text: share_text += f"👤 창작자: {creator_text}\n"
@@ -340,7 +404,6 @@ def render_item_details(data_dict, item_id, is_plan=False):
     # --- 상단 버튼 영역 (삭제 / 수정 / 공유) ---
     if IS_ADMIN:
         c1, c2, c3 = st.columns(3)
-        table_name = "plan" if is_plan else "archive"
         
         if c1.button("🗑️ 삭제", key=f"del_{table_name}_{item_id}", use_container_width=True):
             conn = get_connection()
@@ -351,29 +414,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
             except: pass
             st.rerun()
             
-        if c2.button("✏️ 수정", key=f"edit_{table_name}_{item_id}", use_container_width=True, type="primary"):
-            st.session_state.edit_target_id = item_id
-            st.session_state.edit_source = table_name
-            st.session_state.main_category_radio = cat
-            
-            st.session_state.f_title = safe_str(data_dict.get('title'))
-            st.session_state.f_creator = safe_str(data_dict.get('creator'))
-            st.session_state.f_date = safe_str(data_dict.get('rel_date'))
-            st.session_state.f_venue = safe_str(data_dict.get('venue'))
-            st.session_state.f_img = safe_str(data_dict.get('img_url'))
-            st.session_state.f_video = safe_str(data_dict.get('img_url2'))
-            st.session_state.f_brief = safe_str(data_dict.get('brief'))
-            st.session_state.f_highlights = safe_str(data_dict.get('highlights'))
-            st.session_state.f_note = safe_str(data_dict.get('note'))
-            st.session_state.f_summary = safe_str(data_dict.get('summary'))
-            st.session_state.f_plan_type = data_dict.get('plan_type', 'CONSUME')
-            
-            date_key = 'plan_date' if is_plan else 'view_date'
-            try: st.session_state.f_view_date = pd.to_datetime(data_dict.get(date_key)).date()
-            except: st.session_state.f_view_date = get_kst_today()
-            
-            st.session_state.main_nav = "🖋️ WRITE"
-            st.rerun()
+        c2.button("✏️ 수정", key=f"edit_{table_name}_{item_id}", use_container_width=True, type="primary", on_click=switch_to_edit_mode, args=(data_dict, item_id, table_name, cat))
             
         with c3:
             with st.popover("🔗 공유", use_container_width=True):
@@ -394,14 +435,14 @@ def render_item_details(data_dict, item_id, is_plan=False):
             if url_match:
                 media_url = url_match.group(1)
                 text_part = memo_content.replace(media_url, '').strip(' /|-')
-                if text_part: st.markdown(f'<div style="background-color: #0F172A; border-left: 4px solid #6366F1; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">📎 {text_part}</div>', unsafe_allow_html=True)
+                if text_part: st.markdown(f'<div style="background-color: #1a1a1a; border-left: 4px solid #E50914; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">📎 {text_part}</div>', unsafe_allow_html=True)
                 if re.search(r'\.(jpg|jpeg|png|webp|gif)', media_url, re.IGNORECASE) or "image.tmdb.org" in media_url:
                     st.image(media_url, use_container_width=True)
                 else:
                     try: st.video(media_url)
                     except: st.markdown(f"**[🔗 첨부 링크 보러가기]({media_url})**")
             else: 
-                st.markdown(f'<div style="background-color: #0F172A; border-left: 4px solid #6366F1; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">📎 {memo_content}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="background-color: #1a1a1a; border-left: 4px solid #E50914; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">📎 {memo_content}</div>', unsafe_allow_html=True)
     
     with col_txt:
         st.markdown(f'# {data_dict.get("title")}')
@@ -411,16 +452,16 @@ def render_item_details(data_dict, item_id, is_plan=False):
         
         date_label = "🗓️ 예정일" if is_plan else "🍿 감상/완료일"
         date_val = data_dict.get('plan_date') if is_plan else data_dict.get('view_date')
-        date_color = "#6366F1" if is_plan else "#E2E8F0"
+        date_color = "#E50914" if is_plan else "#E2E2E2"
         st.markdown(f'<p style="color: {date_color}; font-weight: bold; font-size: 1.1em;">{date_label}: {date_val}</p>', unsafe_allow_html=True)
         st.divider()
             
         for label, key, color in sections:
             val = data_dict.get(key)
             if val and str(val).strip():
-                st.markdown(f'<div style="display: inline-block; background-color: {color}; color: white; padding: 4px 14px; border-radius: 20px; font-size: 0.75rem; margin-bottom: 10px; font-weight: bold; text-transform: uppercase;">{label}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="display: inline-block; background-color: {color}; color: white; padding: 2px 12px; border-radius: 12px; font-size: 0.8em; margin-bottom: 10px; font-weight: bold;">{label}</div>', unsafe_allow_html=True)
                 st.markdown(str(val).replace('\n', '  \n'))
-                st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #334155;'>", unsafe_allow_html=True)
+                st.markdown("<hr style='margin: 1.2em 0; border: 0; border-top: 1px solid #333;'>", unsafe_allow_html=True)
 
         if IS_ADMIN and is_plan:
             st.markdown("<br>", unsafe_allow_html=True)
@@ -569,7 +610,7 @@ st.markdown(f"""
     <img src="data:image/png;base64,{get_base64('logo.png')}" width="75" style="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
     <div>
         <h1 style="margin: 0; font-size: 2.1rem; font-weight: 800; letter-spacing: -1px; background: linear-gradient(45deg, #FFFFFF, #94A3B8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">PRISM ARCHIVE</h1>
-        <p style="margin: 0; color: #64748B; font-size: 0.85rem; font-weight: 500;">all right reserved by FLASHMAN</p>
+        <p style="margin: 0; color: #64748B; font-size: 0.85rem; font-weight: 500;">Premium Media & Thought Record Space</p>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -583,7 +624,7 @@ tab_w = (st.session_state.main_nav == "🖋️ WRITE")
 # ----------------- [WRITE 탭] -----------------
 if IS_ADMIN and tab_w:
     st.markdown("""<style>
-    .sm-cal-box { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); background: #1E293B; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; border: 1px solid #334155; transition: all 0.2s ease; }
+    .sm-cal-box { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); background: #1E293B; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; border: 1px solid #334155; transition: all 0.2s ease; }
     .sm-cal-box:hover { transform: translateY(-2px); border-color: #6366F1; box-shadow: 0 6px 14px rgba(99, 102, 241, 0.2); }
     .sm-cal-box img { width: 100%; height: 100%; object-fit: cover; }
     .sm-badge-cat { position: absolute; top: 4px; left: 4px; background: rgba(15, 23, 42, 0.8); padding: 2px 5px; border-radius: 4px; font-size: 10px; z-index: 5; border: 1px solid rgba(255,255,255,0.05); }
@@ -605,9 +646,6 @@ if IS_ADMIN and tab_w:
     div.compact-btn-wrapper p { font-size: 11px !important; line-height: 24px !important; font-weight: 600; }
     </style>""", unsafe_allow_html=True)
 
-    # ==========================================
-    # 1. [개선] Weekly Contents 최상단 대시보드 배치
-    # ==========================================
     col_l, col_c, col_r = st.columns([0.08, 0.84, 0.08])
     with col_l:
         st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
@@ -638,7 +676,6 @@ if IS_ADMIN and tab_w:
         consume_items = week_data[week_data['plan_type'] == 'CONSUME'].to_dict('records')
         note_items = week_data[week_data['plan_type'] == 'NOTE'].to_dict('records')
         
-        # 좌우 분할 구조 정의 및 격자 크기를 3열로 확대해 시인성 극대화
         col_watching_side, col_made_side = st.columns(2)
         grid_cols_sub = 3
 
@@ -660,7 +697,7 @@ if IS_ADMIN and tab_w:
                                 else:
                                     st.markdown(f"""<div class='sm-cal-box' style='border-left: 3px solid #6366F1;'><div style='font-size: 1.4em;'>{emoji}</div></div>""", unsafe_allow_html=True)
                                 
-                                short_title = row['title'][:19] + ".." if len(row['title']) > 19 else row['title']
+                                short_title = row['title'][:7] + ".." if len(row['title']) > 7 else row['title']
                                 st.markdown("<div class='compact-btn-wrapper'>", unsafe_allow_html=True)
                                 if st.button(f"{short_title}", key=f"dtl_cal_{key_prefix}_{row['id']}", use_container_width=True): show_plan_details(row)
                                 st.markdown("</div>", unsafe_allow_html=True)
@@ -682,13 +719,9 @@ if IS_ADMIN and tab_w:
     st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
     st.divider()
 
-    # ==========================================
-    # 2. 외부 API 검색 및 수집 영역
-    # ==========================================
     category = st.radio("📂 CATEGORY", CATEGORIES, horizontal=True, key="main_category_radio")
     search_query = st.text_input(f"🔍 {category} 검색")
     
-    # API 검색 처리
     if search_query:
         if category == "SCRAP":
             if st.button("✨ 가져오기"):
@@ -750,11 +783,6 @@ if IS_ADMIN and tab_w:
 
     st.divider()
 
-    # --- 입력 폼 영역 ---
-    is_update = st.session_state.edit_target_id is not None
-    if is_update:
-        st.info("🚨 현재 데이터 수정 모드 (작성 중 화면 새로고침 차단됨)")
-        
     with st.form(key="prism_write_form", clear_on_submit=False):
         cl, cr = st.columns([0.4, 0.6])
         with cl:
@@ -839,6 +867,7 @@ if IS_ADMIN and tab_w:
         if cb3.form_submit_button("🔄 비우기", use_container_width=True):
             st.session_state.should_clear_form = True
             st.rerun()
+
 # ----------------- [ARCHIVE 탭] -----------------
 elif not tab_w:
     st.markdown("""<style>
@@ -910,8 +939,13 @@ elif not tab_w:
                                     row = items[i+j]
                                     img_style = 'style="height: auto; aspect-ratio: 1/1;"' if row["category"] == "MUSIC" else ""
                                     with cols[j]:
-                                        st.markdown(f'<div class="cal-img-box"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}" {img_style}></div>', unsafe_allow_html=True)
-                                        if st.button(row['title'][:19] + "..." if len(row['title']) > 19 else row['title'], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
+                                        # 💡 [수정] 썸네일 클릭 영역 구현 (Invisible Button 덧씌우기)
+                                        st.markdown(f'<div class="cal-img-container"><div class="cal-img-box"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}" {img_style}></div>', unsafe_allow_html=True)
+                                        st.markdown("<div class='invisible-btn'>", unsafe_allow_html=True)
+                                        st.button(" ", key=f"img_btn_all_{row['id']}", on_click=show_details, args=(row,), use_container_width=True)
+                                        st.markdown("</div></div>", unsafe_allow_html=True)
+                                        
+                                        if st.button(row['title'][:15] + "..." if len(row['title']) > 15 else row['title'], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
 
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
@@ -919,7 +953,8 @@ elif not tab_w:
                 if c_data.empty: st.info(f"검색 결과 없음: {c_name}" if search_query_archive else f"데이터 없음: {c_name}")
                 else:
                     items = c_data.to_dict('records')
-                    music_cls = "music-tab-style" if c_name == "MUSIC" else ""
+                    music_cls = "music-tab-container" if c_name == "MUSIC" else ""
+                    music_cls_box = "music-tab-style" if c_name == "MUSIC" else ""
                     for i in range(0, len(items), grid_cols):
                         cols = st.columns(grid_cols)
                         for j in range(grid_cols):
@@ -927,8 +962,13 @@ elif not tab_w:
                                 row = items[i+j]
                                 with cols[j]:
                                     img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
-                                    st.markdown(f'<div class="cal-img-box {music_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{img_u}"></div>', unsafe_allow_html=True)
-                                    if st.button(row['title'][:20] + "..." if len(row['title']) > 20 else row['title'], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+                                    # 💡 [수정] 썸네일 클릭 영역 구현 (Invisible Button 덧씌우기)
+                                    st.markdown(f'<div class="cal-img-container {music_cls}"><div class="cal-img-box {music_cls_box}"><div class="badge-date">{row["view_date"]}</div><img src="{img_u}"></div>', unsafe_allow_html=True)
+                                    st.markdown("<div class='invisible-btn'>", unsafe_allow_html=True)
+                                    st.button(" ", key=f"img_btn_cat_{c_name}_{row['id']}", on_click=show_details, args=(row,), use_container_width=True)
+                                    st.markdown("</div></div>", unsafe_allow_html=True)
+                                    
+                                    if st.button(row['title'][:15] + "..." if len(row['title']) > 15 else row['title'], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
 
         if IS_ADMIN:
             with sub_tabs[-1]:
@@ -972,6 +1012,8 @@ elif not tab_w:
                                     if row['brief']: st.write(f"**🎯 CONTEXT(argument):** {row['brief']}")
                                     if row['highlights']: st.markdown(f"**💡 EXAMPLS(evidences)/STRUCTURE:**<br>{row['highlights'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
                                     
-                                    if st.button("✏️ 수정", key=f"scr_btn_{row['id']}"): show_details(row)
+                                    if st.button("✏️ 수정", key=f"scr_btn_{row['id']}"):
+                                        setup_edit_mode(row.to_dict(), "archive", "SCRAP", row['id'])
+                                        st.rerun()
                     else: st.info("해당 태그나 검색어에 맞는 SCRAP이 없습니다.")
                 else: st.info("SCRAP 기록이 없습니다.")
