@@ -583,11 +583,18 @@ tab_w = (st.session_state.main_nav == "🖋️ WRITE")
 # ----------------- [WRITE 탭] -----------------
 if IS_ADMIN and tab_w:
     st.markdown("""<style>
-    .sm-cal-box { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); background: #1E293B; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; border: 1px solid #334155; transition: all 0.2s ease; }
-    .sm-cal-box:hover { transform: translateY(-2px); border-color: #6366F1; box-shadow: 0 6px 14px rgba(99, 102, 241, 0.2); }
-    .sm-cal-box img { width: 100%; height: 100%; object-fit: cover; }
+    /* I'm Watching 카드 인프라 스타일 */
+    .sm-cal-box-consume { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); background: #1E293B; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; border: 1px solid #334155; border-top: 3px solid #3B82F6; transition: all 0.2s ease; }
+    .sm-cal-box-consume:hover { transform: translateY(-2px); border-color: #3B82F6; box-shadow: 0 6px 14px rgba(59, 130, 246, 0.25); }
+    .sm-cal-box-consume img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* I Made it 카드 인프라 스타일 */
+    .sm-cal-box-note { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); background: #1E293B; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; border: 1px solid #334155; border-top: 3px solid #8B5CF6; transition: all 0.2s ease; }
+    .sm-cal-box-note:hover { transform: translateY(-2px); border-color: #8B5CF6; box-shadow: 0 6px 14px rgba(139, 92, 246, 0.25); }
+    .sm-cal-box-note img { width: 100%; height: 100%; object-fit: cover; }
+
     .sm-badge-cat { position: absolute; top: 4px; left: 4px; background: rgba(15, 23, 42, 0.8); padding: 2px 5px; border-radius: 4px; font-size: 10px; z-index: 5; border: 1px solid rgba(255,255,255,0.05); }
-    .sm-date-label { text-align: center; font-size: 0.75rem; color: #6366F1; font-weight: 700; margin-bottom: 3px; letter-spacing: 0.5px; }
+    .sm-date-label { text-align: center; font-size: 0.75rem; color: #94A3B8; font-weight: 700; margin-bottom: 3px; letter-spacing: 0.5px; }
     
     div.compact-btn-wrapper div[data-testid="stBaseButton-secondary"] {
         padding: 2px 4px !important;
@@ -643,6 +650,10 @@ if IS_ADMIN and tab_w:
         grid_cols_sub = 3
 
         def draw_plan_grid_sub(container, items_list, key_prefix):
+            # 플랜 타입에 맞춘 동적 클래스 설계 ('consume' -> 블루 하이라이트 / 'note' -> 퍼플 하이라이트)
+            box_class = f"sm-cal-box-{key_prefix}" 
+            border_clr = "#3B82F6" if key_prefix == "consume" else "#8B5CF6"
+            
             with container:
                 for i in range(0, len(items_list), grid_cols_sub):
                     sub_cols = st.columns(grid_cols_sub)
@@ -650,33 +661,51 @@ if IS_ADMIN and tab_w:
                         if i + j < len(items_list):
                             row = items_list[i + j]
                             with sub_cols[j]:
-                                emoji = CAT_EMOJIS.get(row['category'], "📌")
                                 st.markdown(f"<div class='sm-date-label'>{row['plan_date'][5:].replace('-', '.')}</div>", unsafe_allow_html=True)
                                 try: img_url = json.loads(row['memo']).get('img_url', '')
                                 except: img_url = ""
                                 
+                                emoji = CAT_EMOJIS.get(row['category'], "📌")
                                 if img_url and img_url.strip() and img_url != "None":
-                                        st.markdown(f"""<div class='sm-cal-box'><div class='sm-badge-cat'>{emoji}</div><img src="{img_url}" onerror="this.style.display='none'"></div>""", unsafe_allow_html=True)
+                                        st.markdown(f"""<div class='{box_class}'><div class='sm-badge-cat'>{emoji}</div><img src="{img_url}" onerror="this.style.display='none'"></div>""", unsafe_allow_html=True)
                                 else:
-                                    st.markdown(f"""<div class='sm-cal-box' style='border-left: 3px solid #6366F1;'><div style='font-size: 1.4em;'>{emoji}</div></div>""", unsafe_allow_html=True)
+                                    st.markdown(f"""<div class='{box_class}' style='border-left: 4px solid {border_clr};'><div style='font-size: 1.4em;'>{emoji}</div></div>""", unsafe_allow_html=True)
                                 
                                 short_title = row['title'][:19] + ".." if len(row['title']) > 19 else row['title']
                                 st.markdown("<div class='compact-btn-wrapper'>", unsafe_allow_html=True)
                                 if st.button(f"{short_title}", key=f"dtl_cal_{key_prefix}_{row['id']}", use_container_width=True): show_plan_details(row)
                                 st.markdown("</div>", unsafe_allow_html=True)
 
+        # 감상 예정 가공 (블루 배너 디자인 시스템 추가)
         if consume_items:
-            col_watching_side.markdown("<p style='font-weight: 700; margin-bottom: 8px; font-size: 0.95em; color:#94A3B8; letter-spacing:0.5px;'>🍿 I'm Watching</p>", unsafe_allow_html=True)
+            col_watching_side.markdown("""
+            <div style='background-color: rgba(59, 130, 246, 0.1); border-left: 4px solid #3B82F6; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px;'>
+                <span style='font-weight: 800; font-size: 0.95em; color: #60A5FA; letter-spacing: 0.5px;'>🍿 I'm Watching (감상 예정)</span>
+            </div>
+            """, unsafe_allow_html=True)
             draw_plan_grid_sub(col_watching_side, consume_items, "consume")
         else:
-            col_watching_side.markdown("<p style='font-weight: 700; margin-bottom: 8px; font-size: 0.95em; color:#94A3B8; letter-spacing:0.5px;'>🍿 I'm Watching</p>", unsafe_allow_html=True)
+            col_watching_side.markdown("""
+            <div style='background-color: rgba(59, 130, 246, 0.1); border-left: 4px solid #3B82F6; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px;'>
+                <span style='font-weight: 800; font-size: 0.95em; color: #60A5FA; letter-spacing: 0.5px;'>🍿 I'm Watching (감상 예정)</span>
+            </div>
+            """, unsafe_allow_html=True)
             col_watching_side.markdown("<div style='color:#64748B; font-size:0.85em; padding:20px; background:#1E293B; border-radius:10px; border:1px dashed #334155; text-align:center;'>진행 중인 콘텐츠가 없습니다.</div>", unsafe_allow_html=True)
             
+        # 작성 예정 가공 (퍼플 배너 디자인 시스템 추가)
         if note_items:
-            col_made_side.markdown("<p style='font-weight: 700; margin-bottom: 8px; font-size: 0.95em; color:#94A3B8; letter-spacing:0.5px;'>📝 I Made it (작성 중)</p>", unsafe_allow_html=True)
+            col_made_side.markdown("""
+            <div style='background-color: rgba(139, 92, 246, 0.1); border-left: 4px solid #8B5CF6; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px;'>
+                <span style='font-weight: 800; font-size: 0.95em; color: #A78BFA; letter-spacing: 0.5px;'>📝 I Made it (작성 예정)</span>
+            </div>
+            """, unsafe_allow_html=True)
             draw_plan_grid_sub(col_made_side, note_items, "note")
         else:
-            col_made_side.markdown("<p style='font-weight: 700; margin-bottom: 8px; font-size: 0.95em; color:#94A3B8; letter-spacing:0.5px;'>📝 I Made it (작성 중)</p>", unsafe_allow_html=True)
+            col_made_side.markdown("""
+            <div style='background-color: rgba(139, 92, 246, 0.1); border-left: 4px solid #8B5CF6; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px;'>
+                <span style='font-weight: 800; font-size: 0.95em; color: #A78BFA; letter-spacing: 0.5px;'>📝 I Made it (작성 예정)</span>
+            </div>
+            """, unsafe_allow_html=True)
             col_made_side.markdown("<div style='color:#64748B; font-size:0.85em; padding:20px; background:#1E293B; border-radius:10px; border:1px dashed #334155; text-align:center;'>작성 중인 콘텐츠가 없습니다.</div>", unsafe_allow_html=True)
 
     st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
