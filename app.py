@@ -323,8 +323,8 @@ def render_item_details(data_dict, item_id, is_plan=False):
     ] if cat == "SCRAP" else [
         ("💎 DRIP", "brief", "#E50914"), 
         ("🖋️ PRISM", "note", "#1E425E"),
-        ("💡 SIGHT", "summary", "#0E6245"), 
-        ("🔖 SENSE", "highlights", "#7D5600")
+        ("💡BRIEF", "summary", "#0E6245"), 
+        ("🔖 POINT", "highlights", "#7D5600")
     ]
     
     if cat == "SCRAP":
@@ -810,8 +810,8 @@ if IS_ADMIN and tab_w:
             else:
                 st.text_input("1. 💎 DRIP", key="f_brief")
                 st.text_area("2. 🖋️ PRISM", key="f_note", height=300)
-                st.text_area("3. 💡 SIGHT", key="f_summary", height=150)
-                st.text_area("4. 🔖 SENSE", key="f_highlights", height=150)
+                st.text_area("3. 💡BRIEF", key="f_summary", height=150)
+                st.text_area("4. 🔖 POINT", key="f_highlights", height=150)
         
         st.markdown("<br>", unsafe_allow_html=True)
         cb1, cb2, cb3 = st.columns([0.4, 0.4, 0.2])
