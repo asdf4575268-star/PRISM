@@ -808,10 +808,10 @@ if IS_ADMIN and tab_w:
                 st.text_input("🎯 CONTEXT(argument)", key="f_brief")
                 st.text_area("💡 EXAMPLS(evidences)/STRUCTURE", key="f_highlights", height=120)
             else:
-                st.text_input("1. 💎 DRIP", key="f_brief")
-                st.text_area("2. 🖋️ PRISM", key="f_note", height=300)
-                st.text_area("3. 💡BRIEF", key="f_summary", height=150)
-                st.text_area("4. 🔖 POINT", key="f_highlights", height=150)
+                st.text_input("💎 DRIP", key="f_brief")
+                st.text_area("🖋️ PRISM", key="f_note", height=300)
+                st.text_area("💡BRIEF", key="f_summary", height=150)
+                st.text_area("🔖 POINT", key="f_highlights", height=150)
         
         st.markdown("<br>", unsafe_allow_html=True)
         cb1, cb2, cb3 = st.columns([0.4, 0.4, 0.2])
