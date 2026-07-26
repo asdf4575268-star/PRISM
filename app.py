@@ -698,7 +698,7 @@ if IS_ADMIN and tab_w:
                                     for t in requests.get(f"https://itunes.apple.com/lookup?id={m['collection_id']}&entity=song").json().get("results", []) 
                                     if t.get('wrapperType') == 'track'
                                 ]
-                                if tracks: tl_text = "💿 트랙리스트\n" + "\n".join([f"{i+1}. {t}" for i, t in enumerate(tracks)])
+                                    if tracks: tl_text = "💿 트랙리스트\n" + "\n".join([f"{i+1}. {t}" for i, t in enumerate(tracks)])
                             except: pass
                         
                         combined_summary = f"{m.get('url', '')}\n\n{tl_text}".strip()
