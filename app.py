@@ -598,7 +598,7 @@ if IS_ADMIN and tab_w:
     # [왼쪽 영역] 이미지 중심 주간 계획 목록 (월~일 리스트)
     # ==========================================
     with col_write_left:
-        st.markdown("<h4 style='font-weight: 800; color: #F1F5F9; margin-bottom: 12px;'>📅 주간 계획</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='font-weight: 800; color: #F1F5F9; margin-bottom: 12px;'>📅 WEEKLY</h4>", unsafe_allow_html=True)
         
         # 주간 이동 컨트롤
         lc1, lc2, lc3 = st.columns([0.15, 0.7, 0.15])
@@ -672,7 +672,7 @@ if IS_ADMIN and tab_w:
     # [오른쪽 영역] 외부 API 검색 및 수집 / 작성 폼
     # ==========================================
     with col_write_right:
-        st.markdown("<h4 style='font-weight: 800; color: #F1F5F9; margin-bottom: 12px;'>🔍 검색 및 수집 / 작성</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='font-weight: 800; color: #F1F5F9; margin-bottom: 12px;'>🔍 SEARCH</h4>", unsafe_allow_html=True)
         
         category = st.radio("📂 CATEGORY", CATEGORIES, horizontal=True, key="main_category_radio")
         search_query = st.text_input(f"🔍 {category} 검색")
