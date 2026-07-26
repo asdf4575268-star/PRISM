@@ -318,7 +318,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
 
     # --- 수정 모드인 경우: 다이얼로그 내부에서 즉시 수정 폼 렌더링 ---
     if is_edit_mode:
-        st.markdown("### ✏️수정하기")
+        st.markdown("### ✏️수정모드")
         with st.form(key=f"inline_edit_form_{table_name}_{item_id}"):
             col_in1, col_in2 = st.columns([0.4, 0.6])
             with col_in1:
