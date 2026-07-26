@@ -592,7 +592,7 @@ tab_w = (st.session_state.main_nav == "🖋️ WRITE")
 # ----------------- [WRITE 탭] -----------------
 if IS_ADMIN and tab_w:
     # WRITE 탭 전체를 좌우 2분할 (왼쪽 4.5 : 오른쪽 5.5)
-    col_write_left, col_write_right = st.columns([0.3, 0.7], gap="large")
+    col_write_left, col_write_right = st.columns([0.35, 0.65], gap="large")
 
     # ==========================================
     # [왼쪽 영역] 이미지 중심 주간 계획 목록 (월~일 리스트)
