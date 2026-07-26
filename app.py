@@ -301,7 +301,6 @@ def scrape_url(url):
 # 6. UI COMPONENTS (공통 다이얼로그 렌더링)
 # ==========================================
 
-# 상태 제어를 위한 콜백 함수 (다이얼로그 닫힘 방지)
 def set_dialog_edit_mode(key, val):
     st.session_state[key] = val
 
@@ -316,7 +315,6 @@ def render_item_details(data_dict, item_id, is_plan=False):
     venue = data_dict.get('venue', '')
     img_url = data_dict.get('img_url', '')
 
-    # --- 수정 모드인 경우: 다이얼로그 내부에서 즉시 수정 폼 렌더링 ---
     if is_edit_mode:
         st.markdown("### ✏️수정모드")
         with st.form(key=f"inline_edit_form_{table_name}_{item_id}"):
@@ -377,7 +375,6 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 pass
         return
 
-    # --- 보기 모드인 경우 ---
     share_text = f"[{cat}] {data_dict.get('title')}\n"
     if creator_text: share_text += f"👤 창작자: {creator_text}\n"
     if rel_date: share_text += f"📅 발매/출간일: {rel_date}\n"
@@ -407,7 +404,6 @@ def render_item_details(data_dict, item_id, is_plan=False):
         if data_dict.get('note') and str(data_dict.get('note')).strip():
             share_text += f"🖋️ PRISM:\n{data_dict.get('note')}\n\n"
 
-    # --- 상단 버튼 영역 (삭제 / 수정 / 공유) ---
     if IS_ADMIN:
         c1, c2, c3 = st.columns(3)
         
@@ -430,7 +426,6 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 
         st.divider()
 
-    # --- 콘텐츠 렌더링 영역 ---
     col_img, col_txt = st.columns([0.3, 0.7])
     with col_img:
         if img_url and str(img_url) != "None": st.image(img_url, use_container_width=True)
@@ -476,7 +471,6 @@ def render_item_details(data_dict, item_id, is_plan=False):
             if st.button(btn_label, key=f"to_archive_{item_id}", use_container_width=True, type="primary"):
                 conn = get_connection()
                 
-                # 아카이브 레코드 생성
                 new_record = {
                     "category": cat, 
                     "title": data_dict['title'], 
@@ -493,12 +487,10 @@ def render_item_details(data_dict, item_id, is_plan=False):
                     "view_date": data_dict['plan_date']
                 }
                 
-                # Local SQLite 및 Supabase 아카이브 적재
                 conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", tuple(new_record.values()))
                 try: supabase.table("archive").upsert(new_record).execute()
                 except: pass
                 
-                # 주간 계획(plan) 테이블에서는 삭제
                 conn.execute("DELETE FROM plan WHERE id=?", (item_id,))
                 conn.commit()
                 st.cache_data.clear()
@@ -530,7 +522,6 @@ def get_base64(path):
         with open(path, "rb") as f: return base64.b64encode(f.read()).decode()
     except: return ""
 
-# 로그인 사이드바
 with st.sidebar:
     st.markdown("### 🔐 관리자 접속")
     if not IS_ADMIN:
@@ -572,7 +563,6 @@ with st.sidebar:
         st.button("📤 클라우드 백업", key="backup_2", on_click=migrate_to_supabase, use_container_width=True)
         st.button("📥 클라우드 복구", key="restore_2", on_click=restore_from_supabase, use_container_width=True)
 
-# 헤더 타이틀 및 네비게이션
 st.markdown(f"""
 <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding: 12px 0; border-bottom: 1px solid #334155;">
     <img src="data:image/png;base64,{get_base64('logo.png')}" width="75" style="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
@@ -591,16 +581,14 @@ tab_w = (st.session_state.main_nav == "🖋️ WRITE")
 
 # ----------------- [WRITE 탭] -----------------
 if IS_ADMIN and tab_w:
-    # WRITE 탭 전체를 좌우 2분할 (왼쪽 4.5 : 오른쪽 5.5)
-    col_write_left, col_write_right = st.columns([0.5, 0.5], gap="large")
+    col_write_left, col_write_right = st.columns([0.35, 0.65], gap="large")
 
     # ==========================================
-    # [왼쪽 영역] 이미지 중심 주간 계획 목록 (월~일 리스트)
+    # [왼쪽 영역] 이미지 내부에 요일 정보 포함
     # ==========================================
     with col_write_left:
         st.markdown("<h4 style='font-weight: 800; color: #F1F5F9; margin-bottom: 12px;'>📅 WEEKLY</h4>", unsafe_allow_html=True)
         
-        # 주간 이동 컨트롤
         lc1, lc2, lc3 = st.columns([0.15, 0.7, 0.15])
         with lc1:
             if st.button("⬅️", use_container_width=True, key="w_prev_week_side"):
@@ -612,7 +600,7 @@ if IS_ADMIN and tab_w:
         view_sunday = view_monday + pd.Timedelta(days=6)
         
         with lc2:
-            st.markdown(f"<div style='text-align: center; font-weight: 700; color: #818CF8;'>{view_monday.isocalendar().week}주차 ({view_monday.strftime('%m.%d')} ~ {view_sunday.strftime('%m.%d')})</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='text-align: center; font-weight: 700; color: #818CF8; font-size: 0.9rem;'>{view_monday.isocalendar().week}주차 ({view_monday.strftime('%m.%d')} ~ {view_sunday.strftime('%m.%d')})</div>", unsafe_allow_html=True)
         
         with lc3:
             if st.button("➡️", use_container_width=True, key="w_next_week_side"):
@@ -628,45 +616,39 @@ if IS_ADMIN and tab_w:
         else:
             week_data = pd.DataFrame()
 
-        # 월요일 ~ 일요일 루프 처리하여 리스트 형식 렌더링
         days_korean = ["월", "화", "수", "목", "금", "토", "일"]
         for i in range(7):
             current_day = view_monday + pd.Timedelta(days=i)
             day_items = week_data[week_data['p_dt'].dt.date == current_day.date()].to_dict('records') if not week_data.empty else []
             
-            # 요일 헤더
-            st.markdown(f"<div style='font-weight: 800; font-size: 1.05rem; color: #818CF8; margin-top: 16px; border-bottom: 2px solid #334155; padding-bottom: 6px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-end;'><span>{current_day.strftime('%m.%d')}</span><span style='font-size: 0.85rem; color: #94A3B8;'>{days_korean[i]}요일</span></div>", unsafe_allow_html=True)
-            
-            if not day_items:
-                st.markdown("<div style='color: #64748B; font-size: 0.85rem; padding: 12px; text-align: center; background: rgba(30, 41, 59, 0.5); border-radius: 8px; border: 1px dashed #334155;'>일정 없음</div>", unsafe_allow_html=True)
-            else:
-                for item in day_items:
-                    try: img_url = json.loads(item['memo']).get('img_url', '')
-                    except: img_url = ""
-                    
-                    emoji = CAT_EMOJIS.get(item['category'], "📌")
-                    title_display = item['title']
-                    
-                    # 이미지 기반 유연한 UI 카드 생성
-                    if img_url and img_url.strip() and img_url != "None":
-                        html_card = f'''
-                        <div style="position: relative; width: 100%; border-radius: 12px; overflow: hidden; border: 1px solid #334155; margin-bottom: 6px; background: #0F172A;">
-                            <div style="position: absolute; top: 10px; left: 10px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); color: #FBBF24; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; z-index: 10; border: 1px solid rgba(255,255,255,0.1);">{item['category']}</div>
-                            <img src="{img_url}" style="width: 100%; height: auto; display: block; object-fit: contain; max-height: 260px; margin: 0 auto;">
-                        </div>
-                        '''
-                        st.markdown(html_card, unsafe_allow_html=True)
-                    else:
-                        st.markdown(f'''
-                        <div style="width: 100%; border-radius: 12px; border: 1px solid #334155; margin-bottom: 6px; background: #0F172A; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px 20px;">
-                            <div style="color: #FBBF24; font-size: 0.8rem; font-weight: 700; margin-bottom: 8px;">{item['category']}</div>
-                            <div style="font-size: 2.5rem;">{emoji}</div>
-                        </div>
-                        ''', unsafe_allow_html=True)
-                    
-                    # 상세 보기 버튼 연결
-                    if st.button(title_display, key=f"w_card_btn_{item['id']}", use_container_width=True):
-                        show_plan_details(item)
+            for item in day_items:
+                try: img_url = json.loads(item['memo']).get('img_url', '')
+                except: img_url = ""
+                
+                emoji = CAT_EMOJIS.get(item['category'], "📌")
+                title_display = item['title']
+                
+                if img_url and img_url.strip() and img_url != "None":
+                    html_card = f'''
+                    <div style="position: relative; width: 100%; border-radius: 10px; overflow: hidden; border: 1px solid #334155; margin-bottom: 8px; background: #0F172A;">
+                        <div style="position: absolute; top: 8px; left: 8px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); color: #FBBF24; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 700; z-index: 10; border: 1px solid rgba(255,255,255,0.1);">{item['category']}</div>
+                        <div style="position: absolute; bottom: 8px; right: 8px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); color: #818CF8; padding: 3px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 800; z-index: 10; border: 1px solid rgba(255,255,255,0.1);">{days_korean[i]}요일 ({current_day.strftime('%m.%d')})</div>
+                        <img src="{img_url}" style="width: 100%; height: auto; display: block; object-fit: contain; max-height: 260px; margin: 0 auto;">
+                    </div>
+                    '''
+                    st.markdown(html_card, unsafe_allow_html=True)
+                else:
+                    html_card_no_img = f'''
+                    <div style="position: relative; width: 100%; border-radius: 10px; border: 1px solid #334155; margin-bottom: 8px; background: #0F172A; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 25px 10px;">
+                        <div style="position: absolute; top: 8px; left: 8px; color: #FBBF24; font-size: 0.7rem; font-weight: 700;">{item['category']}</div>
+                        <div style="position: absolute; bottom: 8px; right: 8px; color: #818CF8; font-size: 0.75rem; font-weight: 800;">{days_korean[i]}요일 ({current_day.strftime('%m.%d')})</div>
+                        <div style="font-size: 2rem; margin-top: 5px;">{emoji}</div>
+                    </div>
+                    '''
+                    st.markdown(html_card_no_img, unsafe_allow_html=True)
+                
+                if st.button(title_display, key=f"w_card_btn_{item['id']}", use_container_width=True):
+                    show_plan_details(item)
 
     # ==========================================
     # [오른쪽 영역] 외부 API 검색 및 수집 / 작성 폼
@@ -677,7 +659,6 @@ if IS_ADMIN and tab_w:
         category = st.radio("📂 CATEGORY", CATEGORIES, horizontal=True, key="main_category_radio")
         search_query = st.text_input(f"🔍 {category} 검색")
         
-        # API 검색 처리
         if search_query:
             if category == "SCRAP":
                 if st.button("✨ 가져오기", use_container_width=True):
@@ -712,7 +693,7 @@ if IS_ADMIN and tab_w:
                         tl_text = ""
                         if m.get('is_album') and m.get('collection_id'):
                             try:
-                                tracks = [t['trackName'] for t in requests.get(f"https://itunes.apple.com/lookup?id={m['collection_id']}&entity=song").json().get("results", []) if t.get('wrapperType') == 'track']
+                                tracks = [t['trackName'] for t in requests.get(f"https://itunes.apple.com/lookup?id={m['collection_id']}&entity=song").json().get("results", []) if t.get('wrapperType'] == 'track']
                                 if tracks: tl_text = "💿 트랙리스트\n" + "\n".join([f"{i+1}. {t}" for i, t in enumerate(tracks)])
                             except: pass
                         
@@ -738,7 +719,6 @@ if IS_ADMIN and tab_w:
 
         st.divider()
 
-        # --- 입력 폼 영역 ---
         with st.form(key="prism_write_form", clear_on_submit=False):
             cl, cr = st.columns([0.45, 0.55])
             with cl:
@@ -794,18 +774,15 @@ if IS_ADMIN and tab_w:
 # ----------------- [ARCHIVE 탭] -----------------
 elif not tab_w:
     st.markdown("""<style>
-    /* 미디어 커버 카드 인프라 업그레이드 */
     .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1.4; overflow: hidden; border-radius: 12px; margin-top: 8px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3); background: #1E293B; display: flex; align-items: center; justify-content: center; border: 1px solid #334155; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); } 
     .cal-img-box:hover { transform: translateY(-5px); border-color: #6366F1; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.5); }
     .cal-img-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; } 
     .cal-img-box:hover img { transform: scale(1.04); }
     .music-tab-style { aspect-ratio: 1/1 !important; } 
     
-    /* 카드 장식 배지 글래스모피즘 효과 */
     .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); color: #FBBF24; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; z-index: 10; letter-spacing: 0.5px; border: 1px solid rgba(255,255,255,0.05); } 
     .badge-date { position: absolute; bottom: 8px; right: 8px; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); color: #E2E8F0; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 600; z-index: 10; border: 1px solid rgba(255,255,255,0.05); } 
     
-    /* 타이틀 텍스트 보정 스트림릿 컴포넌트 처리 */
     div[data-testid="stColumn"] button {
         background-color: transparent !important;
         border: none !important;
