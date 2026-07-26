@@ -300,6 +300,11 @@ def scrape_url(url):
 # ==========================================
 # 6. UI COMPONENTS (공통 다이얼로그 렌더링)
 # ==========================================
+
+# 상태 제어를 위한 콜백 함수 (다이얼로그 닫힘 방지)
+def set_dialog_edit_mode(key, val):
+    st.session_state[key] = val
+
 def render_item_details(data_dict, item_id, is_plan=False):
     table_name = "plan" if is_plan else "archive"
     edit_mode_key = f"edit_mode_{table_name}_{item_id}"
@@ -368,9 +373,8 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 time.sleep(0.5)
                 st.rerun()
 
-            if c_cancel.form_submit_button("❌ 취소", use_container_width=True):
-                st.session_state[edit_mode_key] = False
-                st.rerun()
+            if c_cancel.form_submit_button("❌ 취소", use_container_width=True, on_click=set_dialog_edit_mode, args=(edit_mode_key, False)):
+                pass
         return
 
     # --- 보기 모드인 경우 ---
@@ -416,9 +420,8 @@ def render_item_details(data_dict, item_id, is_plan=False):
             except: pass
             st.rerun()
             
-        if c2.button("✏️ 수정", key=f"edit_{table_name}_{item_id}", use_container_width=True, type="primary"):
-            st.session_state[edit_mode_key] = True
-            st.rerun()
+        if c2.button("✏️ 수정", key=f"edit_{table_name}_{item_id}", use_container_width=True, type="primary", on_click=set_dialog_edit_mode, args=(edit_mode_key, True)):
+            pass
             
         with c3:
             with st.popover("🔗 공유", use_container_width=True):
@@ -588,60 +591,11 @@ tab_w = (st.session_state.main_nav == "🖋️ WRITE")
 
 # ----------------- [WRITE 탭] -----------------
 if IS_ADMIN and tab_w:
-    st.markdown("""<style>
-    /* 주간 카드 스타일 */
-    .plan-card-box {
-        position: relative;
-        width: 100%;
-        aspect-ratio: 1/1.25;
-        overflow: hidden;
-        border-radius: 12px;
-        margin-top: 4px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-        background: #1E293B;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid #334155;
-    }
-    .plan-card-box img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-    .plan-badge-cat {
-        position: absolute;
-        top: 6px;
-        left: 6px;
-        background: rgba(15, 23, 42, 0.8);
-        backdrop-filter: blur(4px);
-        color: #FBBF24;
-        padding: 2px 6px;
-        border-radius: 12px;
-        font-size: 9px;
-        font-weight: 700;
-        z-index: 10;
-    }
-    .plan-badge-date {
-        position: absolute;
-        bottom: 6px;
-        right: 6px;
-        background: rgba(15, 23, 42, 0.8);
-        backdrop-filter: blur(4px);
-        color: #E2E8F0;
-        padding: 2px 6px;
-        border-radius: 12px;
-        font-size: 9px;
-        font-weight: 600;
-        z-index: 10;
-    }
-    </style>""", unsafe_allow_html=True)
-
     # WRITE 탭 전체를 좌우 2분할 (왼쪽 4.5 : 오른쪽 5.5)
     col_write_left, col_write_right = st.columns([0.45, 0.55], gap="large")
 
     # ==========================================
-    # [왼쪽 영역] 이미지/카드 형태 주간 계획 목록 (2열 Grid)
+    # [왼쪽 영역] 이미지 중심 주간 계획 목록 (월~일 리스트)
     # ==========================================
     with col_write_left:
         st.markdown("<h4 style='font-weight: 800; color: #F1F5F9; margin-bottom: 12px;'>📅 주간 계획</h4>", unsafe_allow_html=True)
@@ -674,43 +628,45 @@ if IS_ADMIN and tab_w:
         else:
             week_data = pd.DataFrame()
 
-        if week_data.empty:
-            st.markdown("<div style='text-align: center; color:#64748B; padding: 40px; background-color:#1E293B; border-radius:12px; border: 1px dashed #334155; font-size:0.9em;'>예정된 주간 콘텐츠가 없습니다.</div>", unsafe_allow_html=True)
-        else:
-            all_plan_items = week_data.to_dict('records')
-            plan_cols_count = 2  # 주간 카드는 2열로 배치하여 보기 좋게 정렬
-            for i in range(0, len(all_plan_items), plan_cols_count):
-                cols = st.columns(plan_cols_count)
-                for j in range(plan_cols_count):
-                    if i + j < len(all_plan_items):
-                        item = all_plan_items[i + j]
-                        try: img_url = json.loads(item['memo']).get('img_url', '')
-                        except: img_url = ""
-                        
-                        emoji = CAT_EMOJIS.get(item['category'], "📌")
-                        p_date_str = item['plan_date'][5:].replace('-', '.')
-                        
-                        with cols[j]:
-                            if img_url and img_url.strip() and img_url != "None":
-                                st.markdown(f'''
-                                <div class="plan-card-box">
-                                    <div class="plan-badge-cat">{item['category']}</div>
-                                    <div class="plan-badge-date">{p_date_str}</div>
-                                    <img src="{img_url}">
-                                </div>
-                                ''', unsafe_allow_html=True)
-                            else:
-                                st.markdown(f'''
-                                <div class="plan-card-box" style="font-size: 2.2rem;">
-                                    <div class="plan-badge-cat">{item['category']}</div>
-                                    <div class="plan-badge-date">{p_date_str}</div>
-                                    {emoji}
-                                </div>
-                                ''', unsafe_allow_html=True)
-                            
-                            short_title = item['title'][:14] + "..." if len(item['title']) > 14 else item['title']
-                            if st.button(short_title, key=f"w_card_btn_{item['id']}", use_container_width=True):
-                                show_plan_details(item)
+        # 월요일 ~ 일요일 루프 처리하여 리스트 형식 렌더링
+        days_korean = ["월", "화", "수", "목", "금", "토", "일"]
+        for i in range(7):
+            current_day = view_monday + pd.Timedelta(days=i)
+            day_items = week_data[week_data['p_dt'].dt.date == current_day.date()].to_dict('records') if not week_data.empty else []
+            
+            # 요일 헤더
+            st.markdown(f"<div style='font-weight: 800; font-size: 1.05rem; color: #818CF8; margin-top: 16px; border-bottom: 2px solid #334155; padding-bottom: 6px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-end;'><span>{current_day.strftime('%m.%d')}</span><span style='font-size: 0.85rem; color: #94A3B8;'>{days_korean[i]}요일</span></div>", unsafe_allow_html=True)
+            
+            if not day_items:
+                st.markdown("<div style='color: #64748B; font-size: 0.85rem; padding: 12px; text-align: center; background: rgba(30, 41, 59, 0.5); border-radius: 8px; border: 1px dashed #334155;'>일정 없음</div>", unsafe_allow_html=True)
+            else:
+                for item in day_items:
+                    try: img_url = json.loads(item['memo']).get('img_url', '')
+                    except: img_url = ""
+                    
+                    emoji = CAT_EMOJIS.get(item['category'], "📌")
+                    title_display = item['title']
+                    
+                    # 이미지 기반 유연한 UI 카드 생성
+                    if img_url and img_url.strip() and img_url != "None":
+                        html_card = f'''
+                        <div style="position: relative; width: 100%; border-radius: 12px; overflow: hidden; border: 1px solid #334155; margin-bottom: 6px; background: #0F172A;">
+                            <div style="position: absolute; top: 10px; left: 10px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); color: #FBBF24; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; z-index: 10; border: 1px solid rgba(255,255,255,0.1);">{item['category']}</div>
+                            <img src="{img_url}" style="width: 100%; height: auto; display: block; object-fit: contain; max-height: 450px; margin: 0 auto;">
+                        </div>
+                        '''
+                        st.markdown(html_card, unsafe_allow_html=True)
+                    else:
+                        st.markdown(f'''
+                        <div style="width: 100%; border-radius: 12px; border: 1px solid #334155; margin-bottom: 6px; background: #0F172A; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px 20px;">
+                            <div style="color: #FBBF24; font-size: 0.8rem; font-weight: 700; margin-bottom: 8px;">{item['category']}</div>
+                            <div style="font-size: 2.5rem;">{emoji}</div>
+                        </div>
+                        ''', unsafe_allow_html=True)
+                    
+                    # 상세 보기 버튼 연결
+                    if st.button(title_display, key=f"w_card_btn_{item['id']}", use_container_width=True):
+                        show_plan_details(item)
 
     # ==========================================
     # [오른쪽 영역] 외부 API 검색 및 수집 / 작성 폼
