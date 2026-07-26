@@ -693,7 +693,11 @@ if IS_ADMIN and tab_w:
                         tl_text = ""
                         if m.get('is_album') and m.get('collection_id'):
                             try:
-                                tracks = [t['trackName'] for t in requests.get(f"https://itunes.apple.com/lookup?id={m['collection_id']}&entity=song").json().get("results", []) if t.get('wrapperType'] == 'track']
+                               tracks = [
+                                    t['trackName'] 
+                                    for t in requests.get(f"https://itunes.apple.com/lookup?id={m['collection_id']}&entity=song").json().get("results", []) 
+                                    if t.get('wrapperType') == 'track'
+                                ]
                                 if tracks: tl_text = "💿 트랙리스트\n" + "\n".join([f"{i+1}. {t}" for i, t in enumerate(tracks)])
                             except: pass
                         
