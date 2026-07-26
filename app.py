@@ -301,13 +301,79 @@ def scrape_url(url):
 # 6. UI COMPONENTS (공통 다이얼로그 렌더링)
 # ==========================================
 def render_item_details(data_dict, item_id, is_plan=False):
+    table_name = "plan" if is_plan else "archive"
+    edit_mode_key = f"edit_mode_{table_name}_{item_id}"
+    is_edit_mode = st.session_state.get(edit_mode_key, False)
+    
     cat = data_dict.get('category')
     creator_text = data_dict.get('creator', '')
     rel_date = data_dict.get('rel_date', '')
     venue = data_dict.get('venue', '')
     img_url = data_dict.get('img_url', '')
-    
-    # --- 공유용 텍스트 미리 조립 ---
+
+    # --- 수정 모드인 경우: 다이얼로그 내부에서 즉시 수정 폼 렌더링 ---
+    if is_edit_mode:
+        st.markdown("### ✏️ 정보 바로 수정하기")
+        with st.form(key=f"inline_edit_form_{table_name}_{item_id}"):
+            col_in1, col_in2 = st.columns([0.4, 0.6])
+            with col_in1:
+                e_title = st.text_input("📌 제목", value=safe_str(data_dict.get('title')))
+                e_creator = st.text_input("👤 창작자", value=safe_str(data_dict.get('creator')))
+                e_rel_date = st.text_input("📅 발매/출간일", value=safe_str(data_dict.get('rel_date')))
+                e_venue = st.text_input("📍 장소/플랫폼", value=safe_str(data_dict.get('venue')))
+                e_img_url = st.text_input("🖼️ 이미지 URL", value=safe_str(data_dict.get('img_url')))
+                e_img_url2 = st.text_input("🎬 관련 영상/메모", value=safe_str(data_dict.get('img_url2')))
+                
+                date_val_str = data_dict.get('plan_date') if is_plan else data_dict.get('view_date')
+                try: default_d = pd.to_datetime(date_val_str).date()
+                except: default_d = get_kst_today()
+                e_view_date = st.date_input("🗓️ 날짜", value=default_d)
+                
+            with col_in2:
+                if cat == "SCRAP":
+                    e_summary = st.text_area("📰 QUOTE(url)", value=safe_str(data_dict.get('summary')), height=120)
+                    e_note = st.text_area("✍️ HANDWRITE(brief)", value=safe_str(data_dict.get('note')), height=120)
+                    e_brief = st.text_input("🎯 CONTEXT(argument)", value=safe_str(data_dict.get('brief')))
+                    e_highlights = st.text_area("💡 EXAMPLS(evidences)/STRUCTURE", value=safe_str(data_dict.get('highlights')), height=100)
+                else:
+                    e_brief = st.text_input("💎 DRIP", value=safe_str(data_dict.get('brief')))
+                    e_note = st.text_area("🖋️ PRISM", value=safe_str(data_dict.get('note')), height=200)
+                    e_summary = st.text_area("💡 BRIEF", value=safe_str(data_dict.get('summary')), height=100)
+                    e_highlights = st.text_area("🔖 POINT", value=safe_str(data_dict.get('highlights')), height=100)
+
+            c_save, c_cancel = st.columns([0.5, 0.5])
+            if c_save.form_submit_button("💾 저장하기", type="primary", use_container_width=True):
+                conn = get_connection()
+                if is_plan:
+                    updated_dict = {
+                        "category": cat, "title": e_title.strip(), "creator": e_creator.strip(),
+                        "rel_date": e_rel_date.strip(), "venue": e_venue.strip(), "summary": e_summary.strip(),
+                        "brief": e_brief.strip(), "highlights": e_highlights.strip(), "note": e_note.strip(),
+                        "img_url": e_img_url.strip(), "img_url2": e_img_url2.strip()
+                    }
+                    memo_payload = json.dumps(updated_dict, ensure_ascii=False)
+                    conn.execute("UPDATE plan SET category=?, title=?, plan_date=?, memo=? WHERE id=?", (cat, e_title.strip(), str(e_view_date), memo_payload, item_id))
+                    try: supabase.table("plan").update({"category": cat, "title": e_title.strip(), "plan_date": str(e_view_date), "memo": memo_payload}).eq("id", item_id).execute()
+                    except: pass
+                else:
+                    conn.execute("""UPDATE archive SET title=?, creator=?, rel_date=?, venue=?, summary=?, brief=?, highlights=?, note=?, img_url=?, img_url2=?, view_date=? WHERE id=?""",
+                                 (e_title.strip(), e_creator.strip(), e_rel_date.strip(), e_venue.strip(), e_summary.strip(), e_brief.strip(), e_highlights.strip(), e_note.strip(), e_img_url.strip(), e_img_url2.strip(), str(e_view_date), item_id))
+                    try: supabase.table("archive").update({"title": e_title.strip(), "creator": e_creator.strip(), "rel_date": e_rel_date.strip(), "venue": e_venue.strip(), "summary": e_summary.strip(), "brief": e_brief.strip(), "highlights": e_highlights.strip(), "note": e_note.strip(), "img_url": e_img_url.strip(), "img_url2": e_img_url2.strip(), "view_date": str(e_view_date)}).eq("id", item_id).execute()
+                    except: pass
+
+                conn.commit()
+                st.cache_data.clear()
+                st.session_state[edit_mode_key] = False
+                st.success("✅ 저장되었습니다!")
+                time.sleep(0.5)
+                st.rerun()
+
+            if c_cancel.form_submit_button("❌ 취소", use_container_width=True):
+                st.session_state[edit_mode_key] = False
+                st.rerun()
+        return
+
+    # --- 보기 모드인 경우 ---
     share_text = f"[{cat}] {data_dict.get('title')}\n"
     if creator_text: share_text += f"👤 창작자: {creator_text}\n"
     if rel_date: share_text += f"📅 발매/출간일: {rel_date}\n"
@@ -340,7 +406,6 @@ def render_item_details(data_dict, item_id, is_plan=False):
     # --- 상단 버튼 영역 (삭제 / 수정 / 공유) ---
     if IS_ADMIN:
         c1, c2, c3 = st.columns(3)
-        table_name = "plan" if is_plan else "archive"
         
         if c1.button("🗑️ 삭제", key=f"del_{table_name}_{item_id}", use_container_width=True):
             conn = get_connection()
@@ -352,27 +417,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
             st.rerun()
             
         if c2.button("✏️ 수정", key=f"edit_{table_name}_{item_id}", use_container_width=True, type="primary"):
-            st.session_state.edit_target_id = item_id
-            st.session_state.edit_source = table_name
-            st.session_state.main_category_radio = cat
-            
-            st.session_state.f_title = safe_str(data_dict.get('title'))
-            st.session_state.f_creator = safe_str(data_dict.get('creator'))
-            st.session_state.f_date = safe_str(data_dict.get('rel_date'))
-            st.session_state.f_venue = safe_str(data_dict.get('venue'))
-            st.session_state.f_img = safe_str(data_dict.get('img_url'))
-            st.session_state.f_video = safe_str(data_dict.get('img_url2'))
-            st.session_state.f_brief = safe_str(data_dict.get('brief'))
-            st.session_state.f_highlights = safe_str(data_dict.get('highlights'))
-            st.session_state.f_note = safe_str(data_dict.get('note'))
-            st.session_state.f_summary = safe_str(data_dict.get('summary'))
-            st.session_state.f_plan_type = data_dict.get('plan_type', 'CONSUME')
-            
-            date_key = 'plan_date' if is_plan else 'view_date'
-            try: st.session_state.f_view_date = pd.to_datetime(data_dict.get(date_key)).date()
-            except: st.session_state.f_view_date = get_kst_today()
-            
-            st.session_state.main_nav = "🖋️ WRITE"
+            st.session_state[edit_mode_key] = True
             st.rerun()
             
         with c3:
@@ -695,10 +740,6 @@ if IS_ADMIN and tab_w:
     st.divider()
 
     # --- 입력 폼 영역 ---
-    is_update = st.session_state.edit_target_id is not None
-    if is_update:
-        st.info("🚨 현재 데이터 수정 모드 (작성 중 화면 새로고침 차단됨)")
-        
     with st.form(key="prism_write_form", clear_on_submit=False):
         cl, cr = st.columns([0.4, 0.6])
         with cl:
@@ -728,41 +769,24 @@ if IS_ADMIN and tab_w:
         st.markdown("<br>", unsafe_allow_html=True)
         cb1, cb2 = st.columns([0.8, 0.2])
         
-        def save_data(is_update_mode=False):
+        def save_data():
             if not st.session_state.f_title.strip(): return False
             conn = get_connection()
             data = { "category": str(category), "title": st.session_state.f_title.strip(), "creator": st.session_state.f_creator.strip(), "rel_date": st.session_state.f_date.strip(), "venue": st.session_state.f_venue.strip(), "summary": st.session_state.f_summary.strip(), "brief": st.session_state.f_brief.strip(), "highlights": st.session_state.f_highlights.strip(), "note": st.session_state.f_note.strip(), "img_url": st.session_state.f_img.strip(), "img_url2": st.session_state.f_video.strip() }
             
-            if is_update_mode:
-                if st.session_state.edit_source == 'archive':
-                    data.update({"view_date": str(st.session_state.f_view_date)})
-                    conn.execute("""UPDATE archive SET category=?, title=?, creator=?, rel_date=?, venue=?, summary=?, brief=?, highlights=?, note=?, img_url=?, img_url2=?, view_date=? WHERE id=?""", (*data.values(), st.session_state.edit_target_id))
-                    try: supabase.table("archive").update(data).eq("id", st.session_state.edit_target_id).execute()
-                    except: pass
-                else:
-                    memo_payload = json.dumps(data, ensure_ascii=False)
-                    conn.execute("UPDATE plan SET category=?, title=?, plan_date=?, memo=? WHERE id=?", (str(category), st.session_state.f_title.strip(), str(st.session_state.f_view_date), memo_payload, st.session_state.edit_target_id))
-                    try: supabase.table("plan").update({"category": str(category), "title": st.session_state.f_title.strip(), "plan_date": str(st.session_state.f_view_date), "memo": memo_payload}).eq("id", st.session_state.edit_target_id).execute()
-                    except: pass
-            else:
-                memo_payload = json.dumps(data, ensure_ascii=False)
-                conn.execute("INSERT INTO plan (plan_date, category, title, memo) VALUES (?,?,?,?)", (str(st.session_state.f_view_date), str(category), st.session_state.f_title.strip(), memo_payload))
-                try: supabase.table("plan").upsert({"plan_date": str(st.session_state.f_view_date), "category": str(category), "title": st.session_state.f_title.strip(), "memo": memo_payload}).execute()
-                except: pass
+            memo_payload = json.dumps(data, ensure_ascii=False)
+            conn.execute("INSERT INTO plan (plan_date, category, title, memo) VALUES (?,?,?,?)", (str(st.session_state.f_view_date), str(category), st.session_state.f_title.strip(), memo_payload))
+            try: supabase.table("plan").upsert({"plan_date": str(st.session_state.f_view_date), "category": str(category), "title": st.session_state.f_title.strip(), "memo": memo_payload}).execute()
+            except: pass
             
             conn.commit()
             st.cache_data.clear()
             st.session_state.should_clear_form = True
             return True
 
-        if is_update:
-            if cb1.form_submit_button("💾 수정 저장", use_container_width=True, type="primary"):
-                if save_data(is_update_mode=True): st.success("✅ 수정 완료!"); time.sleep(0.8); st.rerun()
-                else: st.warning("제목을 입력해 주세요.")
-        else:
-            if cb1.form_submit_button("🗓️ 주간 계획 등록", use_container_width=True, type="primary"):
-                if save_data(is_update_mode=False): st.success("🗓️ 주간 계획에 성공적으로 등록되었습니다!"); time.sleep(0.8); st.rerun()
-                else: st.warning("제목을 입력해 주세요.")
+        if cb1.form_submit_button("🗓️ 주간 계획 등록", use_container_width=True, type="primary"):
+            if save_data(): st.success("🗓️ 주간 계획에 성공적으로 등록되었습니다!"); time.sleep(0.8); st.rerun()
+            else: st.warning("제목을 입력해 주세요.")
 
         if cb2.form_submit_button("🔄 비우기", use_container_width=True):
             st.session_state.should_clear_form = True
