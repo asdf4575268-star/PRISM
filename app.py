@@ -592,7 +592,7 @@ tab_w = (st.session_state.main_nav == "🖋️ WRITE")
 # ----------------- [WRITE 탭] -----------------
 if IS_ADMIN and tab_w:
     # WRITE 탭 전체를 좌우 2분할 (왼쪽 4.5 : 오른쪽 5.5)
-    col_write_left, col_write_right = st.columns([0.45, 0.55], gap="large")
+    col_write_left, col_write_right = st.columns([0.3, 0.7], gap="large")
 
     # ==========================================
     # [왼쪽 영역] 이미지 중심 주간 계획 목록 (월~일 리스트)
@@ -652,7 +652,7 @@ if IS_ADMIN and tab_w:
                         html_card = f'''
                         <div style="position: relative; width: 100%; border-radius: 12px; overflow: hidden; border: 1px solid #334155; margin-bottom: 6px; background: #0F172A;">
                             <div style="position: absolute; top: 10px; left: 10px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); color: #FBBF24; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; z-index: 10; border: 1px solid rgba(255,255,255,0.1);">{item['category']}</div>
-                            <img src="{img_url}" style="width: 100%; height: auto; display: block; object-fit: contain; max-height: 450px; margin: 0 auto;">
+                            <img src="{img_url}" style="width: 100%; height: auto; display: block; object-fit: contain; max-height: 260px; margin: 0 auto;">
                         </div>
                         '''
                         st.markdown(html_card, unsafe_allow_html=True)
