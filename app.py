@@ -424,82 +424,43 @@ def render_item_details(data_dict, item_id, is_plan=False):
 
         if IS_ADMIN and is_plan:
             st.markdown("<br>", unsafe_allow_html=True)
-        
-            # 현재 콘텐츠의 상태 파악 (기본값은 감상 중)
-            current_plan_type = data_dict.get('plan_type', 'CONSUME')
-        
-            if current_plan_type == 'CONSUME':
-                # [감상 중] 상태일 때 노출되는 버튼
-                btn_label = "📝 감상 완료 (노트 작성 중으로 전환)"
-                if st.button(btn_label, key=f"to_note_{item_id}", use_container_width=True, type="secondary"):
-                    conn = get_connection()
+            btn_label = "✅ 작성 완료 (아카이브로 이동)"
+            if st.button(btn_label, key=f"to_archive_{item_id}", use_container_width=True, type="primary"):
+                conn = get_connection()
                 
-                    # 상태를 'NOTE(작성 중)'로 변경하고 날짜를 오늘로 갱신
-                    next_plan_data = {**data_dict}
-                    next_plan_data['plan_type'] = 'NOTE'
-                    today_str = str(get_kst_today())
+                # 아카이브 레코드 생성
+                new_record = {
+                    "category": cat, 
+                    "title": data_dict['title'], 
+                    "creator": data_dict.get("creator", ""), 
+                    "rel_date": data_dict.get("rel_date", ""),
+                    "venue": data_dict.get("venue", ""), 
+                    "summary": data_dict.get("summary", ""), 
+                    "brief": data_dict.get("brief", ""), 
+                    "highlights": data_dict.get("highlights", ""), 
+                    "note": data_dict.get("note", ""), 
+                    "img_url": data_dict.get("img_url", ""), 
+                    "img_url2": data_dict.get("img_url2", ""), 
+                    "save_date": str(get_kst_today()), 
+                    "view_date": data_dict['plan_date']
+                }
                 
-                    next_memo_payload = json.dumps(next_plan_data, ensure_ascii=False)
+                # Local SQLite 및 Supabase 아카이브 적재
+                conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", tuple(new_record.values()))
+                try: supabase.table("archive").upsert(new_record).execute()
+                except: pass
                 
-                    # 기존 계획의 내용(memo)과 날짜를 업데이트
-                    conn.execute(
-                        "UPDATE plan SET plan_date=?, memo=? WHERE id=?", 
-                        (today_str, next_memo_payload, item_id)
-                    )
-                    conn.commit()
-                    st.cache_data.clear()
+                # 주간 계획(plan) 테이블에서는 삭제
+                conn.execute("DELETE FROM plan WHERE id=?", (item_id,))
+                conn.commit()
+                st.cache_data.clear()
                 
-                    try:
-                        supabase.table("plan").update({
-                            "plan_date": today_str, 
-                            "memo": next_memo_payload
-                        }).eq("id", item_id).execute()
-                    except:
-                        pass
+                try: supabase.table("plan").delete().eq("id", item_id).execute()
+                except: pass
                 
-                    st.success("📝 감상을 완료했습니다. '작성 중' 단계로 전환되었습니다!")
-                    time.sleep(0.8)
-                    st.rerun()
-                
-            elif current_plan_type == 'NOTE':
-                # [작성 중] 상태일 때 노출되는 버튼
-                btn_label = "✅ 작성 완료 (아카이브로 이동)"
-                if st.button(btn_label, key=f"to_archive_{item_id}", use_container_width=True, type="primary"):
-                    conn = get_connection()
-                    
-                    # 아카이브 레코드 생성
-                    new_record = {
-                        "category": cat, 
-                        "title": data_dict['title'], 
-                        "creator": data_dict.get("creator", ""), 
-                        "rel_date": data_dict.get("rel_date", ""),
-                        "venue": data_dict.get("venue", ""), 
-                        "summary": data_dict.get("summary", ""), 
-                        "brief": data_dict.get("brief", ""), 
-                        "highlights": data_dict.get("highlights", ""), 
-                        "note": data_dict.get("note", ""), 
-                        "img_url": data_dict.get("img_url", ""), 
-                        "img_url2": data_dict.get("img_url2", ""), 
-                        "save_date": str(get_kst_today()), 
-                        "view_date": data_dict['plan_date']
-                    }
-                    
-                    # Local SQLite 및 Supabase 아카이브 적재
-                    conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", tuple(new_record.values()))
-                    try: supabase.table("archive").upsert(new_record).execute()
-                    except: pass
-                    
-                    # 주간 계획(plan) 테이블에서는 삭제
-                    conn.execute("DELETE FROM plan WHERE id=?", (item_id,))
-                    conn.commit()
-                    st.cache_data.clear()
-                    
-                    try: supabase.table("plan").delete().eq("id", item_id).execute()
-                    except: pass
-                    
-                    st.success("🎉 최종 작성이 완료되어 아카이브로 안전하게 이동되었습니다!")
-                    time.sleep(0.8)
-                    st.rerun()
+                st.success("🎉 최종 작성이 완료되어 아카이브로 안전하게 이동되었습니다!")
+                time.sleep(0.8)
+                st.rerun()
 
 @st.dialog("📋 ARCHIVE", width="large")
 def show_details(item): render_item_details(item if isinstance(item, dict) else item.to_dict(), item['id'], is_plan=False)
@@ -583,15 +544,10 @@ tab_w = (st.session_state.main_nav == "🖋️ WRITE")
 # ----------------- [WRITE 탭] -----------------
 if IS_ADMIN and tab_w:
     st.markdown("""<style>
-    /* I'm Watching 카드 인프라 스타일 */
-    .sm-cal-box-consume { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); background: #1E293B; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; border: 1px solid #334155; border-top: 3px solid #3B82F6; transition: all 0.2s ease; }
-    .sm-cal-box-consume:hover { transform: translateY(-2px); border-color: #3B82F6; box-shadow: 0 6px 14px rgba(59, 130, 246, 0.25); }
-    .sm-cal-box-consume img { width: 100%; height: 100%; object-fit: cover; }
-
-    /* I Made it 카드 인프라 스타일 */
-    .sm-cal-box-note { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); background: #1E293B; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; border: 1px solid #334155; border-top: 3px solid #8B5CF6; transition: all 0.2s ease; }
-    .sm-cal-box-note:hover { transform: translateY(-2px); border-color: #8B5CF6; box-shadow: 0 6px 14px rgba(139, 92, 246, 0.25); }
-    .sm-cal-box-note img { width: 100%; height: 100%; object-fit: cover; }
+    /* 통합 주간 콘텐츠 카드 스타일 */
+    .sm-cal-box-unified { position: relative; width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); background: #1E293B; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; border: 1px solid #334155; border-top: 3px solid #6366F1; transition: all 0.2s ease; }
+    .sm-cal-box-unified:hover { transform: translateY(-2px); border-color: #6366F1; box-shadow: 0 6px 14px rgba(99, 102, 241, 0.25); }
+    .sm-cal-box-unified img { width: 100%; height: 100%; object-fit: cover; }
 
     .sm-badge-cat { position: absolute; top: 4px; left: 4px; background: rgba(15, 23, 42, 0.8); padding: 2px 5px; border-radius: 4px; font-size: 10px; z-index: 5; border: 1px solid rgba(255,255,255,0.05); }
     .sm-date-label { text-align: center; font-size: 0.75rem; color: #94A3B8; font-weight: 700; margin-bottom: 3px; letter-spacing: 0.5px; }
@@ -613,7 +569,7 @@ if IS_ADMIN and tab_w:
     </style>""", unsafe_allow_html=True)
 
     # ==========================================
-    # 1. [개선] Weekly Contents 최상단 대시보드 배치
+    # 1. Weekly Contents 최상단 대시보드 배치 (통합형)
     # ==========================================
     col_l, col_c, col_r = st.columns([0.08, 0.84, 0.08])
     with col_l:
@@ -632,81 +588,41 @@ if IS_ADMIN and tab_w:
     plan_df = pd.read_sql_query("SELECT * FROM plan ORDER BY plan_date ASC", get_connection())
     if not plan_df.empty: 
         plan_df['p_dt'] = pd.to_datetime(plan_df['plan_date'])
-        def extract_p_type(m_str):
-            try: return json.loads(m_str).get('plan_type', 'CONSUME')
-            except: return 'CONSUME'
-        plan_df['plan_type'] = plan_df['memo'].apply(extract_p_type)
 
     week_data = plan_df[(plan_df['p_dt'].dt.date >= view_monday.date()) & (plan_df['p_dt'].dt.date <= view_sunday.date())] if not plan_df.empty else pd.DataFrame()
 
     if week_data.empty: 
         st.markdown("<div style='text-align: center; color:#64748B; font-size:0.9em; padding: 24px; background-color:#1E293B; border-radius:12px; border: 1px dashed #334155; font-weight:500; margin-bottom: 20px;'>예정된 주간 콘텐츠가 없습니다.</div>", unsafe_allow_html=True)
     else:
-        consume_items = week_data[week_data['plan_type'] == 'CONSUME'].to_dict('records')
-        note_items = week_data[week_data['plan_type'] == 'NOTE'].to_dict('records')
+        all_plan_items = week_data.to_dict('records')
+        grid_cols_sub = 6
+
+        st.markdown("""
+        <div style='background-color: rgba(99, 102, 241, 0.1); border-left: 4px solid #6366F1; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px;'>
+            <span style='font-weight: 800; font-size: 0.95em; color: #818CF8; letter-spacing: 0.5px;'>📌 주간 예정 콘텐츠 목록</span>
+        </div>
+        """, unsafe_allow_html=True)
         
-        # 좌우 분할 구조 정의 및 격자 크기를 3열로 확대해 시인성 극대화
-        col_watching_side, col_made_side = st.columns(2)
-        grid_cols_sub = 3
-
-        def draw_plan_grid_sub(container, items_list, key_prefix):
-            # 플랜 타입에 맞춘 동적 클래스 설계 ('consume' -> 블루 하이라이트 / 'note' -> 퍼플 하이라이트)
-            box_class = f"sm-cal-box-{key_prefix}" 
-            border_clr = "#3B82F6" if key_prefix == "consume" else "#8B5CF6"
-            
-            with container:
-                for i in range(0, len(items_list), grid_cols_sub):
-                    sub_cols = st.columns(grid_cols_sub)
-                    for j in range(grid_cols_sub):
-                        if i + j < len(items_list):
-                            row = items_list[i + j]
-                            with sub_cols[j]:
-                                st.markdown(f"<div class='sm-date-label'>{row['plan_date'][5:].replace('-', '.')}</div>", unsafe_allow_html=True)
-                                try: img_url = json.loads(row['memo']).get('img_url', '')
-                                except: img_url = ""
-                                
-                                emoji = CAT_EMOJIS.get(row['category'], "📌")
-                                if img_url and img_url.strip() and img_url != "None":
-                                        st.markdown(f"""<div class='{box_class}'><div class='sm-badge-cat'>{emoji}</div><img src="{img_url}" onerror="this.style.display='none'"></div>""", unsafe_allow_html=True)
-                                else:
-                                    st.markdown(f"""<div class='{box_class}' style='border-left: 4px solid {border_clr};'><div style='font-size: 1.4em;'>{emoji}</div></div>""", unsafe_allow_html=True)
-                                
-                                short_title = row['title'][:19] + ".." if len(row['title']) > 19 else row['title']
-                                st.markdown("<div class='compact-btn-wrapper'>", unsafe_allow_html=True)
-                                if st.button(f"{short_title}", key=f"dtl_cal_{key_prefix}_{row['id']}", use_container_width=True): show_plan_details(row)
-                                st.markdown("</div>", unsafe_allow_html=True)
-
-        # 감상 예정 가공 (블루 배너 디자인 시스템 추가)
-        if consume_items:
-            col_watching_side.markdown("""
-            <div style='background-color: rgba(59, 130, 246, 0.1); border-left: 4px solid #3B82F6; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px;'>
-                <span style='font-weight: 800; font-size: 0.95em; color: #60A5FA; letter-spacing: 0.5px;'>🍿 I'm Watching (감상 예정)</span>
-            </div>
-            """, unsafe_allow_html=True)
-            draw_plan_grid_sub(col_watching_side, consume_items, "consume")
-        else:
-            col_watching_side.markdown("""
-            <div style='background-color: rgba(59, 130, 246, 0.1); border-left: 4px solid #3B82F6; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px;'>
-                <span style='font-weight: 800; font-size: 0.95em; color: #60A5FA; letter-spacing: 0.5px;'>🍿 I'm Watching (감상 예정)</span>
-            </div>
-            """, unsafe_allow_html=True)
-            col_watching_side.markdown("<div style='color:#64748B; font-size:0.85em; padding:20px; background:#1E293B; border-radius:10px; border:1px dashed #334155; text-align:center;'>진행 중인 콘텐츠가 없습니다.</div>", unsafe_allow_html=True)
-            
-        # 작성 예정 가공 (퍼플 배너 디자인 시스템 추가)
-        if note_items:
-            col_made_side.markdown("""
-            <div style='background-color: rgba(139, 92, 246, 0.1); border-left: 4px solid #8B5CF6; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px;'>
-                <span style='font-weight: 800; font-size: 0.95em; color: #A78BFA; letter-spacing: 0.5px;'>📝 I Made it (작성 예정)</span>
-            </div>
-            """, unsafe_allow_html=True)
-            draw_plan_grid_sub(col_made_side, note_items, "note")
-        else:
-            col_made_side.markdown("""
-            <div style='background-color: rgba(139, 92, 246, 0.1); border-left: 4px solid #8B5CF6; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px;'>
-                <span style='font-weight: 800; font-size: 0.95em; color: #A78BFA; letter-spacing: 0.5px;'>📝 I Made it (작성 예정)</span>
-            </div>
-            """, unsafe_allow_html=True)
-            col_made_side.markdown("<div style='color:#64748B; font-size:0.85em; padding:20px; background:#1E293B; border-radius:10px; border:1px dashed #334155; text-align:center;'>작성 중인 콘텐츠가 없습니다.</div>", unsafe_allow_html=True)
+        for i in range(0, len(all_plan_items), grid_cols_sub):
+            sub_cols = st.columns(grid_cols_sub)
+            for j in range(grid_cols_sub):
+                if i + j < len(all_plan_items):
+                    row = all_plan_items[i + j]
+                    with sub_cols[j]:
+                        st.markdown(f"<div class='sm-date-label'>{row['plan_date'][5:].replace('-', '.')}</div>", unsafe_allow_html=True)
+                        try: img_url = json.loads(row['memo']).get('img_url', '')
+                        except: img_url = ""
+                        
+                        emoji = CAT_EMOJIS.get(row['category'], "📌")
+                        if img_url and img_url.strip() and img_url != "None":
+                            st.markdown(f"""<div class='sm-cal-box-unified'><div class='sm-badge-cat'>{emoji}</div><img src="{img_url}" onerror="this.style.display='none'"></div>""", unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"""<div class='sm-cal-box-unified' style='border-left: 4px solid #6366F1;'><div style='font-size: 1.4em;'>{emoji}</div></div>""", unsafe_allow_html=True)
+                        
+                        short_title = row['title'][:19] + ".." if len(row['title']) > 19 else row['title']
+                        st.markdown("<div class='compact-btn-wrapper'>", unsafe_allow_html=True)
+                        if st.button(f"{short_title}", key=f"dtl_cal_uni_{row['id']}", use_container_width=True): show_plan_details(row)
+                        st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
     st.divider()
@@ -735,7 +651,6 @@ if IS_ADMIN and tab_w:
                     st.session_state.f_note = ""
                     st.session_state.f_brief = ""
                     st.session_state.f_video = ""
-                    st.session_state.f_plan_type = "CONSUME"
                     st.rerun()
                 else: st.error("URL 정보를 가져올 수 없습니다.")
         elif category == "BOOKS":
@@ -743,7 +658,7 @@ if IS_ADMIN and tab_w:
                 sel = st.selectbox("결과 선택", list((opts := {f"📚 {b['title']}": b for b in res}).keys()))
                 if st.button("✨ 가져오기"):
                     b = opts[sel]
-                    st.session_state.update(edit_target_id=None, edit_source=None, f_title=b['title'], f_creator=", ".join(b['authors']), f_date=b['datetime'][:10], f_img=b.get('thumbnail', '').replace("R120x174", "R400x0"), f_venue=b.get('publisher', ''), f_summary=b.get('contents', ''), f_highlights="", f_note="", f_brief="", f_video="", f_plan_type="CONSUME")
+                    st.session_state.update(edit_target_id=None, edit_source=None, f_title=b['title'], f_creator=", ".join(b['authors']), f_date=b['datetime'][:10], f_img=b.get('thumbnail', '').replace("R120x174", "R400x0"), f_venue=b.get('publisher', ''), f_summary=b.get('contents', ''), f_highlights="", f_note="", f_brief="", f_video="")
                     st.rerun()
         elif category == "MUSIC":
             if res := search_apple_music(search_query):
@@ -758,14 +673,14 @@ if IS_ADMIN and tab_w:
                         except: pass
                     
                     combined_summary = f"{m.get('url', '')}\n\n{tl_text}".strip()
-                    st.session_state.update(edit_target_id=None, edit_source=None, f_title=m['title'], f_creator=m['creator'], f_date=m['date'], f_img=m['img'], f_venue=m['venue'], f_summary=combined_summary, f_highlights="", f_note="", f_brief="", f_video="", f_plan_type="CONSUME")
+                    st.session_state.update(edit_target_id=None, edit_source=None, f_title=m['title'], f_creator=m['creator'], f_date=m['date'], f_img=m['img'], f_venue=m['venue'], f_summary=combined_summary, f_highlights="", f_note="", f_brief="", f_video="")
                     st.rerun()
         elif category == "STAGE":
             if res := search_kopis(search_query):
                 sel = st.selectbox("결과 선택", list((opts := {f"🎭 {s['title']} [{s['date']}~] ({s['venue']})": s for s in res}).keys()))
                 if st.button("✨ 가져오기"):
                     s = opts[sel]
-                    st.session_state.update(edit_target_id=None, edit_source=None, f_title=s['title'], f_creator=get_kopis_detail(s['id']), f_date=s['date'], f_img=s['img'], f_venue=s['venue'], f_summary=f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id={s['id']}", f_highlights="", f_note="", f_brief="", f_video="", f_plan_type="CONSUME")
+                    st.session_state.update(edit_target_id=None, edit_source=None, f_title=s['title'], f_creator=get_kopis_detail(s['id']), f_date=s['date'], f_img=s['img'], f_venue=s['venue'], f_summary=f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id={s['id']}", f_highlights="", f_note="", f_brief="", f_video="")
                     st.rerun()
         else: 
             if res := search_tmdb(search_query, category):
@@ -774,7 +689,7 @@ if IS_ADMIN and tab_w:
                 sel = st.selectbox("결과 선택", list((opts := {f"🎬 {r.get(t_key)} ({str(r.get(d_key))[:4]})": r for r in res}).keys()))
                 if st.button("✨ 가져오기"):
                     s = opts[sel]; details = get_tmdb_details(s['id'], category)
-                    st.session_state.update(edit_target_id=None, edit_source=None, f_title=s.get(t_key, ''), f_creator=details['creator'], f_date=s.get(d_key, ''), f_img=f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", f_venue=details['venue'], f_summary=s.get('overview', ''), f_highlights="", f_note="", f_brief="", f_video="", f_plan_type="CONSUME")
+                    st.session_state.update(edit_target_id=None, edit_source=None, f_title=s.get(t_key, ''), f_creator=details['creator'], f_date=s.get(d_key, ''), f_img=f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", f_venue=details['venue'], f_summary=s.get('overview', ''), f_highlights="", f_note="", f_brief="", f_video="")
                     st.rerun()
 
     st.divider()
@@ -796,10 +711,7 @@ if IS_ADMIN and tab_w:
             st.text_input("👤 창작자/매체" if category == "SCRAP" else "👤 창작자", key="f_creator")
             st.text_input("📅 작품 날짜", key="f_date")
             st.text_input("📍 장소/플랫폼", key="f_venue")
-            st.date_input("🍿 감상 완료/예정일 (주간 계획 시 활용)", key="f_view_date")
-            
-            pt_idx = 0 if st.session_state.get('f_plan_type', 'CONSUME') == 'CONSUME' else 1
-            plan_type_ui = st.radio("🗓️ 주간 계획 분류", ["🍿I'm WATCHING", "📝 I MADE IT"], index=pt_idx, horizontal=True)
+            st.date_input("🗓️ 주간 계획 예정일", key="f_view_date")
         
         with cr:
             if category == "SCRAP":
@@ -814,16 +726,15 @@ if IS_ADMIN and tab_w:
                 st.text_area("🔖 POINT", key="f_highlights", height=150)
         
         st.markdown("<br>", unsafe_allow_html=True)
-        cb1, cb2, cb3 = st.columns([0.4, 0.4, 0.2])
+        cb1, cb2 = st.columns([0.8, 0.2])
         
-        def save_data(to_archive=True, is_update_mode=False, p_type='CONSUME'):
+        def save_data(is_update_mode=False):
             if not st.session_state.f_title.strip(): return False
             conn = get_connection()
-            data = { "category": str(category), "title": st.session_state.f_title.strip(), "creator": st.session_state.f_creator.strip(), "rel_date": st.session_state.f_date.strip(), "venue": st.session_state.f_venue.strip(), "summary": st.session_state.f_summary.strip(), "brief": st.session_state.f_brief.strip(), "highlights": st.session_state.f_highlights.strip(), "note": st.session_state.f_note.strip(), "img_url": st.session_state.f_img.strip(), "img_url2": st.session_state.f_video.strip(), "plan_type": p_type }
+            data = { "category": str(category), "title": st.session_state.f_title.strip(), "creator": st.session_state.f_creator.strip(), "rel_date": st.session_state.f_date.strip(), "venue": st.session_state.f_venue.strip(), "summary": st.session_state.f_summary.strip(), "brief": st.session_state.f_brief.strip(), "highlights": st.session_state.f_highlights.strip(), "note": st.session_state.f_note.strip(), "img_url": st.session_state.f_img.strip(), "img_url2": st.session_state.f_video.strip() }
             
             if is_update_mode:
                 if st.session_state.edit_source == 'archive':
-                    data.pop('plan_type', None)
                     data.update({"view_date": str(st.session_state.f_view_date)})
                     conn.execute("""UPDATE archive SET category=?, title=?, creator=?, rel_date=?, venue=?, summary=?, brief=?, highlights=?, note=?, img_url=?, img_url2=?, view_date=? WHERE id=?""", (*data.values(), st.session_state.edit_target_id))
                     try: supabase.table("archive").update(data).eq("id", st.session_state.edit_target_id).execute()
@@ -834,40 +745,29 @@ if IS_ADMIN and tab_w:
                     try: supabase.table("plan").update({"category": str(category), "title": st.session_state.f_title.strip(), "plan_date": str(st.session_state.f_view_date), "memo": memo_payload}).eq("id", st.session_state.edit_target_id).execute()
                     except: pass
             else:
-                if to_archive:
-                    data.pop('plan_type', None)
-                    data.update({"save_date": str(get_kst_today()), "view_date": str(st.session_state.f_view_date)})
-                    conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", tuple(data.values()))
-                    try: supabase.table("archive").upsert(data).execute()
-                    except: pass
-                else:
-                    memo_payload = json.dumps(data, ensure_ascii=False)
-                    conn.execute("INSERT INTO plan (plan_date, category, title, memo) VALUES (?,?,?,?)", (str(st.session_state.f_view_date), str(category), st.session_state.f_title.strip(), memo_payload))
-                    try: supabase.table("plan").upsert({"plan_date": str(st.session_state.f_view_date), "category": str(category), "title": st.session_state.f_title.strip(), "memo": memo_payload}).execute()
-                    except: pass
+                memo_payload = json.dumps(data, ensure_ascii=False)
+                conn.execute("INSERT INTO plan (plan_date, category, title, memo) VALUES (?,?,?,?)", (str(st.session_state.f_view_date), str(category), st.session_state.f_title.strip(), memo_payload))
+                try: supabase.table("plan").upsert({"plan_date": str(st.session_state.f_view_date), "category": str(category), "title": st.session_state.f_title.strip(), "memo": memo_payload}).execute()
+                except: pass
             
             conn.commit()
             st.cache_data.clear()
             st.session_state.should_clear_form = True
             return True
 
-        chosen_p_type = 'NOTE' if plan_type_ui == "📝 I MADE IT" else 'CONSUME'
-        
         if is_update:
             if cb1.form_submit_button("💾 수정 저장", use_container_width=True, type="primary"):
-                if save_data(is_update_mode=True, p_type=chosen_p_type): st.success("✅ 수정 완료!"); time.sleep(0.8); st.rerun()
+                if save_data(is_update_mode=True): st.success("✅ 수정 완료!"); time.sleep(0.8); st.rerun()
                 else: st.warning("제목을 입력해 주세요.")
         else:
-            if cb1.form_submit_button("✅ ARCHIVE 저장", use_container_width=True, type="primary"):
-                if save_data(to_archive=True, p_type=chosen_p_type): st.success("✅ 저장 완료!"); time.sleep(0.8); st.rerun()
-                else: st.warning("제목을 입력해 주세요.")
-            if cb2.form_submit_button("🗓️ Weekly Contents 등록", use_container_width=True):
-                if save_data(to_archive=False, p_type=chosen_p_type): st.success("🗓️ 추가 완료!"); time.sleep(0.8); st.rerun()
+            if cb1.form_submit_button("🗓️ 주간 계획 등록", use_container_width=True, type="primary"):
+                if save_data(is_update_mode=False): st.success("🗓️ 주간 계획에 성공적으로 등록되었습니다!"); time.sleep(0.8); st.rerun()
                 else: st.warning("제목을 입력해 주세요.")
 
-        if cb3.form_submit_button("🔄 비우기", use_container_width=True):
+        if cb2.form_submit_button("🔄 비우기", use_container_width=True):
             st.session_state.should_clear_form = True
             st.rerun()
+
 # ----------------- [ARCHIVE 탭] -----------------
 elif not tab_w:
     st.markdown("""<style>
