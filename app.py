@@ -589,46 +589,62 @@ tab_w = (st.session_state.main_nav == "🖋️ WRITE")
 # ----------------- [WRITE 탭] -----------------
 if IS_ADMIN and tab_w:
     st.markdown("""<style>
-    /* 리스트 및 카드 스타일 */
-    .vertical-list-card {
-        background-color: #1E293B;
-        border: 1px solid #334155;
-        border-left: 4px solid #6366F1;
+    /* 주간 카드 스타일 */
+    .plan-card-box {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1/1.25;
+        overflow: hidden;
         border-radius: 12px;
-        padding: 10px;
-        margin-bottom: 12px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-    .vertical-list-thumb {
-        width: 50px;
-        height: 50px;
-        border-radius: 8px;
-        object-fit: cover;
-        background: #0F172A;
+        margin-top: 4px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        background: #1E293B;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.2rem;
-        flex-shrink: 0;
+        border: 1px solid #334155;
     }
-    .vertical-list-thumb img {
+    .plan-card-box img {
         width: 100%;
         height: 100%;
-        border-radius: 8px;
         object-fit: cover;
+    }
+    .plan-badge-cat {
+        position: absolute;
+        top: 6px;
+        left: 6px;
+        background: rgba(15, 23, 42, 0.8);
+        backdrop-filter: blur(4px);
+        color: #FBBF24;
+        padding: 2px 6px;
+        border-radius: 12px;
+        font-size: 9px;
+        font-weight: 700;
+        z-index: 10;
+    }
+    .plan-badge-date {
+        position: absolute;
+        bottom: 6px;
+        right: 6px;
+        background: rgba(15, 23, 42, 0.8);
+        backdrop-filter: blur(4px);
+        color: #E2E8F0;
+        padding: 2px 6px;
+        border-radius: 12px;
+        font-size: 9px;
+        font-weight: 600;
+        z-index: 10;
     }
     </style>""", unsafe_allow_html=True)
 
-    # WRITE 탭 전체를 좌우 2분할 (왼쪽 4 : 오른쪽 6)
-    col_write_left, col_write_right = st.columns([0.4, 0.6], gap="large")
+    # WRITE 탭 전체를 좌우 2분할 (왼쪽 4.5 : 오른쪽 5.5)
+    col_write_left, col_write_right = st.columns([0.45, 0.55], gap="large")
 
     # ==========================================
-    # [왼쪽 영역] 세로 형태 주간 리스트 목록
+    # [왼쪽 영역] 이미지/카드 형태 주간 계획 목록 (2열 Grid)
     # ==========================================
     with col_write_left:
-        st.markdown("<h4 style='font-weight: 800; color: #F1F5F9; margin-bottom: 12px;'>📅 주간 리스트</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='font-weight: 800; color: #F1F5F9; margin-bottom: 12px;'>📅 주간 계획</h4>", unsafe_allow_html=True)
         
         # 주간 이동 컨트롤
         lc1, lc2, lc3 = st.columns([0.15, 0.7, 0.15])
@@ -659,30 +675,42 @@ if IS_ADMIN and tab_w:
             week_data = pd.DataFrame()
 
         if week_data.empty:
-            st.markdown("<div style='text-align: center; color:#64748B; padding: 30px; background-color:#1E293B; border-radius:12px; border: 1px dashed #334155; font-size:0.9em;'>예정된 주간 콘텐츠가 없습니다.</div>", unsafe_allow_html=True)
+            st.markdown("<div style='text-align: center; color:#64748B; padding: 40px; background-color:#1E293B; border-radius:12px; border: 1px dashed #334155; font-size:0.9em;'>예정된 주간 콘텐츠가 없습니다.</div>", unsafe_allow_html=True)
         else:
             all_plan_items = week_data.to_dict('records')
-            for item in all_plan_items:
-                try: img_url = json.loads(item['memo']).get('img_url', '')
-                except: img_url = ""
-                
-                emoji = CAT_EMOJIS.get(item['category'], "📌")
-                
-                # 세로 리스트 카드 렌더링
-                c_card_img, c_card_info = st.columns([0.25, 0.75])
-                with c_card_img:
-                    if img_url and img_url.strip() and img_url != "None":
-                        st.markdown(f'<div class="vertical-list-thumb"><img src="{img_url}"></div>', unsafe_allow_html=True)
-                    else:
-                        st.markdown(f'<div class="vertical-list-thumb">{emoji}</div>', unsafe_allow_html=True)
-                
-                with c_card_info:
-                    p_date_str = item['plan_date'][5:].replace('-', '.')
-                    st.markdown(f"<span style='color: #64748B; font-size: 0.75rem; font-weight: 700;'>🗓️ {p_date_str} [{item['category']}]</span>", unsafe_allow_html=True)
-                    if st.button(f"{item['title']}", key=f"v_list_btn_{item['id']}", use_container_width=True):
-                        show_plan_details(item)
-                
-                st.markdown("<hr style='margin: 8px 0; border: 0; border-top: 1px solid #1E293B;'>", unsafe_allow_html=True)
+            plan_cols_count = 2  # 주간 카드는 2열로 배치하여 보기 좋게 정렬
+            for i in range(0, len(all_plan_items), plan_cols_count):
+                cols = st.columns(plan_cols_count)
+                for j in range(plan_cols_count):
+                    if i + j < len(all_plan_items):
+                        item = all_plan_items[i + j]
+                        try: img_url = json.loads(item['memo']).get('img_url', '')
+                        except: img_url = ""
+                        
+                        emoji = CAT_EMOJIS.get(item['category'], "📌")
+                        p_date_str = item['plan_date'][5:].replace('-', '.')
+                        
+                        with cols[j]:
+                            if img_url and img_url.strip() and img_url != "None":
+                                st.markdown(f'''
+                                <div class="plan-card-box">
+                                    <div class="plan-badge-cat">{item['category']}</div>
+                                    <div class="plan-badge-date">{p_date_str}</div>
+                                    <img src="{img_url}">
+                                </div>
+                                ''', unsafe_allow_html=True)
+                            else:
+                                st.markdown(f'''
+                                <div class="plan-card-box" style="font-size: 2.2rem;">
+                                    <div class="plan-badge-cat">{item['category']}</div>
+                                    <div class="plan-badge-date">{p_date_str}</div>
+                                    {emoji}
+                                </div>
+                                ''', unsafe_allow_html=True)
+                            
+                            short_title = item['title'][:14] + "..." if len(item['title']) > 14 else item['title']
+                            if st.button(short_title, key=f"w_card_btn_{item['id']}", use_container_width=True):
+                                show_plan_details(item)
 
     # ==========================================
     # [오른쪽 영역] 외부 API 검색 및 수집 / 작성 폼
