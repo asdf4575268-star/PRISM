@@ -844,11 +844,12 @@ elif not tab_w:
     
     /* 🔥 반응형 그리드 설정: 모바일/세로모드에서도 화면 너비 내에 3~5개가 자동으로 줄바꿈되도록 수정 */
     @media (max-width: 992px) { 
-        [data-testid="stHorizontalBlock"] { 
+        div[data-testid="stHorizontalBlock"] { 
             display: flex !important; 
             flex-direction: row !important;
             flex-wrap: wrap !important; 
             gap: 6px !important; 
+            width: 100% !important;
         } 
         div[data-testid="column"] { 
             flex: 1 1 calc(33.333% - 6px) !important; 
