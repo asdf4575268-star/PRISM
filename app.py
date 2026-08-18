@@ -367,14 +367,14 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 
             with col_in2:
                 if cat == "SCRAP":
-                    e_summary = st.text_area("📰 Quote", value=safe_str(data_dict.get('summary')), height=120)
-                    e_brief = st.text_input("🎯 Argument", value=safe_str(data_dict.get('brief')))
-                    e_note = st.text_area("✍️ 5BRIEF", value=safe_str(data_dict.get('note')), height=120)
-                    e_highlights = st.text_area("💡 Evidence(examples)", value=safe_str(data_dict.get('highlights')), height=100)
+                    e_summary = st.text_area("📰 QUOTE/STRUCTURE", value=safe_str(data_dict.get('summary')), height=120)
+                    e_note = st.text_area("✍️ BRIEF", value=safe_str(data_dict.get('note')), height=120)
+                    e_brief = st.text_input("🎯 POINT", value=safe_str(data_dict.get('brief')))
+                    e_highlights = st.text_area("💡 EXAMPLES", value=safe_str(data_dict.get('highlights')), height=100)
                 else:
-                    e_brief = st.text_input("💎 DRIP", value=safe_str(data_dict.get('brief')))
-                    e_note = st.text_area("💡 BRIEF", value=safe_str(data_dict.get('summary')), height=100)
+                    e_summary = st.text_area("💡 BRIEF", value=safe_str(data_dict.get('summary')), height=100)
                     e_highlights = st.text_area("🔖 POINT", value=safe_str(data_dict.get('highlights')), height=100)
+                    e_brief = st.text_input("💎 DRIP", value=safe_str(data_dict.get('brief')))                    
                     e_note = st.text_area("🖋️ PRISM", value=safe_str(data_dict.get('note')), height=200)
 
             c_save, c_cancel = st.columns([0.5, 0.5])
@@ -842,18 +842,19 @@ elif not tab_w:
         color: #6366F1 !important;
     }
     
-    /* 🔥 세로모드/모바일에서도 한 줄에 강제로 여러 개가 나열되도록 설정 */
+    /* 🔥 반응형 그리드 설정: 모바일/세로모드에서도 화면 너비 내에 3~5개가 자동으로 줄바꿈되도록 수정 */
     @media (max-width: 992px) { 
         [data-testid="stHorizontalBlock"] { 
             display: flex !important; 
             flex-direction: row !important;
-            flex-wrap: nowrap !important; 
+            flex-wrap: wrap !important; 
             gap: 6px !important; 
         } 
         div[data-testid="column"] { 
-            flex: 1 1 0% !important; 
-            min-width: 0 !important; 
-            margin-bottom: 0px !important; 
+            flex: 1 1 calc(33.333% - 6px) !important; 
+            min-width: calc(33.333% - 6px) !important; 
+            max-width: calc(33.333% - 6px) !important;
+            margin-bottom: 8px !important; 
         } 
     } 
     @media (min-width: 993px) { 
