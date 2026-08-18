@@ -157,20 +157,52 @@ def get_all_data():
     conn = get_connection()
     return pd.read_sql_query("SELECT * FROM archive ORDER BY view_date DESC", conn)
 
+def safe_str(val): 
+    return "" if val is None or str(val) == "None" or str(val) == "nan" else str(val)
+
 def migrate_to_supabase():
     try:
         conn = get_connection()
         conn.row_factory = sqlite3.Row
         
-        local_data = conn.execute("SELECT * FROM archive").fetchall()
-        if local_data: supabase.table("archive").upsert([dict(row) for row in local_data]).execute() 
+        local_data = [dict(row) for row in conn.execute("SELECT * FROM archive").fetchall()]
+        if local_data:
+            formatted_archive = []
+            for item in local_data:
+                formatted_archive.append({
+                    "id": item.get("id"),
+                    "category": safe_str(item.get("category")),
+                    "title": safe_str(item.get("title")),
+                    "creator": safe_str(item.get("creator")),
+                    "rel_date": safe_str(item.get("rel_date")),
+                    "venue": safe_str(item.get("venue")),
+                    "summary": safe_str(item.get("summary")),
+                    "brief": safe_str(item.get("brief")),
+                    "highlights": safe_str(item.get("highlights")),
+                    "note": safe_str(item.get("note")),
+                    "img_url": safe_str(item.get("img_url")),
+                    "img_url2": safe_str(item.get("img_url2")),
+                    "save_date": safe_str(item.get("save_date")),
+                    "view_date": safe_str(item.get("view_date"))
+                })
+            supabase.table("archive").upsert(formatted_archive).execute() 
             
-        local_plan = conn.execute("SELECT * FROM plan").fetchall()
-        if local_plan: supabase.table("plan").upsert([dict(row) for row in local_plan]).execute()
+        local_plan = [dict(row) for row in conn.execute("SELECT * FROM plan").fetchall()]
+        if local_plan:
+            formatted_plan = []
+            for item in local_plan:
+                formatted_plan.append({
+                    "id": item.get("id"),
+                    "plan_date": safe_str(item.get("plan_date")),
+                    "category": safe_str(item.get("category")),
+                    "title": safe_str(item.get("title")),
+                    "memo": safe_str(item.get("memo"))
+                })
+            supabase.table("plan").upsert(formatted_plan).execute()
         
         st.session_state.sync_msg = ("success", "✅ 클라우드 백업 완료!")
     except Exception as e:
-        st.session_state.sync_msg = ("error", f"❌ 백업 실패: {e}")
+        st.session_state.sync_msg = ("error", f"❌ 백업 실패: {type(e).__name__} - {str(e)}")
 
 def restore_from_supabase():
     try:
@@ -193,16 +225,17 @@ def restore_from_supabase():
         st.cache_data.clear() 
         st.session_state.sync_msg = ("success", "✅ 데이터를 성공적으로 복구했습니다!")
     except Exception as e:
-        st.session_state.sync_msg = ("error", f"❌ 복구 실패: {e}")
+        st.session_state.sync_msg = ("error", f"❌ 복구 실패: {type(e).__name__} - {str(e)}")
 
 @st.cache_resource
 def auto_sync_on_startup():
-    if get_connection().execute("SELECT COUNT(*) FROM archive").fetchone()[0] == 0:
-        restore_from_supabase()
+    try:
+        if get_connection().execute("SELECT COUNT(*) FROM archive").fetchone()[0] == 0:
+            restore_from_supabase()
+    except:
+        pass
     return True
 auto_sync_on_startup()
-
-def safe_str(val): return "" if val is None or str(val) == "None" else str(val)
 
 # ==========================================
 # 5. API & SEARCH FUNCTIONS (외부 API 통신)
@@ -316,7 +349,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
     img_url = data_dict.get('img_url', '')
 
     if is_edit_mode:
-        st.markdown("### ✏️수정모드")
+        st.markdown("### ✏️ 수정 모드")
         with st.form(key=f"inline_edit_form_{table_name}_{item_id}"):
             col_in1, col_in2 = st.columns([0.4, 0.6])
             with col_in1:
@@ -583,9 +616,6 @@ tab_w = (st.session_state.main_nav == "🖋️ WRITE")
 if IS_ADMIN and tab_w:
     col_write_left, col_write_right = st.columns([0.35, 0.65], gap="large")
 
-    # ==========================================
-    # [왼쪽 영역] 이미지 내부에 요일 정보 포함
-    # ==========================================
     with col_write_left:
         st.markdown("<h4 style='font-weight: 800; color: #F1F5F9; margin-bottom: 12px;'>📅 WEEKLY</h4>", unsafe_allow_html=True)
         
@@ -650,9 +680,6 @@ if IS_ADMIN and tab_w:
                 if st.button(title_display, key=f"w_card_btn_{item['id']}", use_container_width=True):
                     show_plan_details(item)
 
-    # ==========================================
-    # [오른쪽 영역] 외부 API 검색 및 수집 / 작성 폼
-    # ==========================================
     with col_write_right:
         st.markdown("<h4 style='font-weight: 800; color: #F1F5F9; margin-bottom: 12px;'>🔍 SEARCH</h4>", unsafe_allow_html=True)
         
@@ -774,31 +801,60 @@ if IS_ADMIN and tab_w:
 # ----------------- [ARCHIVE 탭] -----------------
 elif not tab_w:
     st.markdown("""<style>
-    .cal-img-box { position: relative; width: 100%; aspect-ratio: 1/1.4; overflow: hidden; border-radius: 12px; margin-top: 8px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3); background: #1E293B; display: flex; align-items: center; justify-content: center; border: 1px solid #334155; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); } 
-    .cal-img-box:hover { transform: translateY(-5px); border-color: #6366F1; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.5); }
+    .cal-img-box { 
+        position: relative; 
+        width: 100%; 
+        aspect-ratio: 1/1.4; 
+        overflow: hidden; 
+        border-radius: 12px; 
+        margin-top: 8px; 
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3); 
+        background: #1E293B; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        border: 1px solid #334155; 
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+    } 
+    .cal-img-box:hover { 
+        transform: translateY(-5px); 
+        border-color: #6366F1; 
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.5); 
+    }
     .cal-img-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; } 
     .cal-img-box:hover img { transform: scale(1.04); }
     .music-tab-style { aspect-ratio: 1/1 !important; } 
     
-    .badge-cat { position: absolute; top: 8px; left: 8px; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); color: #FBBF24; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; z-index: 10; letter-spacing: 0.5px; border: 1px solid rgba(255,255,255,0.05); } 
-    .badge-date { position: absolute; bottom: 8px; right: 8px; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); color: #E2E8F0; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 600; z-index: 10; border: 1px solid rgba(255,255,255,0.05); } 
+    .badge-cat { position: absolute; top: 4px; left: 4px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); color: #FBBF24; padding: 1px 6px; border-radius: 12px; font-size: 9px; font-weight: 700; z-index: 10; border: 1px solid rgba(255,255,255,0.05); } 
+    .badge-date { position: absolute; bottom: 4px; right: 4px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); color: #E2E8F0; padding: 1px 6px; border-radius: 12px; font-size: 9px; font-weight: 600; z-index: 10; border: 1px solid rgba(255,255,255,0.05); } 
     
     div[data-testid="stColumn"] button {
         background-color: transparent !important;
         border: none !important;
         color: #E2E8F0 !important;
-        padding: 4px 0px !important;
+        padding: 2px 0px !important;
         text-align: left !important;
         font-weight: 600 !important;
-        font-size: 0.95rem !important;
+        font-size: 0.75rem !important;
+        line-height: 1.2 !important;
     }
     div[data-testid="stColumn"] button:hover {
         color: #6366F1 !important;
     }
     
+    /* 🔥 세로모드/모바일에서도 한 줄에 강제로 여러 개가 나열되도록 설정 */
     @media (max-width: 992px) { 
-        [data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; } 
-        div[data-testid="column"] { min-width: 100% !important; flex: 1 1 100% !important; margin-bottom: 15px !important; } 
+        [data-testid="stHorizontalBlock"] { 
+            display: flex !important; 
+            flex-direction: row !important;
+            flex-wrap: nowrap !important; 
+            gap: 6px !important; 
+        } 
+        div[data-testid="column"] { 
+            flex: 1 1 0% !important; 
+            min-width: 0 !important; 
+            margin-bottom: 0px !important; 
+        } 
     } 
     @media (min-width: 993px) { 
         [data-testid="stHorizontalBlock"] { display: flex !important; flex-wrap: nowrap !important; gap: 12px !important; } 
@@ -819,7 +875,7 @@ elif not tab_w:
         tab_titles = [f"📅 ALL ({len(main_df)})"] + [f"{CAT_EMOJIS[c]} {c} ({len(main_df[main_df['category'] == c])})" for c in cat_order]
         if IS_ADMIN: tab_titles.append(f"🔐 SCRAP ({len(scrap_df)})")
         sub_tabs = st.tabs(tab_titles)
-        grid_cols = 6
+        grid_cols = 5
 
         with sub_tabs[0]:
             if years := sorted(main_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True):
