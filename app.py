@@ -416,10 +416,10 @@ def render_item_details(data_dict, item_id, is_plan=False):
     share_text += "\n"
     
     sections = [
-        ("📰 QUOTE(url)", "summary", "#334155"), 
-        ("✍️ HANDWRITE(brief)", "note", "#1E425E"),
-        ("🎯 CONTEXT(argument)", "brief", "#0E6245"),
-        ("💡 EXAMPLS(evidences)/STRUCTURE", "highlights", "#7D5600")
+        ("📰 HANDWRITE", "summary", "#334155"), 
+        ("✍️ BRIEF", "note", "#1E425E"),
+        ("🎯 TOPIC", "brief", "#0E6245"),
+        ("💡 EXAMPLES", "highlights", "#7D5600")
     ] if cat == "SCRAP" else [
         ("💎 DRIP", "brief", "#E50914"), 
         ("🖋️ PRISM", "note", "#1E425E"),
