@@ -367,7 +367,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 
             with col_in2:
                 if cat == "SCRAP":
-                    e_summary = st.text_area("📰 QUOTE/STRUCTURE", value=safe_str(data_dict.get('summary')), height=120)
+                    e_summary = st.text_area("📰 HANDWRITE", value=safe_str(data_dict.get('summary')), height=120)
                     e_note = st.text_area("✍️ BRIEF", value=safe_str(data_dict.get('note')), height=120)
                     e_brief = st.text_input("🎯 POINT", value=safe_str(data_dict.get('brief')))
                     e_highlights = st.text_area("💡 EXAMPLES", value=safe_str(data_dict.get('highlights')), height=100)
@@ -423,7 +423,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
     ] if cat == "SCRAP" else [
         ("💎 DRIP", "brief", "#E50914"), 
         ("🖋️ PRISM", "note", "#1E425E"),
-        ("💡BRIEF", "summary", "#0E6245"), 
+        ("💡 BRIEF", "summary", "#0E6245"), 
         ("🔖 POINT", "highlights", "#7D5600")
     ]
     
