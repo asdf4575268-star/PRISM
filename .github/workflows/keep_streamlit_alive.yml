@@ -1,0 +1,17 @@
+name: Keep Streamlit Alive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ping Streamlit App
+        run: |
+          curl -L --fail --silent --show-error \
+            --max-time 30 \
+            "https://o7a9qsj6jmhu9nsacqsrsj.streamlit.app/"
