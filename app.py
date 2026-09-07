@@ -277,12 +277,21 @@ def search_books(query):
     except: return []
 
 def search_apple_music(query):
-    # entity=album 파라미터로 앨범/싱글 단위 데이터만 검색
-    url = f"https://itunes.apple.com/search?term={query}&limit=30&country=kr&entity=album"
+    url = "https://itunes.apple.com/search"
+    params = {
+        "term": query,
+        "limit": 30,
+        "country": "kr",
+        "entity": "album"
+    }
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
     try:
-        res = requests.get(url).json().get("results", [])
+        res = requests.get(url, params=params, headers=headers, timeout=5)
+        if res.status_code != 200:
+            return []
+        data = res.json().get("results", [])
         formatted_res = []
-        for m in res:
+        for m in data:
             title = m.get('collectionName', '제목 없음')
             artist = m.get('artistName', '')
             
@@ -297,7 +306,7 @@ def search_apple_music(query):
                 'url': m.get('collectionViewUrl', '')
             })
         return formatted_res
-    except: 
+    except:
         return []
 
 def search_tmdb(query, category):
@@ -776,13 +785,18 @@ if IS_ADMIN and tab_w:
                         m = opts[sel]
                         tl_text = ""
                         album_desc = ""
+                        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
                         
                         # 1. 선택한 앨범 ID(collection_id) 기준 전체 트랙리스트 추출
                         cid = m.get('collection_id')
                         if cid:
                             try:
-                                lookup_url = f"https://itunes.apple.com/lookup?id={cid}&entity=song&country=kr"
-                                lookup_res = requests.get(lookup_url).json().get("results", [])
+                                lookup_res = requests.get(
+                                    "https://itunes.apple.com/lookup", 
+                                    params={"id": cid, "entity": "song", "country": "kr"},
+                                    headers=headers,
+                                    timeout=5
+                                ).json().get("results", [])
                                 tracks = [t['trackName'] for t in lookup_res if t.get('wrapperType') == 'track']
                                 if tracks: 
                                     tl_text = "💿 트랙리스트\n" + "\n".join([f"{i+1}. {t}" for i, t in enumerate(tracks)])
@@ -812,6 +826,8 @@ if IS_ADMIN and tab_w:
                             f_highlights="", f_note="", f_brief="", f_video=""
                         )
                         st.rerun()
+                else:
+                    st.warning("검색 결과가 없거나 조회에 실패했습니다.")
 
             elif category == "STAGE":
                 if res := search_kopis(search_query):
