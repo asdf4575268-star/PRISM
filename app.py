@@ -277,40 +277,28 @@ def search_books(query):
     except: return []
 
 def search_apple_music(query):
-    # entity=musicTrack,album 대신 media=music을 사용해야 앨범(collection)과 곡(track)이 모두 검색됩니다.
-    url = f"https://itunes.apple.com/search?term={query}&limit=30&country=kr&media=music"
+    # entity=album 파라미터로 앨범/싱글 단위 데이터만 검색
+    url = f"https://itunes.apple.com/search?term={query}&limit=30&country=kr&entity=album"
     try:
         res = requests.get(url).json().get("results", [])
         formatted_res = []
         for m in res:
-            wrapper = m.get('wrapperType')
-            if wrapper not in ['collection', 'track']:
-                continue
-            
-            is_album = (wrapper == 'collection')
-            title = m.get('collectionName') if is_album else m.get('trackName', '제목 없음')
+            title = m.get('collectionName', '제목 없음')
             artist = m.get('artistName', '')
-            album_name = m.get('collectionName', '')
-            
-            # 검색 목록에서 앨범과 곡을 명확히 구분
-            if is_album:
-                display_label = f"📀 [앨범] {title} - {artist}"
-            else:
-                display_label = f"🎵 [곡] {title} ({album_name}) - {artist}"
             
             formatted_res.append({
-                'display_name': display_label, 
+                'display_name': f"📀 {title} - {artist}", 
                 'title': title, 
                 'creator': artist, 
                 'date': m.get('releaseDate', '')[:10] if m.get('releaseDate') else '', 
                 'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'), 
                 'venue': artist,
-                'is_album': is_album, 
                 'collection_id': m.get('collectionId'), 
-                'url': m.get('collectionViewUrl' if is_album else 'trackViewUrl', '')
+                'url': m.get('collectionViewUrl', '')
             })
         return formatted_res
-    except: return []
+    except: 
+        return []
 
 def search_tmdb(query, category):
     type_path = "movie" if category == "MOVIES" else "tv"
@@ -759,16 +747,14 @@ if IS_ADMIN and tab_w:
                     if st.button("✨ 가져오기", use_container_width=True):
                         b = opts[sel]
                         
-                        # API 제공 요약본
+                        # 1. Kakao API 기본 contents는 요약본이므로 원본 URL 메타태그 스크래핑 시도
                         full_desc = b.get('contents', '')
-                        
-                        # 웹 페이지 본문/JSON-LD 파싱으로 전체 소개문 추출
                         if b.get('url'):
-                            extracted = get_full_book_description(b['url'])
-                            if extracted and len(extracted) > len(full_desc):
-                                full_desc = extracted
-                            elif scraped := scrape_url(b['url']):
+                            scraped = scrape_url(b['url'])
+                            if scraped and scraped.get('summary'):
+                                # URL 텍스트를 제거하고 순수 소개문만 추출
                                 scraped_desc = scraped['summary'].replace(b['url'], '').strip()
+                                # 스크래핑한 내용이 기존 contents보다 길 경우 덮어쓰기
                                 if len(scraped_desc) > len(full_desc):
                                     full_desc = scraped_desc
                                     
@@ -791,7 +777,7 @@ if IS_ADMIN and tab_w:
                         tl_text = ""
                         album_desc = ""
                         
-                        # 1. 앨범 ID(collection_id)를 기반으로 해당 앨범 전체 트랙리스트 추출
+                        # 1. 선택한 앨범 ID(collection_id) 기준 전체 트랙리스트 추출
                         cid = m.get('collection_id')
                         if cid:
                             try:
@@ -800,7 +786,8 @@ if IS_ADMIN and tab_w:
                                 tracks = [t['trackName'] for t in lookup_res if t.get('wrapperType') == 'track']
                                 if tracks: 
                                     tl_text = "💿 트랙리스트\n" + "\n".join([f"{i+1}. {t}" for i, t in enumerate(tracks)])
-                            except: pass
+                            except: 
+                                pass
                             
                         # 2. 애플 뮤직 웹페이지 스크래핑으로 앨범 정보 추출
                         if m.get('url'):
