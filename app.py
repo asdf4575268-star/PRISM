@@ -770,26 +770,28 @@ if IS_ADMIN and tab_w:
                         tl_text = ""
                         album_desc = ""
                         
-                        # 1. 트랙리스트 연동 (단일 곡을 선택했더라도 앨범(collection) ID가 있으면 트랙 전체 조회)
+                        # 1. 트랙리스트 연동 (한국 스토어 검색 결과이므로 lookup에도 country=kr 필수)
                         cid = m.get('collection_id')
                         if cid:
                             try:
-                                lookup_res = requests.get(f"https://itunes.apple.com/lookup?id={cid}&entity=song").json().get("results", [])
+                                # &country=kr 파라미터가 있어야 한국 유통 앨범의 트랙을 정상적으로 가져옵니다.
+                                lookup_res = requests.get(f"https://itunes.apple.com/lookup?id={cid}&entity=song&country=kr").json().get("results", [])
                                 tracks = [t['trackName'] for t in lookup_res if t.get('wrapperType') == 'track']
                                 if tracks: 
                                     tl_text = "💿 트랙리스트\n" + "\n".join([f"{i+1}. {t}" for i, t in enumerate(tracks)])
                             except: pass
                             
-                        # 2. 앨범 소개문 연동 (Apple API는 기본적으로 제공하지 않으므로 웹페이지 스크래핑 시도)
+                        # 2. 앨범 소개문 스크래핑
                         if m.get('url'):
                             scraped = scrape_url(m['url'])
                             if scraped and scraped.get('summary'):
                                 scraped_desc = scraped['summary'].replace(m['url'], '').strip()
                                 if scraped_desc:
-                                    album_desc = f"📝 앨범 소개\n{scraped_desc}"
+                                    album_desc = f"📝 정보\n{scraped_desc}"
                         
-                        # 3. URL, 앨범 소개, 트랙리스트 병합
-                        combined_summary = f"{m.get('url', '')}\n\n{album_desc}\n\n{tl_text}".strip()
+                        # 3. URL, 앨범 소개, 트랙리스트 병합 (빈 공간이 생기지 않도록 깔끔하게 조립)
+                        combined_parts = [m.get('url', ''), album_desc, tl_text]
+                        combined_summary = "\n\n".join([p for p in combined_parts if p.strip()]).strip()
                         
                         st.session_state.update(
                             edit_target_id=None, edit_source=None, 
@@ -799,7 +801,6 @@ if IS_ADMIN and tab_w:
                             f_highlights="", f_note="", f_brief="", f_video=""
                         )
                         st.rerun()
-
             elif category == "STAGE":
                 if res := search_kopis(search_query):
                     sel = st.selectbox("결과 선택", list((opts := {f"🎭 {s['title']} [{s['date']}~] ({s['venue']})": s for s in res}).keys()))
