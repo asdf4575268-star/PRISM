@@ -37,26 +37,12 @@ def get_kst_today():
 
 # ==========================================
 # 2. STATE INITIALIZATION (상태 중앙 관리)
-# ==========================================cookie_manager = stx.CookieManager()
+# ==========================================
+cookie_manager = stx.CookieManager()
 
-if "is_logged_in" not in st.session_state:
-    login_cookie = cookie_manager.get(cookie="admin_logged_in")
-
-    if login_cookie == "yes":
-        st.session_state.is_logged_in = True
-    else:
-        time.sleep(0.5)
-        login_cookie = cookie_manager.get(cookie="admin_logged_in")
-        st.session_state.is_logged_in = (login_cookie == "yes")
-
-if "user_password" not in st.session_state:
-    st.session_state.user_password = ""
-
-if "selected_tag" not in st.session_state:
-    st.session_state.selected_tag = None
-
+if "is_logged_in" not in st.session_state: 
+    st.session_state.is_logged_in = (cookie_manager.get(cookie="admin_logged_in") == "yes")
 if "user_password" not in st.session_state: st.session_state.user_password = ""
-if "selected_tag" not in st.session_state: st.session_state.selected_tag = Noneif "user_password" not in st.session_state: st.session_state.user_password = ""
 if "selected_tag" not in st.session_state: st.session_state.selected_tag = None
 if "week_offset" not in st.session_state: st.session_state.week_offset = 0
 if "should_clear_form" not in st.session_state: st.session_state.should_clear_form = False
