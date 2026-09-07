@@ -269,30 +269,81 @@ auto_sync_on_startup()
 # ==========================================
 # 5. API & SEARCH FUNCTIONS (외부 API 통신)
 # ==========================================
-def search_books(query):
-    headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
-    try:
-        res = requests.get("https://dapi.kakao.com/v3/search/book", headers=headers, params={"query": query, "size": 15})
-        return res.json().get("documents", []) if res.status_code == 200 else []
-    except: return []
+def get_full_book_description(book_url, fallback=""):
+    """카카오 책 상세 페이지에서 전체 책소개를 가져옴"""
+    if not book_url:
+        return fallback
 
+    try:
+        res = requests.get(
+            book_url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            },
+            timeout=8
+        )
+
+        if res.status_code != 200:
+            return fallback
+
+        html_text = res.text
+
+        # 책소개 영역에서 가장 흔한 패턴들을 순차적으로 탐색
+        patterns = [
+            r'<div[^>]*class="[^"]*book_contents[^"]*"[^>]*>(.*?)</div>',
+            r'<div[^>]*class="[^"]*book_intro[^"]*"[^>]*>(.*?)</div>',
+            r'<div[^>]*class="[^"]*desc[^"]*"[^>]*>(.*?)</div>',
+            r'<meta[^>]+property=["\']og:description["\'][^>]+content=["\'](.*?)["\']'
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, html_text, re.IGNORECASE | re.DOTALL)
+
+            if match:
+                text = match.group(1)
+
+                # HTML 태그 제거
+                text = re.sub(r'<br\s*/?>', '\n', text, flags=re.IGNORECASE)
+                text = re.sub(r'<[^>]+>', '', text)
+
+                text = html.unescape(text)
+                text = re.sub(r'\n\s*\n+', '\n\n', text)
+                text = text.strip()
+
+                if len(text) >= 30:
+                    return text
+
+        return fallback
+
+    except Exception:
+        return fallback
 def search_apple_music(query):
-    url = f"https://itunes.apple.com/search?term={query}&limit=20&country=kr&entity=musicTrack,album"
-    try:
-        res = requests.get(url).json().get("results", [])
-        formatted_res = []
-        for m in res:
-            is_album = m.get('wrapperType') == 'collection'
-            title = m.get('collectionName' if is_album else 'trackName', '제목 없음')
-            formatted_res.append({
-                'display_name': f"{'📀' if is_album else '🎵'} {title} - {m.get('artistName', '')}", 
-                'title': title, 'creator': m.get('artistName', ''), 'date': m.get('releaseDate', '')[:10], 
-                'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'), 'venue': m.get('artistName', ''),
-                'is_album': is_album, 'collection_id': m.get('collectionId'), 'url': m.get('collectionViewUrl' if is_album else 'trackViewUrl', '')
-            })
-        return formatted_res
-    except: return []
+    url = f"https://itunes.apple.com/search?term={query}&limit=20&country=kr&entity=album"
 
+    try:
+        res = requests.get(url, timeout=8).json().get("results", [])
+        formatted_res = []
+
+        for m in res:
+            formatted_res.append({
+                'display_name': f"📀 {m.get('collectionName', '제목 없음')} - {m.get('artistName', '')}",
+                'title': m.get('collectionName', '제목 없음'),
+                'creator': m.get('artistName', ''),
+                'date': m.get('releaseDate', '')[:10],
+                'img': m.get('artworkUrl100', '').replace(
+                    '100x100bb',
+                    '800x800bb'
+                ),
+                'venue': m.get('artistName', ''),
+                'is_album': True,
+                'collection_id': m.get('collectionId'),
+                'url': m.get('collectionViewUrl', '')
+            })
+
+        return formatted_res
+
+    except Exception:
+        return []
 def search_tmdb(query, category):
     type_path = "movie" if category == "MOVIES" else "tv"
     url = f"https://api.themoviedb.org/3/search/{type_path}?api_key={TMDB_API_KEY}&query={query}&language=ko-KR"
