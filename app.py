@@ -281,9 +281,10 @@ def search_apple_music(query):
     url = "https://itunes.apple.com/search"
     params = {
         "term": query,
-        "limit": 20,
+        "media": "music",
+        "entity": "album",
         "country": "kr",
-        "entity": "album"
+        "limit": 20
     }
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     try:
@@ -306,7 +307,9 @@ def search_apple_music(query):
                 'url': m.get('collectionViewUrl', '')
             })
         return formatted_res
-    except: return []
+    except Exception:
+        return []
+
 
 def search_tmdb(query, category):
     type_path = "movie" if category == "MOVIES" else "tv"
@@ -775,7 +778,8 @@ if IS_ADMIN and tab_w:
                         st.rerun()
                         
             elif category == "MUSIC":
-                if res := search_apple_music(search_query):
+                res = search_apple_music(search_query)
+                if res:
                     sel = st.selectbox("결과 선택", list((opts := {m['display_name']: m for m in res}).keys()))
                     if st.button("✨ 가져오기", use_container_width=True):
                         m = opts[sel]
@@ -793,7 +797,7 @@ if IS_ADMIN and tab_w:
                                 tracks = [t['trackName'] for t in lookup_res if t.get('wrapperType') == 'track']
                                 if tracks: 
                                     tl_text = "💿 트랙리스트\n" + "\n".join([f"{i+1}. {t}" for i, t in enumerate(tracks)])
-                            except: 
+                            except Exception: 
                                 pass
                         
                         combined_summary = f"{m.get('url', '')}\n\n{tl_text}".strip()
