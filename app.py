@@ -277,37 +277,21 @@ def search_books(query):
     except: return []
 
 def search_apple_music(query):
-    url = "https://itunes.apple.com/search"
-    params = {
-        "term": query,
-        "limit": 30,
-        "country": "kr",
-        "entity": "album"
-    }
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+    url = f"https://itunes.apple.com/search?term={query}&limit=20&country=kr&entity=musicTrack,album"
     try:
-        res = requests.get(url, params=params, headers=headers, timeout=5)
-        if res.status_code != 200:
-            return []
-        data = res.json().get("results", [])
+        res = requests.get(url).json().get("results", [])
         formatted_res = []
-        for m in data:
-            title = m.get('collectionName', '제목 없음')
-            artist = m.get('artistName', '')
-            
+        for m in res:
+            is_album = m.get('wrapperType') == 'collection'
+            title = m.get('collectionName' if is_album else 'trackName', '제목 없음')
             formatted_res.append({
-                'display_name': f"📀 {title} - {artist}", 
-                'title': title, 
-                'creator': artist, 
-                'date': m.get('releaseDate', '')[:10] if m.get('releaseDate') else '', 
-                'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'), 
-                'venue': artist,
-                'collection_id': m.get('collectionId'), 
-                'url': m.get('collectionViewUrl', '')
+                'display_name': f"{'📀' if is_album else '🎵'} {title} - {m.get('artistName', '')}", 
+                'title': title, 'creator': m.get('artistName', ''), 'date': m.get('releaseDate', '')[:10], 
+                'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'), 'venue': m.get('artistName', ''),
+                'is_album': is_album, 'collection_id': m.get('collectionId'), 'url': m.get('collectionViewUrl' if is_album else 'trackViewUrl', '')
             })
         return formatted_res
-    except:
-        return []
+    except: return []
 
 def search_tmdb(query, category):
     type_path = "movie" if category == "MOVIES" else "tv"
@@ -784,50 +768,16 @@ if IS_ADMIN and tab_w:
                     if st.button("✨ 가져오기", use_container_width=True):
                         m = opts[sel]
                         tl_text = ""
-                        album_desc = ""
-                        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-                        
-                        # 1. 선택한 앨범 ID(collection_id) 기준 전체 트랙리스트 추출
-                        cid = m.get('collection_id')
-                        if cid:
+                        if m.get('is_album') and m.get('collection_id'):
                             try:
-                                lookup_res = requests.get(
-                                    "https://itunes.apple.com/lookup", 
-                                    params={"id": cid, "entity": "song", "country": "kr"},
-                                    headers=headers,
-                                    timeout=5
-                                ).json().get("results", [])
-                                tracks = [t['trackName'] for t in lookup_res if t.get('wrapperType') == 'track']
-                                if tracks: 
-                                    tl_text = "💿 트랙리스트\n" + "\n".join([f"{i+1}. {t}" for i, t in enumerate(tracks)])
-                            except: 
-                                pass
-                            
-                        # 2. 애플 뮤직 웹페이지 스크래핑으로 앨범 정보 추출
-                        if m.get('url'):
-                            scraped = scrape_url(m['url'])
-                            if scraped and scraped.get('summary'):
-                                scraped_desc = scraped['summary'].replace(m['url'], '').strip()
-                                if scraped_desc:
-                                    album_desc = f"📝 정보\n{scraped_desc}"
+                                tracks = [t['trackName'] for t in requests.get(f"https://itunes.apple.com/lookup?id={m['collection_id']}&entity=song").json().get("results", []) if t.get('wrapperType') == 'track']
+                                if tracks: tl_text = "💿 트랙리스트\n" + "\n".join([f"{i+1}. {t}" for i, t in enumerate(tracks)])
+                            except: pass
                         
-                        # 3. URL, 앨범 정보, 트랙리스트 병합
-                        combined_parts = [m.get('url', ''), album_desc, tl_text]
-                        combined_summary = "\n\n".join([p for p in combined_parts if p.strip()]).strip()
-                        
-                        st.session_state.update(
-                            edit_target_id=None, edit_source=None, 
-                            f_title=m['title'], 
-                            f_creator=m['creator'], 
-                            f_date=m['date'], 
-                            f_img=m['img'], 
-                            f_venue=m['venue'], 
-                            f_summary=combined_summary, 
-                            f_highlights="", f_note="", f_brief="", f_video=""
-                        )
+                        combined_summary = f"{m.get('url', '')}\n\n{tl_text}".strip()
+                        st.session_state.update(edit_target_id=None, edit_source=None, f_title=m['title'], f_creator=m['creator'], f_date=m['date'], f_img=m['img'], f_venue=m['venue'], f_summary=combined_summary, f_highlights="", f_note="", f_brief="", f_video="")
                         st.rerun()
-                else:
-                    st.warning("검색 결과가 없거나 조회에 실패했습니다.")
+
 
             elif category == "STAGE":
                 if res := search_kopis(search_query):
