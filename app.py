@@ -5,7 +5,6 @@ import sqlite3
 import requests
 import pandas as pd
 from datetime import date, datetime, timedelta
-import time
 import re
 import xml.etree.ElementTree as ET
 from supabase import create_client, Client
@@ -40,18 +39,48 @@ def get_kst_today():
 # ==========================================
 cookie_manager = stx.CookieManager()
 
-if "is_logged_in" not in st.session_state: 
-    st.session_state.is_logged_in = (cookie_manager.get(cookie="admin_logged_in") == "yes")
-if "user_password" not in st.session_state: st.session_state.user_password = ""
-if "selected_tag" not in st.session_state: st.session_state.selected_tag = None
-if "week_offset" not in st.session_state: st.session_state.week_offset = 0
-if "should_clear_form" not in st.session_state: st.session_state.should_clear_form = False
-if "edit_target_id" not in st.session_state: st.session_state.edit_target_id = None
-if "edit_source" not in st.session_state: st.session_state.edit_source = None
-if "f_plan_type" not in st.session_state: st.session_state.f_plan_type = "CONSUME"
-if "main_nav" not in st.session_state: 
-    st.session_state.main_nav = "🖋️ WRITE" if st.session_state.is_logged_in else "📂 ARCHIVE"
-if 'f_view_date' not in st.session_state: st.session_state.f_view_date = get_kst_today()
+# 로그인 상태 복구
+if "is_logged_in" not in st.session_state:
+    login_cookie = cookie_manager.get(cookie="admin_logged_in")
+
+    if login_cookie == "yes":
+        st.session_state.is_logged_in = True
+    else:
+        time.sleep(0.5)
+        login_cookie = cookie_manager.get(cookie="admin_logged_in")
+        st.session_state.is_logged_in = (login_cookie == "yes")
+
+# 기타 세션 상태
+if "user_password" not in st.session_state:
+    st.session_state.user_password = ""
+
+if "selected_tag" not in st.session_state:
+    st.session_state.selected_tag = None
+
+if "week_offset" not in st.session_state:
+    st.session_state.week_offset = 0
+
+if "should_clear_form" not in st.session_state:
+    st.session_state.should_clear_form = False
+
+if "edit_target_id" not in st.session_state:
+    st.session_state.edit_target_id = None
+
+if "edit_source" not in st.session_state:
+    st.session_state.edit_source = None
+
+if "f_plan_type" not in st.session_state:
+    st.session_state.f_plan_type = "CONSUME"
+
+if "main_nav" not in st.session_state:
+    st.session_state.main_nav = (
+        "🖋️ WRITE"
+        if st.session_state.is_logged_in
+        else "📂 ARCHIVE"
+    )
+
+if "f_view_date" not in st.session_state:
+    st.session_state.f_view_date = get_kst_today()
 
 for k in FORM_KEYS:
     if k not in st.session_state: st.session_state[k] = ""
