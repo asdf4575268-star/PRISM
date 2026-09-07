@@ -762,22 +762,21 @@ if IS_ADMIN and tab_w:
                         )
                         st.rerun()
                         
-            elif category == "MUSIC":
-                if res := search_apple_music(search_query):
-                    sel = st.selectbox("결과 선택", list((opts := {m['display_name']: m for m in res}).keys()))
-                    if st.button("✨ 가져오기", use_container_width=True):
-                        m = opts[sel]
-                        tl_text = ""
-                        if m.get('is_album') and m.get('collection_id'):
-                            try:
-                                tracks = [t['trackName'] for t in requests.get(f"https://itunes.apple.com/lookup?id={m['collection_id']}&entity=song").json().get("results", []) if t.get('wrapperType') == 'track']
-                                if tracks: tl_text = "💿 트랙리스트\n" + "\n".join([f"{i+1}. {t}" for i, t in enumerate(tracks)])
-                            except: pass
-                        
-                        combined_summary = f"{m.get('url', '')}\n\n{tl_text}".strip()
-                        st.session_state.update(edit_target_id=None, edit_source=None, f_title=m['title'], f_creator=m['creator'], f_date=m['date'], f_img=m['img'], f_venue=m['venue'], f_summary=combined_summary, f_highlights="", f_note="", f_brief="", f_video="")
-                        st.rerun()
-
+        elif category == "MUSIC":
+            if res := search_apple_music(search_query):
+                sel = st.selectbox("결과 선택", list((opts := {m['display_name']: m for m in res}).keys()))
+                if st.button("✨ 가져오기"):
+                    m = opts[sel]
+                    tl_text = ""
+                    if m.get('is_album') and m.get('collection_id'):
+                        try:
+                            tracks = [t['trackName'] for t in requests.get(f"https://itunes.apple.com/lookup?id={m['collection_id']}&entity=song").json().get("results", []) if t.get('wrapperType') == 'track']
+                            if tracks: tl_text = "💿 트랙리스트\n" + "\n".join([f"{i+1}. {t}" for i, t in enumerate(tracks)])
+                        except: pass
+                    
+                    combined_summary = f"{m.get('url', '')}\n\n{tl_text}".strip()
+                    st.session_state.update(edit_target_id=None, edit_source=None, f_title=m['title'], f_creator=m['creator'], f_date=m['date'], f_img=m['img'], f_venue=m['venue'], f_summary=combined_summary, f_highlights="", f_note="", f_brief="", f_video="")
+                    st.rerun()
 
             elif category == "STAGE":
                 if res := search_kopis(search_query):
