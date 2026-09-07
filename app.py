@@ -277,18 +277,37 @@ def search_books(query):
     except: return []
 
 def search_apple_music(query):
-    url = f"https://itunes.apple.com/search?term={query}&limit=20&country=kr&entity=musicTrack,album"
+    # entity=musicTrack,album 대신 media=music을 사용해야 앨범(collection)과 곡(track)이 모두 검색됩니다.
+    url = f"https://itunes.apple.com/search?term={query}&limit=30&country=kr&media=music"
     try:
         res = requests.get(url).json().get("results", [])
         formatted_res = []
         for m in res:
-            is_album = m.get('wrapperType') == 'collection'
-            title = m.get('collectionName' if is_album else 'trackName', '제목 없음')
+            wrapper = m.get('wrapperType')
+            if wrapper not in ['collection', 'track']:
+                continue
+            
+            is_album = (wrapper == 'collection')
+            title = m.get('collectionName') if is_album else m.get('trackName', '제목 없음')
+            artist = m.get('artistName', '')
+            album_name = m.get('collectionName', '')
+            
+            # 검색 목록에서 앨범과 곡을 명확히 구분
+            if is_album:
+                display_label = f"📀 [앨범] {title} - {artist}"
+            else:
+                display_label = f"🎵 [곡] {title} ({album_name}) - {artist}"
+            
             formatted_res.append({
-                'display_name': f"{'📀' if is_album else '🎵'} {title} - {m.get('artistName', '')}", 
-                'title': title, 'creator': m.get('artistName', ''), 'date': m.get('releaseDate', '')[:10], 
-                'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'), 'venue': m.get('artistName', ''),
-                'is_album': is_album, 'collection_id': m.get('collectionId'), 'url': m.get('collectionViewUrl' if is_album else 'trackViewUrl', '')
+                'display_name': display_label, 
+                'title': title, 
+                'creator': artist, 
+                'date': m.get('releaseDate', '')[:10] if m.get('releaseDate') else '', 
+                'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'), 
+                'venue': artist,
+                'is_album': is_album, 
+                'collection_id': m.get('collectionId'), 
+                'url': m.get('collectionViewUrl' if is_album else 'trackViewUrl', '')
             })
         return formatted_res
     except: return []
@@ -740,14 +759,16 @@ if IS_ADMIN and tab_w:
                     if st.button("✨ 가져오기", use_container_width=True):
                         b = opts[sel]
                         
-                        # 1. Kakao API 기본 contents는 요약본이므로 원본 URL 메타태그 스크래핑 시도
+                        # API 제공 요약본
                         full_desc = b.get('contents', '')
+                        
+                        # 웹 페이지 본문/JSON-LD 파싱으로 전체 소개문 추출
                         if b.get('url'):
-                            scraped = scrape_url(b['url'])
-                            if scraped and scraped.get('summary'):
-                                # URL 텍스트를 제거하고 순수 소개문만 추출
+                            extracted = get_full_book_description(b['url'])
+                            if extracted and len(extracted) > len(full_desc):
+                                full_desc = extracted
+                            elif scraped := scrape_url(b['url']):
                                 scraped_desc = scraped['summary'].replace(b['url'], '').strip()
-                                # 스크래핑한 내용이 기존 contents보다 길 경우 덮어쓰기
                                 if len(scraped_desc) > len(full_desc):
                                     full_desc = scraped_desc
                                     
@@ -770,18 +791,18 @@ if IS_ADMIN and tab_w:
                         tl_text = ""
                         album_desc = ""
                         
-                        # 1. 트랙리스트 연동 (한국 스토어 검색 결과이므로 lookup에도 country=kr 필수)
+                        # 1. 앨범 ID(collection_id)를 기반으로 해당 앨범 전체 트랙리스트 추출
                         cid = m.get('collection_id')
                         if cid:
                             try:
-                                # &country=kr 파라미터가 있어야 한국 유통 앨범의 트랙을 정상적으로 가져옵니다.
-                                lookup_res = requests.get(f"https://itunes.apple.com/lookup?id={cid}&entity=song&country=kr").json().get("results", [])
+                                lookup_url = f"https://itunes.apple.com/lookup?id={cid}&entity=song&country=kr"
+                                lookup_res = requests.get(lookup_url).json().get("results", [])
                                 tracks = [t['trackName'] for t in lookup_res if t.get('wrapperType') == 'track']
                                 if tracks: 
                                     tl_text = "💿 트랙리스트\n" + "\n".join([f"{i+1}. {t}" for i, t in enumerate(tracks)])
                             except: pass
                             
-                        # 2. 앨범 소개문 스크래핑
+                        # 2. 애플 뮤직 웹페이지 스크래핑으로 앨범 정보 추출
                         if m.get('url'):
                             scraped = scrape_url(m['url'])
                             if scraped and scraped.get('summary'):
@@ -789,18 +810,22 @@ if IS_ADMIN and tab_w:
                                 if scraped_desc:
                                     album_desc = f"📝 정보\n{scraped_desc}"
                         
-                        # 3. URL, 앨범 소개, 트랙리스트 병합 (빈 공간이 생기지 않도록 깔끔하게 조립)
+                        # 3. URL, 앨범 정보, 트랙리스트 병합
                         combined_parts = [m.get('url', ''), album_desc, tl_text]
                         combined_summary = "\n\n".join([p for p in combined_parts if p.strip()]).strip()
                         
                         st.session_state.update(
                             edit_target_id=None, edit_source=None, 
-                            f_title=m['title'], f_creator=m['creator'], 
-                            f_date=m['date'], f_img=m['img'], 
-                            f_venue=m['venue'], f_summary=combined_summary, 
+                            f_title=m['title'], 
+                            f_creator=m['creator'], 
+                            f_date=m['date'], 
+                            f_img=m['img'], 
+                            f_venue=m['venue'], 
+                            f_summary=combined_summary, 
                             f_highlights="", f_note="", f_brief="", f_video=""
                         )
                         st.rerun()
+
             elif category == "STAGE":
                 if res := search_kopis(search_query):
                     sel = st.selectbox("결과 선택", list((opts := {f"🎭 {s['title']} [{s['date']}~] ({s['venue']})": s for s in res}).keys()))
