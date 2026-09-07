@@ -938,42 +938,159 @@ if IS_ADMIN and tab_w:
                         )
                         st.rerun()
                         
-            elif category == "MUSIC":
-                res = search_apple_music(search_query)
-                if res:
-                    sel = st.selectbox("결과 선택", list((opts := {m['display_name']: m for m in res}).keys()))
-                    if st.button("✨ 가져오기", use_container_width=True):
-                        m = opts[sel]
-                        tl_text = ""
-                        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-                        cid = m.get('collection_id')
-                        if cid:
-                            try:
-                                lookup_res = requests.get(
-                                    "https://itunes.apple.com/lookup", 
-                                    params={"id": cid, "entity": "song", "country": "kr"},
-                                    headers=headers,
-                                    timeout=5
-                                ).json().get("results", [])
-                                tracks = [t['trackName'] for t in lookup_res if t.get('wrapperType') == 'track']
-                                if tracks: 
-                                    tl_text = "💿 트랙리스트\n" + "\n".join([f"{i+1}. {t}" for i, t in enumerate(tracks)])
-                            except Exception: 
-                                pass
-                        
-                        combined_summary = f"{m.get('url', '')}\n\n{tl_text}".strip()
-                        st.session_state.update(
-                            edit_target_id=None, edit_source=None, 
-                            f_title=m['title'], 
-                            f_creator=m['creator'], 
-                            f_date=m['date'], 
-                            f_img=m['img'], 
-                            f_venue=m['venue'], 
-                            f_summary=combined_summary, 
-                            f_highlights="", f_note="", f_brief="", f_video=""
-                        )
-                        st.rerun()
+elif category == "MUSIC":
 
+    res = search_apple_music(search_query)
+
+    if res:
+
+        # 표시용 딕셔너리
+        opts = {
+            m["display_name"]: m
+            for m in res
+        }
+
+        sel = st.selectbox(
+            "앨범 선택",
+            list(opts.keys()),
+            key="music_album_select"
+        )
+
+        m = opts[sel]
+
+        # 선택한 앨범 기본 정보
+        st.markdown("---")
+
+        col1, col2 = st.columns([1, 3])
+
+        with col1:
+            if m.get("img"):
+                st.image(
+                    m["img"],
+                    use_container_width=True
+                )
+
+        with col2:
+            st.markdown(f"### {m['title']}")
+            st.markdown(f"**아티스트:** {m['creator']}")
+
+            if m.get("date"):
+                st.markdown(f"**발매일:** {m['date']}")
+
+            if m.get("url"):
+                st.markdown(
+                    f"[🎵 Apple Music에서 앨범 열기]({m['url']})"
+                )
+
+        # 트랙리스트 미리보기
+        tracks = get_apple_music_tracks(
+            m.get("collection_id")
+        )
+
+        if tracks:
+
+            st.markdown("#### 💿 전체 트랙리스트")
+
+            track_lines = []
+
+            for track in tracks:
+                number = track["track_number"]
+
+                if number:
+                    track_lines.append(
+                        f"{number}. {track['track_name']}"
+                    )
+                else:
+                    track_lines.append(
+                        track["track_name"]
+                    )
+
+            tracklist_text = "\n".join(track_lines)
+
+            st.text_area(
+                "TRACKLIST",
+                tracklist_text,
+                height=250,
+                disabled=True
+            )
+
+        else:
+
+            tracklist_text = ""
+
+            st.info(
+                "트랙리스트를 가져오지 못했습니다."
+            )
+
+        # 가져오기
+        if st.button(
+            "✨ 앨범 정보 가져오기",
+            use_container_width=True,
+            key="music_import_button"
+        ):
+
+            if tracklist_text:
+
+                tl_text = (
+                    "💿 트랙리스트\n"
+                    + tracklist_text
+                )
+
+            else:
+
+                tl_text = ""
+
+            # 앨범 소개 영역에 저장할 내용
+            summary_parts = []
+
+            if m.get("url"):
+                summary_parts.append(
+                    f"🎵 Apple Music\n{m['url']}"
+                )
+
+            if tl_text:
+                summary_parts.append(
+                    tl_text
+                )
+
+            combined_summary = "\n\n".join(
+                summary_parts
+            ).strip()
+
+            st.session_state.update({
+
+                "edit_target_id": None,
+                "edit_source": None,
+
+                "f_title": m.get("title", ""),
+
+                "f_creator": m.get("creator", ""),
+
+                "f_date": m.get("date", ""),
+
+                "f_img": m.get("img", ""),
+
+                "f_venue": m.get("creator", ""),
+
+                "f_summary": combined_summary,
+
+                "f_highlights": "",
+
+                "f_note": "",
+
+                "f_brief": "",
+
+                "f_video": ""
+            })
+
+            st.rerun()
+
+    elif search_query:
+
+        st.info(
+            "검색 결과가 없습니다. "
+            "앨범명이나 아티스트명을 확인해 주세요."
+        )
             elif category == "STAGE":
                 if res := search_kopis(search_query):
                     sel = st.selectbox("결과 선택", list((opts := {f"🎭 {s['title']} [{s['date']}~] ({s['venue']})": s for s in res}).keys()))
