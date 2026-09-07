@@ -739,23 +739,67 @@ if IS_ADMIN and tab_w:
                     sel = st.selectbox("결과 선택", list((opts := {f"📚 {b['title']}": b for b in res}).keys()))
                     if st.button("✨ 가져오기", use_container_width=True):
                         b = opts[sel]
-                        st.session_state.update(edit_target_id=None, edit_source=None, f_title=b['title'], f_creator=", ".join(b['authors']), f_date=b['datetime'][:10], f_img=b.get('thumbnail', '').replace("R120x174", "R400x0"), f_venue=b.get('publisher', ''), f_summary=b.get('contents', ''), f_highlights="", f_note="", f_brief="", f_video="")
+                        
+                        # 1. Kakao API 기본 contents는 요약본이므로 원본 URL 메타태그 스크래핑 시도
+                        full_desc = b.get('contents', '')
+                        if b.get('url'):
+                            scraped = scrape_url(b['url'])
+                            if scraped and scraped.get('summary'):
+                                # URL 텍스트를 제거하고 순수 소개문만 추출
+                                scraped_desc = scraped['summary'].replace(b['url'], '').strip()
+                                # 스크래핑한 내용이 기존 contents보다 길 경우 덮어쓰기
+                                if len(scraped_desc) > len(full_desc):
+                                    full_desc = scraped_desc
+                                    
+                        st.session_state.update(
+                            edit_target_id=None, edit_source=None, 
+                            f_title=b['title'], f_creator=", ".join(b['authors']), 
+                            f_date=b['datetime'][:10], 
+                            f_img=b.get('thumbnail', '').replace("R120x174", "R400x0"), 
+                            f_venue=b.get('publisher', ''), 
+                            f_summary=full_desc, 
+                            f_highlights="", f_note="", f_brief="", f_video=""
+                        )
                         st.rerun()
+                        
             elif category == "MUSIC":
                 if res := search_apple_music(search_query):
                     sel = st.selectbox("결과 선택", list((opts := {m['display_name']: m for m in res}).keys()))
                     if st.button("✨ 가져오기", use_container_width=True):
                         m = opts[sel]
                         tl_text = ""
-                        if m.get('is_album') and m.get('collection_id'):
-                            try:
-                                tracks = [t['trackName'] for t in requests.get(f"https://itunes.apple.com/lookup?id={m['collection_id']}&entity=song").json().get("results", []) if t.get('wrapperType') == 'track']
-                                if tracks: tl_text = "💿 트랙리스트\n" + "\n".join([f"{i+1}. {t}" for i, t in enumerate(tracks)])
-                            except: pass
+                        album_desc = ""
                         
-                        combined_summary = f"{m.get('url', '')}\n\n{tl_text}".strip()
-                        st.session_state.update(edit_target_id=None, edit_source=None, f_title=m['title'], f_creator=m['creator'], f_date=m['date'], f_img=m['img'], f_venue=m['venue'], f_summary=combined_summary, f_highlights="", f_note="", f_brief="", f_video="")
+                        # 1. 트랙리스트 연동 (단일 곡을 선택했더라도 앨범(collection) ID가 있으면 트랙 전체 조회)
+                        cid = m.get('collection_id')
+                        if cid:
+                            try:
+                                lookup_res = requests.get(f"https://itunes.apple.com/lookup?id={cid}&entity=song").json().get("results", [])
+                                tracks = [t['trackName'] for t in lookup_res if t.get('wrapperType') == 'track']
+                                if tracks: 
+                                    tl_text = "💿 트랙리스트\n" + "\n".join([f"{i+1}. {t}" for i, t in enumerate(tracks)])
+                            except: pass
+                            
+                        # 2. 앨범 소개문 연동 (Apple API는 기본적으로 제공하지 않으므로 웹페이지 스크래핑 시도)
+                        if m.get('url'):
+                            scraped = scrape_url(m['url'])
+                            if scraped and scraped.get('summary'):
+                                scraped_desc = scraped['summary'].replace(m['url'], '').strip()
+                                if scraped_desc:
+                                    album_desc = f"📝 앨범 소개\n{scraped_desc}"
+                        
+                        # 3. URL, 앨범 소개, 트랙리스트 병합
+                        combined_summary = f"{m.get('url', '')}\n\n{album_desc}\n\n{tl_text}".strip()
+                        
+                        st.session_state.update(
+                            edit_target_id=None, edit_source=None, 
+                            f_title=m['title'], f_creator=m['creator'], 
+                            f_date=m['date'], f_img=m['img'], 
+                            f_venue=m['venue'], f_summary=combined_summary, 
+                            f_highlights="", f_note="", f_brief="", f_video=""
+                        )
                         st.rerun()
+
             elif category == "STAGE":
                 if res := search_kopis(search_query):
                     sel = st.selectbox("결과 선택", list((opts := {f"🎭 {s['title']} [{s['date']}~] ({s['venue']})": s for s in res}).keys()))
