@@ -273,7 +273,7 @@ def search_books(query):
     headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
     try:
         res = requests.get("https://dapi.kakao.com/v3/search/book", headers=headers, params={"query": query, "size": 15})
-        return res.json().get("documents", []) if res.status_code == 200 else []
+        return res.json().get("documents", []) if res.status_code == 500 else []
     except: return []
 
 def search_apple_music(query):
