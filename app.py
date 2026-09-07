@@ -279,37 +279,76 @@ def search_books(query):
 
 def search_apple_music(query):
     url = "https://itunes.apple.com/search"
+
     params = {
         "term": query,
         "media": "music",
         "entity": "album",
-        "country": "kr",
-        "limit": 20
+        "country": "KR",
+        "limit": 50
     }
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
+
     try:
-        res = requests.get(url, params=params, headers=headers, timeout=5)
+        res = requests.get(
+            url,
+            params=params,
+            headers=headers,
+            timeout=10
+        )
+
         if res.status_code != 200:
+            print(f"Apple Music API 오류: {res.status_code}")
+            print(res.text[:500])
             return []
-        data = res.json().get("results", [])
+
+        data = res.json()
+
+        results = data.get("results", [])
+
         formatted_res = []
-        for m in data:
-            title = m.get('collectionName', '제목 없음')
-            artist = m.get('artistName', '')
+
+        for m in results:
+
+            # 앨범 결과만 확실하게 통과
+            if m.get("wrapperType") != "collection":
+                continue
+
+            if m.get("collectionType") != "Album":
+                continue
+
+            title = m.get("collectionName", "").strip()
+            artist = m.get("artistName", "").strip()
+
+            if not title:
+                continue
+
+            artwork = m.get("artworkUrl100", "")
+            artwork = artwork.replace("100x100bb", "800x800bb")
+
             formatted_res.append({
-                'display_name': f"📀 {title} - {artist}", 
-                'title': title, 
-                'creator': artist, 
-                'date': m.get('releaseDate', '')[:10] if m.get('releaseDate') else '', 
-                'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'), 
-                'venue': artist,
-                'collection_id': m.get('collectionId'), 
-                'url': m.get('collectionViewUrl', '')
+                "display_name": f"📀 {title} - {artist}",
+                "title": title,
+                "creator": artist,
+                "date": m.get("releaseDate", "")[:10],
+                "img": artwork,
+                "venue": artist,
+                "collection_id": m.get("collectionId"),
+                "url": m.get("collectionViewUrl", "")
             })
+
         return formatted_res
-    except Exception:
+
+    except requests.exceptions.RequestException as e:
+        print(f"Apple Music 요청 오류: {e}")
         return []
 
+    except Exception as e:
+        print(f"Apple Music 처리 오류: {e}")
+        return []
 
 def search_tmdb(query, category):
     type_path = "movie" if category == "MOVIES" else "tv"
