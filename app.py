@@ -278,13 +278,18 @@ def search_books(query):
     except: return []
 
 def search_apple_music(query):
+    """Apple Music/iTunes에서 앨범 단위로 검색"""
+
+    if not query or not query.strip():
+        return []
+
     url = "https://itunes.apple.com/search"
 
     params = {
-        "term": query,
+        "term": query.strip(),
         "media": "music",
         "entity": "album",
-        "country": "KR",
+        "country": "kr",
         "limit": 50
     }
 
@@ -301,53 +306,170 @@ def search_apple_music(query):
         )
 
         if res.status_code != 200:
-            print(f"Apple Music API 오류: {res.status_code}")
-            print(res.text[:500])
+            st.error(
+                f"Apple Music 검색 오류: HTTP {res.status_code}"
+            )
             return []
 
         data = res.json()
 
         results = data.get("results", [])
 
-        formatted_res = []
+        albums = []
 
         for m in results:
 
-            # 앨범 결과만 확실하게 통과
+            # 앨범 결과만 허용
             if m.get("wrapperType") != "collection":
                 continue
 
             if m.get("collectionType") != "Album":
                 continue
 
-            title = m.get("collectionName", "").strip()
+            collection_id = m.get("collectionId")
+
+            if not collection_id:
+                continue
+
+            album_title = m.get("collectionName", "").strip()
             artist = m.get("artistName", "").strip()
 
-            if not title:
+            if not album_title:
                 continue
 
             artwork = m.get("artworkUrl100", "")
-            artwork = artwork.replace("100x100bb", "800x800bb")
 
-            formatted_res.append({
-                "display_name": f"📀 {title} - {artist}",
-                "title": title,
+            # 고해상도 커버
+            artwork = (
+                artwork
+                .replace("100x100bb", "1000x1000bb")
+                .replace("100x100-75", "1000x1000-75")
+            )
+
+            album_url = m.get("collectionViewUrl", "")
+
+            release_date = m.get("releaseDate", "")
+
+            if release_date:
+                release_date = release_date[:10]
+
+            albums.append({
+                "display_name": f"📀 {album_title} — {artist}",
+                "title": album_title,
                 "creator": artist,
-                "date": m.get("releaseDate", "")[:10],
+                "date": release_date,
                 "img": artwork,
                 "venue": artist,
-                "collection_id": m.get("collectionId"),
-                "url": m.get("collectionViewUrl", "")
+                "collection_id": collection_id,
+                "url": album_url
             })
 
-        return formatted_res
+        # 같은 앨범이 여러 번 나오는 경우 제거
+        unique_albums = {}
+
+        for album in albums:
+            key = album["collection_id"]
+
+            if key not in unique_albums:
+                unique_albums[key] = album
+
+        return list(unique_albums.values())
+
+    except requests.exceptions.Timeout:
+        st.error("Apple Music 검색 시간이 초과되었습니다.")
+        return []
 
     except requests.exceptions.RequestException as e:
-        print(f"Apple Music 요청 오류: {e}")
+        st.error(f"Apple Music 연결 오류: {e}")
         return []
 
     except Exception as e:
+        st.error(f"Apple Music 검색 처리 오류: {e}")
+        return []
+    except Exception as e:
         print(f"Apple Music 처리 오류: {e}")
+        return []
+def get_apple_music_tracks(collection_id):
+    """Apple Music/iTunes에서 앨범 전체 트랙리스트 조회"""
+
+    if not collection_id:
+        return []
+
+    url = "https://itunes.apple.com/lookup"
+
+    params = {
+        "id": collection_id,
+        "entity": "song",
+        "country": "kr",
+        "limit": 200
+    }
+
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
+
+    try:
+        res = requests.get(
+            url,
+            params=params,
+            headers=headers,
+            timeout=10
+        )
+
+        if res.status_code != 200:
+            st.warning(
+                f"트랙리스트 조회 실패: HTTP {res.status_code}"
+            )
+            return []
+
+        data = res.json()
+
+        results = data.get("results", [])
+
+        tracks = []
+
+        for item in results:
+
+            # 앨범 자체(collection)는 제외하고 곡(track)만
+            if item.get("wrapperType") != "track":
+                continue
+
+            if item.get("kind") != "song":
+                continue
+
+            track_name = item.get("trackName", "").strip()
+
+            if not track_name:
+                continue
+
+            track_number = item.get("trackNumber")
+
+            tracks.append({
+                "track_number": track_number,
+                "track_name": track_name
+            })
+
+        # 트랙 번호 순으로 정렬
+        tracks.sort(
+            key=lambda x: (
+                x["track_number"]
+                if isinstance(x["track_number"], int)
+                else 9999
+            )
+        )
+
+        return tracks
+
+    except requests.exceptions.Timeout:
+        st.warning("트랙리스트 조회 시간이 초과되었습니다.")
+        return []
+
+    except requests.exceptions.RequestException as e:
+        st.warning(f"트랙리스트 연결 오류: {e}")
+        return []
+
+    except Exception as e:
+        st.warning(f"트랙리스트 처리 오류: {e}")
         return []
 
 def search_tmdb(query, category):
