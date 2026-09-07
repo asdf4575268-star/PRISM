@@ -12,6 +12,7 @@ import base64
 import html
 import json
 import extra_streamlit_components as stx
+import time
 
 # ==========================================
 # 1. CONSTANTS & CONFIGURATION (상수 및 설정)
@@ -277,18 +278,32 @@ def search_books(query):
     except: return []
 
 def search_apple_music(query):
-    url = f"https://itunes.apple.com/search?term={query}&limit=20&country=kr&entity=musicTrack,album"
+    url = "https://itunes.apple.com/search"
+    params = {
+        "term": query,
+        "limit": 20,
+        "country": "kr",
+        "entity": "album"
+    }
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     try:
-        res = requests.get(url).json().get("results", [])
+        res = requests.get(url, params=params, headers=headers, timeout=5)
+        if res.status_code != 200:
+            return []
+        data = res.json().get("results", [])
         formatted_res = []
-        for m in res:
-            is_album = m.get('wrapperType') == 'collection'
-            title = m.get('collectionName' if is_album else 'trackName', '제목 없음')
+        for m in data:
+            title = m.get('collectionName', '제목 없음')
+            artist = m.get('artistName', '')
             formatted_res.append({
-                'display_name': f"{'📀' if is_album else '🎵'} {title} - {m.get('artistName', '')}", 
-                'title': title, 'creator': m.get('artistName', ''), 'date': m.get('releaseDate', '')[:10], 
-                'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'), 'venue': m.get('artistName', ''),
-                'is_album': is_album, 'collection_id': m.get('collectionId'), 'url': m.get('collectionViewUrl' if is_album else 'trackViewUrl', '')
+                'display_name': f"📀 {title} - {artist}", 
+                'title': title, 
+                'creator': artist, 
+                'date': m.get('releaseDate', '')[:10] if m.get('releaseDate') else '', 
+                'img': m.get('artworkUrl100', '').replace('100x100bb', '800x800bb'), 
+                'venue': artist,
+                'collection_id': m.get('collectionId'), 
+                'url': m.get('collectionViewUrl', '')
             })
         return formatted_res
     except: return []
@@ -740,14 +755,11 @@ if IS_ADMIN and tab_w:
                     if st.button("✨ 가져오기", use_container_width=True):
                         b = opts[sel]
                         
-                        # 1. Kakao API 기본 contents는 요약본이므로 원본 URL 메타태그 스크래핑 시도
                         full_desc = b.get('contents', '')
                         if b.get('url'):
                             scraped = scrape_url(b['url'])
                             if scraped and scraped.get('summary'):
-                                # URL 텍스트를 제거하고 순수 소개문만 추출
                                 scraped_desc = scraped['summary'].replace(b['url'], '').strip()
-                                # 스크래핑한 내용이 기존 contents보다 길 경우 덮어쓰기
                                 if len(scraped_desc) > len(full_desc):
                                     full_desc = scraped_desc
                                     
@@ -762,21 +774,40 @@ if IS_ADMIN and tab_w:
                         )
                         st.rerun()
                         
-        elif category == "MUSIC":
-            if res := search_apple_music(search_query):
-                sel = st.selectbox("결과 선택", list((opts := {m['display_name']: m for m in res}).keys()))
-                if st.button("✨ 가져오기"):
-                    m = opts[sel]
-                    tl_text = ""
-                    if m.get('is_album') and m.get('collection_id'):
-                        try:
-                            tracks = [t['trackName'] for t in requests.get(f"https://itunes.apple.com/lookup?id={m['collection_id']}&entity=song").json().get("results", []) if t.get('wrapperType') == 'track']
-                            if tracks: tl_text = "💿 트랙리스트\n" + "\n".join([f"{i+1}. {t}" for i, t in enumerate(tracks)])
-                        except: pass
-                    
-                    combined_summary = f"{m.get('url', '')}\n\n{tl_text}".strip()
-                    st.session_state.update(edit_target_id=None, edit_source=None, f_title=m['title'], f_creator=m['creator'], f_date=m['date'], f_img=m['img'], f_venue=m['venue'], f_summary=combined_summary, f_highlights="", f_note="", f_brief="", f_video="")
-                    st.rerun()
+            elif category == "MUSIC":
+                if res := search_apple_music(search_query):
+                    sel = st.selectbox("결과 선택", list((opts := {m['display_name']: m for m in res}).keys()))
+                    if st.button("✨ 가져오기", use_container_width=True):
+                        m = opts[sel]
+                        tl_text = ""
+                        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+                        cid = m.get('collection_id')
+                        if cid:
+                            try:
+                                lookup_res = requests.get(
+                                    "https://itunes.apple.com/lookup", 
+                                    params={"id": cid, "entity": "song", "country": "kr"},
+                                    headers=headers,
+                                    timeout=5
+                                ).json().get("results", [])
+                                tracks = [t['trackName'] for t in lookup_res if t.get('wrapperType') == 'track']
+                                if tracks: 
+                                    tl_text = "💿 트랙리스트\n" + "\n".join([f"{i+1}. {t}" for i, t in enumerate(tracks)])
+                            except: 
+                                pass
+                        
+                        combined_summary = f"{m.get('url', '')}\n\n{tl_text}".strip()
+                        st.session_state.update(
+                            edit_target_id=None, edit_source=None, 
+                            f_title=m['title'], 
+                            f_creator=m['creator'], 
+                            f_date=m['date'], 
+                            f_img=m['img'], 
+                            f_venue=m['venue'], 
+                            f_summary=combined_summary, 
+                            f_highlights="", f_note="", f_brief="", f_video=""
+                        )
+                        st.rerun()
 
             elif category == "STAGE":
                 if res := search_kopis(search_query):
@@ -893,7 +924,6 @@ elif not tab_w:
         color: #6366F1 !important;
     }
     
-    /* 🔥 반응형 그리드 설정: 모바일/세로모드에서도 화면 너비 내에 3~5개가 자동으로 줄바꿈되도록 수정 */
     @media (max-width: 992px) { 
         div[data-testid="stHorizontalBlock"] { 
             display: flex !important; 
