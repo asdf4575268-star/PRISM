@@ -1243,7 +1243,7 @@ elif not tab_w:
                                     row = items[i+j]
                                     img_style = 'style="height: auto; aspect-ratio: 1/1;"' if row["category"] == "MUSIC" else ""
                                     with cols[j]:
-                                        st.markdown(f'<a class="archive-img-link" href="?archive_id={row["id"]}"><div class="cal-img-box"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}" {img_style}></div></a>', unsafe_allow_html=True)
+                                        st.markdown(f'<a class="archive-img-link" href="?archive_id={row["id"]}" target="_self" rel="noopener"><div class="cal-img-box"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}" {img_style}></div></a>', unsafe_allow_html=True)
                                         if st.button(row['title'][:19] + "..." if len(row['title']) > 19 else row['title'], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
 
         for idx, c_name in enumerate(cat_order):
@@ -1260,7 +1260,7 @@ elif not tab_w:
                                 row = items[i+j]
                                 with cols[j]:
                                     img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
-                                    st.markdown(f'<a class="archive-img-link" href="?archive_id={row["id"]}"><div class="cal-img-box {music_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{img_u}"></div></a>', unsafe_allow_html=True)
+                                    st.markdown(f'<a class="archive-img-link" href="?archive_id={row["id"]}" target="_self" rel="noopener"><div class="cal-img-box {music_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{img_u}"></div></a>', unsafe_allow_html=True)
                                     if st.button(row['title'][:20] + "..." if len(row['title']) > 20 else row['title'], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
 
         if IS_ADMIN:
