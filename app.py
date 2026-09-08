@@ -862,7 +862,7 @@ if IS_ADMIN and tab_w:
             st.markdown(f"<div class='{title_class}'>{days_korean[i]}</div>", unsafe_allow_html=True)
             st.markdown(f"<div class='weekly-date'>{current_day.strftime('%m.%d')}</div>", unsafe_allow_html=True)
 
-            with st.container(border=True):
+            with st.container(border=False):
                 if day_items:
                     for item in day_items:
                         try:
