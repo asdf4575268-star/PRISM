@@ -538,7 +538,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
 
     col_img, col_txt = st.columns([0.42, 0.58])
     with col_img:
-        if img_url and str(img_url) != "None": st.image(img_url, use_container_width=True)
+        if img_url and str(img_url) != "None": st.image(img_url, width=220)
         
         memo_content = data_dict.get('img_url2', '')
         if pd.notna(memo_content) and str(memo_content).strip() not in ["", "None", "nan", "NaN"]:
@@ -549,7 +549,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 text_part = memo_content.replace(media_url, '').strip(' /|-')
                 if text_part: st.markdown(f'<div style="background-color: #0F172A; border-left: 4px solid #6366F1; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">📎 {text_part}</div>', unsafe_allow_html=True)
                 if re.search(r'\.(jpg|jpeg|png|webp|gif)', media_url, re.IGNORECASE) or "image.tmdb.org" in media_url:
-                    st.image(media_url, use_container_width=True)
+                    st.image(media_url, width=220)
                 else:
                     try: st.video(media_url)
                     except: st.markdown(f"**[🔗 첨부 링크 보러가기]({media_url})**")
@@ -612,10 +612,10 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 time.sleep(0.8)
                 st.rerun()
 
-@st.dialog("📋 ARCHIVE", width="LARGE")
+@st.dialog("📋 ARCHIVE", width="large")
 def show_details(item): render_item_details(item if isinstance(item, dict) else item.to_dict(), item['id'], is_plan=False)
 
-@st.dialog("🗓️ 상세 정보", width="LARGE")
+@st.dialog("🗓️ 상세 정보", width="large")
 def show_plan_details(item):
     item_dict = item if isinstance(item, dict) else item.to_dict()
     try: rich_data = json.loads(item_dict['memo'])
@@ -893,7 +893,7 @@ if IS_ADMIN and tab_w:
             st.markdown(f"<div class='weekly-date'>{current_day.strftime('%m.%d')}</div>", unsafe_allow_html=True)
 
             # 내용에 맞춰 작게 유지되는 달력 칸
-            with st.container(height=225, border=True):
+            with st.container(border=True):
                 if not day_items:
                     st.markdown("<div style='color:#64748B; font-size:0.8rem; padding-top:8px;'>계획 없음</div>", unsafe_allow_html=True)
                 else:
@@ -924,13 +924,10 @@ if IS_ADMIN and tab_w:
                                 show_plan_details(item)
 
                         st.markdown(f"<div class='weekly-card-category'>{category}</div>", unsafe_allow_html=True)
-                        if st.button(
-                            title,
-                            key=f"weekly_title_{item_id}",
-                            use_container_width=True,
-                            type="tertiary",
-                        ):
-                            show_plan_details(item)
+                        st.markdown(
+                            f"<div class='weekly-card-title'>{title}</div>",
+                            unsafe_allow_html=True,
+                        )
 
     st.markdown("<div style='height:18px;'></div>", unsafe_allow_html=True)
 
@@ -1311,8 +1308,11 @@ elif not tab_w:
                                             bottom_badge=f"{pd.to_datetime(row['view_date']).day}일",
                                         ):
                                             show_details(row)
-                                        if st.button(row['title'][:19] + "..." if len(row['title']) > 19 else row['title'], key=f"all_btn_{row['id']}", use_container_width=True, type="tertiary"):
-                                            show_details(row)
+                                        st.markdown(
+                                            f"<div style='text-align:center; color:#E2E8F0; font-size:0.75rem; line-height:1.2; font-weight:600; padding-top:4px;'>"
+                                            f"{row['title'][:19] + '...' if len(row['title']) > 19 else row['title']}</div>",
+                                            unsafe_allow_html=True,
+                                        )
 
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
@@ -1335,8 +1335,11 @@ elif not tab_w:
                                         bottom_badge=str(row["view_date"]),
                                     ):
                                         show_details(row)
-                                    if st.button(row['title'][:20] + "..." if len(row['title']) > 20 else row['title'], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True, type="tertiary"):
-                                        show_details(row)
+                                    st.markdown(
+                                        f"<div style='text-align:center; color:#E2E8F0; font-size:0.75rem; line-height:1.2; font-weight:600; padding-top:4px;'>"
+                                        f"{row['title'][:20] + '...' if len(row['title']) > 20 else row['title']}</div>",
+                                        unsafe_allow_html=True,
+                                    )
 
         if IS_ADMIN:
             with sub_tabs[-1]:
