@@ -536,7 +536,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 
         st.divider()
 
-    col_img, col_txt = st.columns([0.3, 0.7])
+    col_img, col_txt = st.columns([0.42, 0.58])
     with col_img:
         if img_url and str(img_url) != "None": st.image(img_url, use_container_width=True)
         
@@ -631,6 +631,95 @@ def get_base64(path):
     try:
         with open(path, "rb") as f: return base64.b64encode(f.read()).decode()
     except: return ""
+
+def image_button(image_url, key, *, aspect_ratio=None, width="100%", height=None, border_radius=12, top_badge=None, bottom_badge=None):
+    """이미지를 st.button 자체의 배경으로 만들어 일반 버튼과 동일한 클릭 흐름을 사용한다."""
+    if not image_url or str(image_url) == "None":
+        return st.button("🖼️", key=key, use_container_width=True)
+
+    css_url = (
+        str(image_url)
+        .strip()
+        .replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("\n", "")
+        .replace("\r", "")
+    )
+
+    size_css = f"width:{width} !important;"
+    if aspect_ratio:
+        size_css += f"aspect-ratio:{aspect_ratio} !important;height:auto !important;"
+    if height:
+        size_css += f"height:{height} !important;min-height:{height} !important;"
+
+    top_badge_css = ""
+    if top_badge:
+        top_badge_css = f"""
+        div[data-testid="stColumn"] .st-key-{key} button::before {{
+            content: "{str(top_badge).replace('\\', '\\\\').replace('"', '\\"')}";
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            z-index: 2;
+            background: rgba(15,23,42,.88);
+            color: #FBBF24;
+            padding: 1px 6px;
+            border-radius: 12px;
+            font-size: 9px;
+            line-height: 1.4;
+            font-weight: 700;
+        }}"""
+    bottom_badge_css = ""
+    if bottom_badge:
+        bottom_badge_css = f"""
+        div[data-testid="stColumn"] .st-key-{key} button::after {{
+            content: "{str(bottom_badge).replace('\\', '\\\\').replace('"', '\\"')}";
+            position: absolute;
+            right: 5px;
+            bottom: 5px;
+            z-index: 2;
+            background: rgba(15,23,42,.88);
+            color: #E2E8F0;
+            padding: 1px 6px;
+            border-radius: 12px;
+            font-size: 9px;
+            line-height: 1.4;
+            font-weight: 600;
+        }}"""
+
+    st.markdown(
+        f"""<style>
+        div[data-testid="stColumn"] .st-key-{key} button {{
+            position: relative !important;
+            {size_css}
+            padding: 0 !important;
+            min-width: 0 !important;
+            border-radius: {border_radius}px !important;
+            border: 1px solid #334155 !important;
+            background-image: url("{css_url}") !important;
+            background-size: cover !important;
+            background-position: center !important;
+            background-repeat: no-repeat !important;
+            background-color: #1E293B !important;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,.4), 0 4px 6px -2px rgba(0,0,0,.3) !important;
+            color: transparent !important;
+            font-size: 0 !important;
+            line-height: 0 !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+            transition: all .2s ease !important;
+        }}
+        div[data-testid="stColumn"] .st-key-{key} button:hover {{
+            border-color: #6366F1 !important;
+            transform: translateY(-3px);
+            box-shadow: 0 16px 24px -5px rgba(0,0,0,.55) !important;
+        }}
+        {top_badge_css}
+        {bottom_badge_css}
+        </style>""",
+        unsafe_allow_html=True,
+    )
+    return st.button("", key=key, use_container_width=(width == "100%"))
 
 with st.sidebar:
     st.markdown("### 🔐 관리자 접속")
@@ -784,20 +873,6 @@ if IS_ADMIN and tab_w:
     else:
         week_data = pd.DataFrame()
 
-    # 이미지 클릭으로 상세 정보 열기
-    plan_id_param = st.query_params.get("plan_id")
-    if plan_id_param and not plan_df.empty:
-        try:
-            selected_plan = plan_df[plan_df["id"].astype(str) == str(plan_id_param)]
-            if not selected_plan.empty:
-                show_plan_details(selected_plan.iloc[0].to_dict())
-            del st.query_params["plan_id"]
-        except Exception:
-            try:
-                del st.query_params["plan_id"]
-            except Exception:
-                pass
-
     days_korean = ["월", "화", "수", "목", "금", "토", "일"]
     day_cols = st.columns(7, gap="small")
 
@@ -837,21 +912,25 @@ if IS_ADMIN and tab_w:
                         emoji = CAT_EMOJIS.get(category, "📌")
 
                         if img_url and img_url != "None":
-                            safe_url = img_url.replace("&", "&amp;").replace('"', "&quot;")
-                            st.markdown(
-                                f"<a class='weekly-card-link' href='?plan_id={item_id}'>"
-                                f"<img class='weekly-card-image' src='{safe_url}'>"
-                                f"</a>",
-                                unsafe_allow_html=True,
-                            )
+                            if image_button(
+                                img_url,
+                                f"weekly_img_{item_id}",
+                                width="100px",
+                                height="135px",
+                            ):
+                                show_plan_details(item)
                         else:
-                            st.markdown(
-                                f"<div style='text-align:center; font-size:1.8rem; padding:18px 0 10px;'>{emoji}</div>",
-                                unsafe_allow_html=True,
-                            )
+                            if st.button(emoji, key=f"weekly_noimg_{item_id}", use_container_width=True):
+                                show_plan_details(item)
 
                         st.markdown(f"<div class='weekly-card-category'>{category}</div>", unsafe_allow_html=True)
-                        st.markdown(f"<div class='weekly-card-title'>{title}</div>", unsafe_allow_html=True)
+                        if st.button(
+                            title,
+                            key=f"weekly_title_{item_id}",
+                            use_container_width=True,
+                            type="tertiary",
+                        ):
+                            show_plan_details(item)
 
     st.markdown("<div style='height:18px;'></div>", unsafe_allow_html=True)
 
@@ -1151,10 +1230,6 @@ elif not tab_w:
         border-color: #6366F1; 
         box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.5); 
     }
-    .archive-img-link { display: block; text-decoration: none !important; }
-    .archive-img-link:focus { outline: none !important; }
-    .cal-img-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; } 
-    .cal-img-box:hover img { transform: scale(1.04); }
     .music-tab-style { aspect-ratio: 1/1 !important; } 
     
     .badge-cat { position: absolute; top: 4px; left: 4px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); color: #FBBF24; padding: 1px 6px; border-radius: 12px; font-size: 9px; font-weight: 700; z-index: 10; border: 1px solid rgba(255,255,255,0.05); } 
@@ -1196,21 +1271,6 @@ elif not tab_w:
     </style>""", unsafe_allow_html=True)
     all_df = get_all_data()
 
-    # ARCHIVE 탭에서는 이미지 클릭으로만 상세 정보 열기
-    # (WEEKLY의 plan_id와 분리해서 ARCHIVE에서만 동작)
-    archive_id_param = st.query_params.get("archive_id")
-    if archive_id_param and not all_df.empty:
-        try:
-            selected_archive = all_df[all_df["id"].astype(str) == str(archive_id_param)]
-            if not selected_archive.empty:
-                show_details(selected_archive.iloc[0].to_dict())
-            del st.query_params["archive_id"]
-        except Exception:
-            try:
-                del st.query_params["archive_id"]
-            except Exception:
-                pass
-
     if not all_df.empty:
         if search_query_archive := st.text_input("🔍 아카이브 내 실시간 통합 검색", key="global_search"):
             mask = (all_df['title'].str.contains(search_query_archive, case=False, na=False) | all_df['creator'].str.contains(search_query_archive, case=False, na=False) | all_df['summary'].str.contains(search_query_archive, case=False, na=False) | all_df['note'].str.contains(search_query_archive, case=False, na=False) | all_df['venue'].str.contains(search_query_archive, case=False, na=False))
@@ -1243,8 +1303,16 @@ elif not tab_w:
                                     row = items[i+j]
                                     img_style = 'style="height: auto; aspect-ratio: 1/1;"' if row["category"] == "MUSIC" else ""
                                     with cols[j]:
-                                        st.markdown(f'<a class="archive-img-link" href="?archive_id={row["id"]}" target="_self" rel="noopener"><div class="cal-img-box"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}" {img_style}></div></a>', unsafe_allow_html=True)
-                                        if st.button(row['title'][:19] + "..." if len(row['title']) > 19 else row['title'], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
+                                        if image_button(
+                                            row["img_url"],
+                                            f"archive_img_all_{row['id']}",
+                                            aspect_ratio="1/1.4" if row["category"] != "MUSIC" else "1/1",
+                                            top_badge=row["category"],
+                                            bottom_badge=f"{pd.to_datetime(row['view_date']).day}일",
+                                        ):
+                                            show_details(row)
+                                        if st.button(row['title'][:19] + "..." if len(row['title']) > 19 else row['title'], key=f"all_btn_{row['id']}", use_container_width=True, type="tertiary"):
+                                            show_details(row)
 
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
@@ -1260,8 +1328,15 @@ elif not tab_w:
                                 row = items[i+j]
                                 with cols[j]:
                                     img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
-                                    st.markdown(f'<a class="archive-img-link" href="?archive_id={row["id"]}" target="_self" rel="noopener"><div class="cal-img-box {music_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{img_u}"></div></a>', unsafe_allow_html=True)
-                                    if st.button(row['title'][:20] + "..." if len(row['title']) > 20 else row['title'], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
+                                    if image_button(
+                                        img_u,
+                                        f"archive_img_{c_name}_{row['id']}",
+                                        aspect_ratio="1/1" if c_name == "MUSIC" else "1/1.4",
+                                        bottom_badge=str(row["view_date"]),
+                                    ):
+                                        show_details(row)
+                                    if st.button(row['title'][:20] + "..." if len(row['title']) > 20 else row['title'], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True, type="tertiary"):
+                                        show_details(row)
 
         if IS_ADMIN:
             with sub_tabs[-1]:
