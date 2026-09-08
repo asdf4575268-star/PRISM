@@ -698,230 +698,778 @@ if IS_ADMIN:
 
 tab_w = (st.session_state.main_nav == "🖋️ WRITE")
 
+```python
 # ----------------- [WRITE 탭] -----------------
 if IS_ADMIN and tab_w:
-    col_write_left, col_write_right = st.columns([0.35, 0.65], gap="large")
 
-    with col_write_left:
-        st.markdown("<h4 style='font-weight: 800; color: #F1F5F9; margin-bottom: 12px;'>📅 WEEKLY</h4>", unsafe_allow_html=True)
-        
-        lc1, lc2, lc3 = st.columns([0.15, 0.7, 0.15])
-        with lc1:
-            if st.button("⬅️", use_container_width=True, key="w_prev_week_side"):
-                st.session_state.week_offset -= 1
-                st.rerun()
-        
-        today_ts = pd.Timestamp(get_kst_today())
-        view_monday = today_ts - pd.Timedelta(days=today_ts.weekday()) + pd.Timedelta(weeks=st.session_state.week_offset)
-        view_sunday = view_monday + pd.Timedelta(days=6)
-        
-        with lc2:
-            st.markdown(f"<div style='text-align: center; font-weight: 700; color: #818CF8; font-size: 0.9rem;'>{view_monday.isocalendar().week}주차 ({view_monday.strftime('%m.%d')} ~ {view_sunday.strftime('%m.%d')})</div>", unsafe_allow_html=True)
-        
-        with lc3:
-            if st.button("➡️", use_container_width=True, key="w_next_week_side"):
-                st.session_state.week_offset += 1
-                st.rerun()
-        
-        st.markdown("<div style='margin-bottom: 16px;'></div>", unsafe_allow_html=True)
+    # ==========================================
+    # 📅 WEEKLY — 달력형
+    # ==========================================
+    st.markdown(
+        "<h4 style='font-weight:800; color:#F1F5F9; margin-bottom:12px;'>📅 WEEKLY</h4>",
+        unsafe_allow_html=True
+    )
 
-        plan_df = pd.read_sql_query("SELECT * FROM plan ORDER BY plan_date ASC", get_connection())
-        if not plan_df.empty: 
-            plan_df['p_dt'] = pd.to_datetime(plan_df['plan_date'])
-            week_data = plan_df[(plan_df['p_dt'].dt.date >= view_monday.date()) & (plan_df['p_dt'].dt.date <= view_sunday.date())]
+    # 주간 이동
+    wc1, wc2, wc3 = st.columns([0.15, 0.70, 0.15])
+
+    with wc1:
+        if st.button("⬅️", use_container_width=True, key="w_prev_week"):
+            st.session_state.week_offset -= 1
+            st.rerun()
+
+    today_ts = pd.Timestamp(get_kst_today())
+    view_monday = (
+        today_ts
+        - pd.Timedelta(days=today_ts.weekday())
+        + pd.Timedelta(weeks=st.session_state.week_offset)
+    )
+    view_sunday = view_monday + pd.Timedelta(days=6)
+
+    with wc2:
+        st.markdown(
+            f"""
+            <div style="
+                text-align:center;
+                font-weight:800;
+                color:#818CF8;
+                font-size:1rem;
+                padding:6px;
+            ">
+                {view_monday.isocalendar().week}주차
+                ({view_monday.strftime('%Y.%m.%d')}
+                ~ {view_sunday.strftime('%m.%d')})
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with wc3:
+        if st.button("➡️", use_container_width=True, key="w_next_week"):
+            st.session_state.week_offset += 1
+            st.rerun()
+
+    # ------------------------------------------
+    # 계획 데이터
+    # ------------------------------------------
+    plan_df = pd.read_sql_query(
+        "SELECT * FROM plan ORDER BY plan_date ASC",
+        get_connection()
+    )
+
+    if not plan_df.empty:
+        plan_df["p_dt"] = pd.to_datetime(
+            plan_df["plan_date"],
+            errors="coerce"
+        )
+        week_data = plan_df[
+            (plan_df["p_dt"].dt.date >= view_monday.date()) &
+            (plan_df["p_dt"].dt.date <= view_sunday.date())
+        ]
+    else:
+        week_data = pd.DataFrame()
+
+    # ------------------------------------------
+    # 달력 헤더
+    # ------------------------------------------
+    days_korean = ["월", "화", "수", "목", "금", "토", "일"]
+
+    day_cols = st.columns(7, gap="small")
+
+    for i, day in enumerate(days_korean):
+        current_day = view_monday + pd.Timedelta(days=i)
+        is_today = current_day.date() == get_kst_today()
+
+        with day_cols[i]:
+            header_bg = "#4F46E5" if is_today else "#1E293B"
+            header_color = "#FFFFFF" if is_today else "#CBD5E1"
+
+            st.markdown(
+                f"""
+                <div style="
+                    background:{header_bg};
+                    color:{header_color};
+                    border:1px solid #334155;
+                    border-radius:10px 10px 0 0;
+                    padding:8px 4px;
+                    text-align:center;
+                    font-weight:800;
+                    font-size:0.82rem;
+                ">
+                    {day}<br>
+                    <span style="font-size:0.72rem;">
+                        {current_day.strftime('%m.%d')}
+                    </span>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+    # ------------------------------------------
+    # 달력 본문
+    # ------------------------------------------
+    calendar_cols = st.columns(7, gap="small")
+
+    for i in range(7):
+        current_day = view_monday + pd.Timedelta(days=i)
+
+        if not week_data.empty:
+            day_items = week_data[
+                week_data["p_dt"].dt.date == current_day.date()
+            ].to_dict("records")
         else:
-            week_data = pd.DataFrame()
+            day_items = []
 
-        days_korean = ["월", "화", "수", "목", "금", "토", "일"]
-        for i in range(7):
-            current_day = view_monday + pd.Timedelta(days=i)
-            day_items = week_data[week_data['p_dt'].dt.date == current_day.date()].to_dict('records') if not week_data.empty else []
-            
-            for item in day_items:
-                try: img_url = json.loads(item['memo']).get('img_url', '')
-                except: img_url = ""
-                
-                emoji = CAT_EMOJIS.get(item['category'], "📌")
-                title_display = item['title']
-                
-                if img_url and img_url.strip() and img_url != "None":
-                    html_card = f'''
-                    <div style="position: relative; width: 100%; border-radius: 10px; overflow: hidden; border: 1px solid #334155; margin-bottom: 8px; background: #0F172A;">
-                        <div style="position: absolute; top: 8px; left: 8px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); color: #FBBF24; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 700; z-index: 10; border: 1px solid rgba(255,255,255,0.1);">{item['category']}</div>
-                        <div style="position: absolute; bottom: 8px; right: 8px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); color: #818CF8; padding: 3px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 800; z-index: 10; border: 1px solid rgba(255,255,255,0.1);">{days_korean[i]}요일 ({current_day.strftime('%m.%d')})</div>
-                        <img src="{img_url}" style="width: 100%; height: auto; display: block; object-fit: contain; max-height: 260px; margin: 0 auto;">
+        with calendar_cols[i]:
+
+            # 날짜 칸
+            st.markdown(
+                """
+                <div style="
+                    min-height:230px;
+                    background:#0F172A;
+                    border:1px solid #334155;
+                    border-top:none;
+                    border-radius:0 0 10px 10px;
+                    padding:8px;
+                ">
+                """,
+                unsafe_allow_html=True
+            )
+
+            if not day_items:
+                st.markdown(
+                    """
+                    <div style="
+                        text-align:center;
+                        color:#475569;
+                        font-size:0.72rem;
+                        padding-top:70px;
+                    ">
+                        계획 없음
                     </div>
-                    '''
-                    st.markdown(html_card, unsafe_allow_html=True)
+                    """,
+                    unsafe_allow_html=True
+                )
+
+            else:
+                for item in day_items:
+
+                    # 이미지 추출
+                    try:
+                        memo_data = json.loads(item.get("memo", "{}"))
+                        img_url = memo_data.get("img_url", "")
+                    except:
+                        img_url = ""
+
+                    category = item.get("category", "")
+                    emoji = CAT_EMOJIS.get(category, "📌")
+
+                    # 이미지
+                    if img_url and str(img_url).strip() not in ["", "None"]:
+
+                        st.markdown(
+                            f"""
+                            <div style="
+                                position:relative;
+                                width:100%;
+                                border-radius:8px;
+                                overflow:hidden;
+                                margin-bottom:6px;
+                                background:#1E293B;
+                                border:1px solid #334155;
+                            ">
+                                <img src="{img_url}"
+                                    style="
+                                        width:100%;
+                                        height:120px;
+                                        object-fit:cover;
+                                        display:block;
+                                    ">
+
+                                <div style="
+                                    position:absolute;
+                                    top:5px;
+                                    left:5px;
+                                    background:rgba(15,23,42,.88);
+                                    color:#FBBF24;
+                                    padding:2px 6px;
+                                    border-radius:6px;
+                                    font-size:9px;
+                                    font-weight:700;
+                                ">
+                                    {emoji} {category}
+                                </div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+
+                    else:
+                        st.markdown(
+                            f"""
+                            <div style="
+                                width:100%;
+                                height:70px;
+                                display:flex;
+                                align-items:center;
+                                justify-content:center;
+                                background:#1E293B;
+                                border:1px solid #334155;
+                                border-radius:8px;
+                                margin-bottom:6px;
+                                font-size:1.8rem;
+                            ">
+                                {emoji}
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+
+                    # 제목 버튼
+                    title = str(item.get("title", ""))
+                    button_title = (
+                        title[:18] + "..."
+                        if len(title) > 18
+                        else title
+                    )
+
+                    if st.button(
+                        button_title,
+                        key=f"w_calendar_{item['id']}",
+                        use_container_width=True
+                    ):
+                        show_plan_details(item)
+
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown("<div style='height:28px;'></div>", unsafe_allow_html=True)
+
+    # ==========================================
+    # 🔍 SEARCH
+    # ==========================================
+    st.markdown(
+        "<h4 style='font-weight:800; color:#F1F5F9; margin-bottom:12px;'>🔍 SEARCH</h4>",
+        unsafe_allow_html=True
+    )
+
+    category = st.radio(
+        "📂 CATEGORY",
+        CATEGORIES,
+        horizontal=True,
+        key="main_category_radio"
+    )
+
+    search_query = st.text_input(
+        f"🔍 {category} 검색"
+    )
+
+    if search_query:
+
+        # --------------------------------------
+        # SCRAP
+        # --------------------------------------
+        if category == "SCRAP":
+
+            if st.button(
+                "✨ 가져오기",
+                use_container_width=True
+            ):
+                if s := scrape_url(search_query):
+
+                    st.session_state.edit_target_id = None
+                    st.session_state.edit_source = None
+
+                    st.session_state.f_title = s["title"]
+                    st.session_state.f_creator = ""
+                    st.session_state.f_date = ""
+                    st.session_state.f_view_date = get_kst_today()
+                    st.session_state.f_img = s["img"]
+                    st.session_state.f_venue = s["venue"]
+                    st.session_state.f_summary = s["summary"]
+                    st.session_state.f_highlights = ""
+                    st.session_state.f_note = ""
+                    st.session_state.f_brief = ""
+                    st.session_state.f_video = ""
+
+                    st.rerun()
+
                 else:
-                    html_card_no_img = f'''
-                    <div style="position: relative; width: 100%; border-radius: 10px; border: 1px solid #334155; margin-bottom: 8px; background: #0F172A; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 25px 10px;">
-                        <div style="position: absolute; top: 8px; left: 8px; color: #FBBF24; font-size: 0.7rem; font-weight: 700;">{item['category']}</div>
-                        <div style="position: absolute; bottom: 8px; right: 8px; color: #818CF8; font-size: 0.75rem; font-weight: 800;">{days_korean[i]}요일 ({current_day.strftime('%m.%d')})</div>
-                        <div style="font-size: 2rem; margin-top: 5px;">{emoji}</div>
-                    </div>
-                    '''
-                    st.markdown(html_card_no_img, unsafe_allow_html=True)
-                
-                if st.button(title_display, key=f"w_card_btn_{item['id']}", use_container_width=True):
-                    show_plan_details(item)
+                    st.error("URL 정보를 가져올 수 없습니다.")
 
-    with col_write_right:
-        st.markdown("<h4 style='font-weight: 800; color: #F1F5F9; margin-bottom: 12px;'>🔍 SEARCH</h4>", unsafe_allow_html=True)
-        
-        category = st.radio("📂 CATEGORY", CATEGORIES, horizontal=True, key="main_category_radio")
-        search_query = st.text_input(f"🔍 {category} 검색")
-        
-        if search_query:
+        # --------------------------------------
+        # BOOKS
+        # --------------------------------------
+        elif category == "BOOKS":
+
+            if res := search_books(search_query):
+
+                opts = {
+                    f"📚 {b['title']}": b
+                    for b in res
+                }
+
+                sel = st.selectbox(
+                    "결과 선택",
+                    list(opts.keys())
+                )
+
+                if st.button(
+                    "✨ 가져오기",
+                    use_container_width=True
+                ):
+                    b = opts[sel]
+
+                    full_desc = b.get("contents", "")
+
+                    if b.get("url"):
+                        scraped = scrape_url(b["url"])
+
+                        if scraped and scraped.get("summary"):
+                            scraped_desc = (
+                                scraped["summary"]
+                                .replace(b["url"], "")
+                                .strip()
+                            )
+
+                            if len(scraped_desc) > len(full_desc):
+                                full_desc = scraped_desc
+
+                    st.session_state.update(
+                        edit_target_id=None,
+                        edit_source=None,
+                        f_title=b["title"],
+                        f_creator=", ".join(b["authors"]),
+                        f_date=b["datetime"][:10],
+                        f_img=b.get(
+                            "thumbnail",
+                            ""
+                        ).replace(
+                            "R120x174",
+                            "R400x0"
+                        ),
+                        f_venue=b.get("publisher", ""),
+                        f_summary=full_desc,
+                        f_highlights="",
+                        f_note="",
+                        f_brief="",
+                        f_video=""
+                    )
+
+                    st.rerun()
+
+        # --------------------------------------
+        # MUSIC
+        # --------------------------------------
+        elif category == "MUSIC":
+
+            res = search_apple_music(search_query)
+
+            if res:
+
+                opts = {
+                    m["display_name"]: m
+                    for m in res
+                }
+
+                sel = st.selectbox(
+                    "결과 선택",
+                    list(opts.keys())
+                )
+
+                if st.button(
+                    "✨ 가져오기",
+                    use_container_width=True
+                ):
+                    m = opts[sel]
+
+                    tl_text = ""
+
+                    headers = {
+                        "User-Agent":
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+                    }
+
+                    cid = m.get("collection_id")
+
+                    if cid:
+                        try:
+                            lookup_res = requests.get(
+                                "https://itunes.apple.com/lookup",
+                                params={
+                                    "id": cid,
+                                    "entity": "song",
+                                    "country": "kr"
+                                },
+                                headers=headers,
+                                timeout=5
+                            ).json().get(
+                                "results",
+                                []
+                            )
+
+                            tracks = [
+                                t["trackName"]
+                                for t in lookup_res
+                                if t.get("wrapperType") == "track"
+                            ]
+
+                            if tracks:
+                                tl_text = (
+                                    "💿 트랙리스트\n"
+                                    + "\n".join(
+                                        f"{i+1}. {t}"
+                                        for i, t in enumerate(tracks)
+                                    )
+                                )
+
+                        except Exception:
+                            pass
+
+                    combined_summary = (
+                        f"{m.get('url', '')}\n\n{tl_text}"
+                    ).strip()
+
+                    st.session_state.update(
+                        edit_target_id=None,
+                        edit_source=None,
+                        f_title=m["title"],
+                        f_creator=m["creator"],
+                        f_date=m["date"],
+                        f_img=m["img"],
+                        f_venue=m["venue"],
+                        f_summary=combined_summary,
+                        f_highlights="",
+                        f_note="",
+                        f_brief="",
+                        f_video=""
+                    )
+
+                    st.rerun()
+
+        # --------------------------------------
+        # STAGE
+        # --------------------------------------
+        elif category == "STAGE":
+
+            if res := search_kopis(search_query):
+
+                opts = {
+                    f"🎭 {s['title']} "
+                    f"[{s['date']}~] "
+                    f"({s['venue']})": s
+                    for s in res
+                }
+
+                sel = st.selectbox(
+                    "결과 선택",
+                    list(opts.keys())
+                )
+
+                if st.button(
+                    "✨ 가져오기",
+                    use_container_width=True
+                ):
+                    s = opts[sel]
+
+                    st.session_state.update(
+                        edit_target_id=None,
+                        edit_source=None,
+                        f_title=s["title"],
+                        f_creator=get_kopis_detail(s["id"]),
+                        f_date=s["date"],
+                        f_img=s["img"],
+                        f_venue=s["venue"],
+                        f_summary=(
+                            "https://www.kopis.or.kr/"
+                            "por/db/pblprfr/"
+                            "pblprfrView.do?"
+                            "menuId=MNU_00020&"
+                            f"mt20Id={s['id']}"
+                        ),
+                        f_highlights="",
+                        f_note="",
+                        f_brief="",
+                        f_video=""
+                    )
+
+                    st.rerun()
+
+        # --------------------------------------
+        # MOVIES / SERIES
+        # --------------------------------------
+        else:
+
+            if res := search_tmdb(
+                search_query,
+                category
+            ):
+
+                type_path = (
+                    "movie"
+                    if category == "MOVIES"
+                    else "tv"
+                )
+
+                if category == "MOVIES":
+                    t_key = "title"
+                    d_key = "release_date"
+                else:
+                    t_key = "name"
+                    d_key = "first_air_date"
+
+                opts = {
+                    f"🎬 {r.get(t_key)} "
+                    f"({str(r.get(d_key))[:4]})": r
+                    for r in res
+                }
+
+                sel = st.selectbox(
+                    "결과 선택",
+                    list(opts.keys())
+                )
+
+                if st.button(
+                    "✨ 가져오기",
+                    use_container_width=True
+                ):
+                    s = opts[sel]
+
+                    details = get_tmdb_details(
+                        s["id"],
+                        category
+                    )
+
+                    st.session_state.update(
+                        edit_target_id=None,
+                        edit_source=None,
+                        f_title=s.get(t_key, ""),
+                        f_creator=details["creator"],
+                        f_date=s.get(d_key, ""),
+                        f_img=(
+                            "https://image.tmdb.org/t/p/w500"
+                            f"{s.get('poster_path')}"
+                        ),
+                        f_venue=details["venue"],
+                        f_summary=s.get("overview", ""),
+                        f_highlights="",
+                        f_note="",
+                        f_brief="",
+                        f_video=""
+                    )
+
+                    st.rerun()
+
+    st.divider()
+
+    # ==========================================
+    # ✍️ WRITE FORM
+    # ==========================================
+    with st.form(
+        key="prism_write_form",
+        clear_on_submit=False
+    ):
+
+        cl, cr = st.columns([0.45, 0.55])
+
+        with cl:
+
+            st.text_input(
+                "🖼️ 이미지 URL",
+                key="f_img"
+            )
+
+            st.text_input(
+                "🎬 관련 영상(URL) 또는 메모",
+                key="f_video"
+            )
+
+            if (
+                st.session_state.f_img
+                and st.session_state.f_img.strip()
+                and st.session_state.f_img != "None"
+            ):
+                st.image(
+                    st.session_state.f_img,
+                    use_container_width=True
+                )
+
+            st.text_input(
+                "📌 제목",
+                key="f_title"
+            )
+
+            st.text_input(
+                "👤 창작자/매체"
+                if category == "SCRAP"
+                else "👤 창작자",
+                key="f_creator"
+            )
+
+            st.text_input(
+                "📅 작품 날짜",
+                key="f_date"
+            )
+
+            st.text_input(
+                "📍 장소/플랫폼",
+                key="f_venue"
+            )
+
+            st.date_input(
+                "🗓️ 주간 계획 예정일",
+                key="f_view_date"
+            )
+
+        with cr:
+
             if category == "SCRAP":
-                if st.button("✨ 가져오기", use_container_width=True):
-                    if s := scrape_url(search_query):
-                        st.session_state.edit_target_id = None
-                        st.session_state.edit_source = None
-                        st.session_state.f_title = s['title']
-                        st.session_state.f_creator = ''
-                        st.session_state.f_date = ""
-                        st.session_state.f_view_date = get_kst_today()
-                        st.session_state.f_img = s['img']
-                        st.session_state.f_venue = s['venue']
-                        st.session_state.f_summary = s['summary']
-                        st.session_state.f_highlights = ""
-                        st.session_state.f_note = ""
-                        st.session_state.f_brief = ""
-                        st.session_state.f_video = ""
-                        st.rerun()
-                    else: st.error("URL 정보를 가져올 수 없습니다.")
-            elif category == "BOOKS":
-                if res := search_books(search_query):
-                    sel = st.selectbox("결과 선택", list((opts := {f"📚 {b['title']}": b for b in res}).keys()))
-                    if st.button("✨ 가져오기", use_container_width=True):
-                        b = opts[sel]
-                        
-                        full_desc = b.get('contents', '')
-                        if b.get('url'):
-                            scraped = scrape_url(b['url'])
-                            if scraped and scraped.get('summary'):
-                                scraped_desc = scraped['summary'].replace(b['url'], '').strip()
-                                if len(scraped_desc) > len(full_desc):
-                                    full_desc = scraped_desc
-                                    
-                        st.session_state.update(
-                            edit_target_id=None, edit_source=None, 
-                            f_title=b['title'], f_creator=", ".join(b['authors']), 
-                            f_date=b['datetime'][:10], 
-                            f_img=b.get('thumbnail', '').replace("R120x174", "R400x0"), 
-                            f_venue=b.get('publisher', ''), 
-                            f_summary=full_desc, 
-                            f_highlights="", f_note="", f_brief="", f_video=""
-                        )
-                        st.rerun()
-                        
-            elif category == "MUSIC":
-                res = search_apple_music(search_query)
-                if res:
-                    sel = st.selectbox("결과 선택", list((opts := {m['display_name']: m for m in res}).keys()))
-                    if st.button("✨ 가져오기", use_container_width=True):
-                        m = opts[sel]
-                        tl_text = ""
-                        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-                        cid = m.get('collection_id')
-                        if cid:
-                            try:
-                                lookup_res = requests.get(
-                                    "https://itunes.apple.com/lookup", 
-                                    params={"id": cid, "entity": "song", "country": "kr"},
-                                    headers=headers,
-                                    timeout=5
-                                ).json().get("results", [])
-                                tracks = [t['trackName'] for t in lookup_res if t.get('wrapperType') == 'track']
-                                if tracks: 
-                                    tl_text = "💿 트랙리스트\n" + "\n".join([f"{i+1}. {t}" for i, t in enumerate(tracks)])
-                            except Exception: 
-                                pass
-                        
-                        combined_summary = f"{m.get('url', '')}\n\n{tl_text}".strip()
-                        st.session_state.update(
-                            edit_target_id=None, edit_source=None, 
-                            f_title=m['title'], 
-                            f_creator=m['creator'], 
-                            f_date=m['date'], 
-                            f_img=m['img'], 
-                            f_venue=m['venue'], 
-                            f_summary=combined_summary, 
-                            f_highlights="", f_note="", f_brief="", f_video=""
-                        )
-                        st.rerun()
 
-            elif category == "STAGE":
-                if res := search_kopis(search_query):
-                    sel = st.selectbox("결과 선택", list((opts := {f"🎭 {s['title']} [{s['date']}~] ({s['venue']})": s for s in res}).keys()))
-                    if st.button("✨ 가져오기", use_container_width=True):
-                        s = opts[sel]
-                        st.session_state.update(edit_target_id=None, edit_source=None, f_title=s['title'], f_creator=get_kopis_detail(s['id']), f_date=s['date'], f_img=s['img'], f_venue=s['venue'], f_summary=f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id={s['id']}", f_highlights="", f_note="", f_brief="", f_video="")
-                        st.rerun()
-            else: 
-                if res := search_tmdb(search_query, category):
-                    type_path = "movie" if category == "MOVIES" else "tv"
-                    t_key, d_key = ('title', 'release_date') if category == 'MOVIES' else ('name', 'first_air_date')
-                    sel = st.selectbox("결과 선택", list((opts := {f"🎬 {r.get(t_key)} ({str(r.get(d_key))[:4]})": r for r in res}).keys()))
-                    if st.button("✨ 가져오기", use_container_width=True):
-                        s = opts[sel]; details = get_tmdb_details(s['id'], category)
-                        st.session_state.update(edit_target_id=None, edit_source=None, f_title=s.get(t_key, ''), f_creator=details['creator'], f_date=s.get(d_key, ''), f_img=f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", f_venue=details['venue'], f_summary=s.get('overview', ''), f_highlights="", f_note="", f_brief="", f_video="")
-                        st.rerun()
+                st.text_area(
+                    "📰 QUOTE(url)",
+                    key="f_summary",
+                    height=120
+                )
 
-        st.divider()
+                st.text_area(
+                    "✍️ HANDWRITE(brief)",
+                    key="f_note",
+                    height=120
+                )
 
-        with st.form(key="prism_write_form", clear_on_submit=False):
-            cl, cr = st.columns([0.45, 0.55])
-            with cl:
-                st.text_input("🖼️ 이미지 URL", key="f_img")
-                st.text_input("🎬 관련 영상(URL) 또는 메모", key="f_video")
-                if st.session_state.f_img and st.session_state.f_img.strip() and st.session_state.f_img != "None": 
-                    st.image(st.session_state.f_img, use_container_width=True)
-                
-                st.text_input("📌 제목", key="f_title")
-                st.text_input("👤 창작자/매체" if category == "SCRAP" else "👤 창작자", key="f_creator")
-                st.text_input("📅 작품 날짜", key="f_date")
-                st.text_input("📍 장소/플랫폼", key="f_venue")
-                st.date_input("🗓️ 주간 계획 예정일", key="f_view_date")
-            
-            with cr:
-                if category == "SCRAP":
-                    st.text_area("📰 QUOTE(url)", key="f_summary", height=120)
-                    st.text_area("✍️ HANDWRITE(brief)", key="f_note", height=120)
-                    st.text_input("🎯 CONTEXT(argument)", key="f_brief")
-                    st.text_area("💡 EXAMPLS(evidences)/STRUCTURE", key="f_highlights", height=100)
-                else:
-                    st.text_input("💎 DRIP", key="f_brief")
-                    st.text_area("🖋️ PRISM", key="f_note", height=240)
-                    st.text_area("💡BRIEF", key="f_summary", height=100)
-                    st.text_area("🔖 POINT", key="f_highlights", height=100)
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            cb1, cb2 = st.columns([0.75, 0.25])
-            
-            def save_data():
-                if not st.session_state.f_title.strip(): return False
-                conn = get_connection()
-                data = { "category": str(category), "title": st.session_state.f_title.strip(), "creator": st.session_state.f_creator.strip(), "rel_date": st.session_state.f_date.strip(), "venue": st.session_state.f_venue.strip(), "summary": st.session_state.f_summary.strip(), "brief": st.session_state.f_brief.strip(), "highlights": st.session_state.f_highlights.strip(), "note": st.session_state.f_note.strip(), "img_url": st.session_state.f_img.strip(), "img_url2": st.session_state.f_video.strip() }
-                
-                memo_payload = json.dumps(data, ensure_ascii=False)
-                conn.execute("INSERT INTO plan (plan_date, category, title, memo) VALUES (?,?,?,?)", (str(st.session_state.f_view_date), str(category), st.session_state.f_title.strip(), memo_payload))
-                try: supabase.table("plan").upsert({"plan_date": str(st.session_state.f_view_date), "category": str(category), "title": st.session_state.f_title.strip(), "memo": memo_payload}).execute()
-                except: pass
-                
-                conn.commit()
-                st.cache_data.clear()
-                st.session_state.should_clear_form = True
-                return True
+                st.text_input(
+                    "🎯 CONTEXT(argument)",
+                    key="f_brief"
+                )
 
-            if cb1.form_submit_button("🗓️ 주간 계획 등록", use_container_width=True, type="primary"):
-                if save_data(): st.success("🗓️ 주간 계획에 성공적으로 등록되었습니다!"); time.sleep(0.8); st.rerun()
-                else: st.warning("제목을 입력해 주세요.")
+                st.text_area(
+                    "💡 EXAMPLS(evidences)/STRUCTURE",
+                    key="f_highlights",
+                    height=100
+                )
 
-            if cb2.form_submit_button("🔄 비우기", use_container_width=True):
-                st.session_state.should_clear_form = True
+            else:
+
+                st.text_input(
+                    "💎 DRIP",
+                    key="f_brief"
+                )
+
+                st.text_area(
+                    "🖋️ PRISM",
+                    key="f_note",
+                    height=240
+                )
+
+                st.text_area(
+                    "💡BRIEF",
+                    key="f_summary",
+                    height=100
+                )
+
+                st.text_area(
+                    "🔖 POINT",
+                    key="f_highlights",
+                    height=100
+                )
+
+        st.markdown(
+            "<br>",
+            unsafe_allow_html=True
+        )
+
+        cb1, cb2 = st.columns([0.75, 0.25])
+
+        def save_data():
+
+            if not st.session_state.f_title.strip():
+                return False
+
+            conn = get_connection()
+
+            data = {
+                "category": str(category),
+                "title": st.session_state.f_title.strip(),
+                "creator": st.session_state.f_creator.strip(),
+                "rel_date": st.session_state.f_date.strip(),
+                "venue": st.session_state.f_venue.strip(),
+                "summary": st.session_state.f_summary.strip(),
+                "brief": st.session_state.f_brief.strip(),
+                "highlights": st.session_state.f_highlights.strip(),
+                "note": st.session_state.f_note.strip(),
+                "img_url": st.session_state.f_img.strip(),
+                "img_url2": st.session_state.f_video.strip()
+            }
+
+            memo_payload = json.dumps(
+                data,
+                ensure_ascii=False
+            )
+
+            conn.execute(
+                """
+                INSERT INTO plan
+                (plan_date, category, title, memo)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    str(st.session_state.f_view_date),
+                    str(category),
+                    st.session_state.f_title.strip(),
+                    memo_payload
+                )
+            )
+
+            try:
+                supabase.table("plan").upsert({
+                    "plan_date":
+                        str(st.session_state.f_view_date),
+                    "category":
+                        str(category),
+                    "title":
+                        st.session_state.f_title.strip(),
+                    "memo":
+                        memo_payload
+                }).execute()
+            except:
+                pass
+
+            conn.commit()
+
+            st.cache_data.clear()
+
+            st.session_state.should_clear_form = True
+
+            return True
+
+        if cb1.form_submit_button(
+            "🗓️ 주간 계획 등록",
+            use_container_width=True,
+            type="primary"
+        ):
+
+            if save_data():
+
+                st.success(
+                    "🗓️ 주간 계획에 성공적으로 등록되었습니다!"
+                )
+
+                time.sleep(0.8)
                 st.rerun()
+
+            else:
+                st.warning(
+                    "제목을 입력해 주세요."
+                )
+
+        if cb2.form_submit_button(
+            "🔄 비우기",
+            use_container_width=True
+        ):
+
+            st.session_state.should_clear_form = True
+            st.rerun()
+
 
 # ----------------- [ARCHIVE 탭] -----------------
 elif not tab_w:
