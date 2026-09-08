@@ -1092,8 +1092,8 @@ if IS_ADMIN and tab_w:
         with cr:
             if category == "SCRAP":
                 st.text_area("📰원문", key="f_summary", height=120)
-                st.text_area("✍️BRIEF", key="f_note", height=120)
-                st.text_input("🎯CONTEXT", key="f_brief")
+                st.text_area("✍️요약", key="f_note", height=120)
+                st.text_input("🎯중심맥락", key="f_brief")
                 st.text_area("🎯핵심사례", key="f_highlights", height=100)
             else:
                 st.text_input("💎DRIP(한 줄 요약)", key="f_brief")
