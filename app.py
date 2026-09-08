@@ -536,10 +536,12 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 
         st.divider()
 
-    col_img, col_txt = st.columns([0.3, 0.7])
+    col_img, col_txt = st.columns([0.42, 0.58])
     with col_img:
         if img_url and str(img_url) != "None":
-            st.image(img_url, width=350)
+            img_col_l, img_col_c, img_col_r = st.columns([0.5, 1, 0.5])
+            with img_col_c:
+                st.image(img_url, width=180)
         
         memo_content = data_dict.get('img_url2', '')
         if pd.notna(memo_content) and str(memo_content).strip() not in ["", "None", "nan", "NaN"]:
@@ -552,7 +554,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 if re.search(r'\.(jpg|jpeg|png|webp|gif)', media_url, re.IGNORECASE) or "image.tmdb.org" in media_url:
                     img_col_l, img_col_c, img_col_r = st.columns([0.5, 1, 0.5])
                     with img_col_c:
-                        st.image(media_url, width=200)
+                        st.image(media_url, width=180)
                 else:
                     try: st.video(media_url)
                     except: st.markdown(f"**[🔗 첨부 링크 보러가기]({media_url})**")
@@ -878,8 +880,10 @@ if IS_ADMIN and tab_w:
             st.markdown(f"<div class='weekly-date'>{current_day.strftime('%m.%d')}</div>", unsafe_allow_html=True)
 
             # 내용에 맞춰 작게 유지되는 달력 칸
-            with st.container(border=False):
-                if day_items:
+            with st.container(border=True):
+                if not day_items:
+                    st.markdown("<div style='color:#64748B; font-size:0.8rem; padding-top:8px;'>계획 없음</div>", unsafe_allow_html=True)
+                else:
                     for item in day_items:
                         try:
                             memo = json.loads(item.get("memo", "{}"))
@@ -1224,24 +1228,59 @@ elif not tab_w:
         color: #6366F1 !important;
     }
     
-    @media (max-width: 992px) { 
-        div[data-testid="stHorizontalBlock"] { 
-            display: flex !important; 
+    /* 모바일 세로모드에서도 st.columns가 세로로 쌓이지 않고
+       데스크톱과 동일한 가로 그리드 구조를 유지하도록 강제 */
+    @media (max-width: 992px) {
+        /* 모든 Streamlit column row를 가로 배치 */
+        div[data-testid="stHorizontalBlock"] {
+            display: flex !important;
             flex-direction: row !important;
-            flex-wrap: wrap !important; 
-            gap: 6px !important; 
+            flex-wrap: nowrap !important;
+            align-items: stretch !important;
             width: 100% !important;
-        } 
-        div[data-testid="column"] { 
-            flex: 1 1 calc(33.333% - 6px) !important; 
-            min-width: calc(33.333% - 6px) !important; 
-            max-width: calc(33.333% - 6px) !important;
-            margin-bottom: 8px !important; 
-        } 
-    } 
-    @media (min-width: 993px) { 
-        [data-testid="stHorizontalBlock"] { display: flex !important; flex-wrap: nowrap !important; gap: 12px !important; } 
-        [data-testid="column"] { flex: 1 1 0% !important; min-width: 0 !important; } 
+            max-width: 100% !important;
+            gap: 6px !important;
+        }
+
+        /* ARCHIVE 5열 / WEEKLY 7열 모두 실제로 한 줄 유지
+           : 각 column의 기본 min-width를 제거하는 것이 핵심 */
+        div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+            flex: 1 1 0% !important;
+            min-width: 0 !important;
+            max-width: none !important;
+            width: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        /* column 내부 콘텐츠가 column 폭을 넘어가며 전체 레이아웃을
+           다시 세로로 밀어내지 않도록 */
+        div[data-testid="stHorizontalBlock"] > div[data-testid="column"] > div {
+            max-width: 100% !important;
+            min-width: 0 !important;
+        }
+
+        /* 이미지 버튼도 각 column 폭을 그대로 사용 */
+        div[data-testid="stHorizontalBlock"] > div[data-testid="column"] button {
+            max-width: 100% !important;
+        }
+
+        /* 모바일에서는 카드 제목도 폭에 맞춰 자연스럽게 줄바꿈 */
+        .cal-img-box {
+            width: 100% !important;
+        }
+    }
+
+    @media (min-width: 993px) {
+        [data-testid="stHorizontalBlock"] {
+            display: flex !important;
+            flex-wrap: nowrap !important;
+            gap: 12px !important;
+        }
+        [data-testid="column"] {
+            flex: 1 1 0% !important;
+            min-width: 0 !important;
+        }
     }
     </style>""", unsafe_allow_html=True)
     all_df = get_all_data()
