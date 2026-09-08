@@ -1296,7 +1296,7 @@ elif not tab_w:
                 cols = st.columns(7)
                 for day_idx, day in enumerate(week):
                     with cols[day_idx]:
-                        with st.container(border=True):
+                        with st.container(border=False):
                             if day == 0:
                                 st.markdown("<div style='min-height: 90px;'></div>", unsafe_allow_html=True)
                             else:
