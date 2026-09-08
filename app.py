@@ -1186,7 +1186,7 @@ elif not tab_w:
     st.markdown("""<style>
     .cal-img-box { 
         position: relative; 
-        width: 100%; 
+        width: 80%; 
         aspect-ratio: 1/1.4; 
         overflow: hidden; 
         border-radius: 12px; 
