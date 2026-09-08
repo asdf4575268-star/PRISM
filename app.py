@@ -540,7 +540,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
     with col_img:
         if img_url and str(img_url) != "None":
             img_left, img_center, img_right = st.columns([0.1, 0.8, 0.1])
-            st.image(img_url, width=350)
+            st.image(img_url, width=360)
         
         memo_content = data_dict.get('img_url2', '')
         if pd.notna(memo_content) and str(memo_content).strip() not in ["", "None", "nan", "NaN"]:
