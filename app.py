@@ -541,7 +541,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
         if img_url and str(img_url) != "None":
             img_col_l, img_col_c, img_col_r = st.columns([0.5, 1, 0.5])
             with img_col_c:
-                st.image(img_url, width=240)
+                st.image(img_url, width=270)
         
         memo_content = data_dict.get('img_url2', '')
         if pd.notna(memo_content) and str(memo_content).strip() not in ["", "None", "nan", "NaN"]:
@@ -881,9 +881,7 @@ if IS_ADMIN and tab_w:
 
             # 내용에 맞춰 작게 유지되는 달력 칸
             with st.container(border=True):
-                if not day_items:
-                    st.markdown("<div style='color:#64748B; font-size:0.8rem; padding-top:8px;'>계획 없음</div>", unsafe_allow_html=True)
-                else:
+                if day_items:
                     for item in day_items:
                         try:
                             memo = json.loads(item.get("memo", "{}"))
