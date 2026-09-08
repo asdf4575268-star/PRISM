@@ -1172,12 +1172,14 @@ elif not tab_w:
         background-color: transparent !important;
         border: none !important;
         color: #E2E8F0 !important;
-        padding: 2px 0px !important;
+        padding: 0px !important;
         text-align: center !important;
         font-weight: 600 !important;
         font-size: 0.70rem !important;
         line-height: 1.1 !important;
         width: 100% !important;
+        max-width: 150px !important;
+        margin: 0 auto !important;
     }
     div[data-testid="stColumn"] button:hover {
         color: #6366F1 !important;
@@ -1192,9 +1194,9 @@ elif not tab_w:
         }
 
         div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
-            flex: 1 1 calc(33.333% - 8px) !important;
-            min-width: calc(33.333% - 8px) !important;
-            max-width: calc(33.333% - 8px) !important;
+            flex: 1 1 calc(25% - 8px) !important;
+            min-width: calc(25% - 8px) !important;
+            max-width: calc(25% - 8px) !important;
             margin: 0 !important;
             padding: 0 !important;
         }
@@ -1204,7 +1206,7 @@ elif not tab_w:
         div[data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-wrap: nowrap !important;
-            gap: 12px !important;
+            gap: 10px !important;
         }
         div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
             flex: 1 1 0% !important;
@@ -1226,11 +1228,11 @@ elif not tab_w:
         tab_titles = [f"📅 ALL ({len(main_df)})"] + [f"{CAT_EMOJIS[c]} {c} ({len(main_df[main_df['category'] == c])})" for c in cat_order]
         if IS_ADMIN: tab_titles.append(f"🔐 SCRAP ({len(scrap_df)})")
         sub_tabs = st.tabs(tab_titles)
-        grid_cols = 5
+        grid_cols = 6
 
         with sub_tabs[0]:
             if years := sorted(main_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True):
-                sel_y = st.selectbox("📅 YEAR", options=years, format_func=lambda y: f"{y} ({len(main_df[main_df['v_dt'].dt.year == y])})", key="archive_year_sel")
+                sel_y = st.selectbox("📅 YEAR", options=years, format_func=lambda y: f"{y} 년도 ({len(main_df[main_df['v_dt'].dt.year == y])})", key="archive_year_sel")
                 st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
                 y_df = main_df[main_df['v_dt'].dt.year == sel_y]
                 
@@ -1253,11 +1255,6 @@ elif not tab_w:
                                             bottom_badge=f"{pd.to_datetime(row['view_date']).day}일",
                                         ):
                                             show_details(row)
-                                        st.markdown(
-                                            f"<div style='text-align:center; color:#E2E8F0; font-size:0.7rem; line-height:1.1; font-weight:600; padding-top:2px; word-break:break-all;'>"
-                                            f"{row['title'][:15] + '...' if len(row['title']) > 15 else row['title']}</div>",
-                                            unsafe_allow_html=True,
-                                        )
 
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
@@ -1279,11 +1276,6 @@ elif not tab_w:
                                         bottom_badge=str(row["view_date"]),
                                     ):
                                         show_details(row)
-                                    st.markdown(
-                                        f"<div style='text-align:center; color:#E2E8F0; font-size:0.7rem; line-height:1.1; font-weight:600; padding-top:2px; word-break:break-all;'>"
-                                        f"{row['title'][:15] + '...' if len(row['title']) > 20 else row['title']}</div>",
-                                        unsafe_allow_html=True,
-                                    )
 
         if IS_ADMIN:
             with sub_tabs[-1]:
