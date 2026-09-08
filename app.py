@@ -1230,7 +1230,7 @@ elif not tab_w:
 
         with sub_tabs[0]:
             if years := sorted(main_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True):
-                sel_y = st.selectbox("📅 YEAR", options=years, format_func=lambda y: f"{y} 년도 ({len(main_df[main_df['v_dt'].dt.year == y])})", key="archive_year_sel")
+                sel_y = st.selectbox("📅 YEAR", options=years, format_func=lambda y: f"{y} ({len(main_df[main_df['v_dt'].dt.year == y])})", key="archive_year_sel")
                 st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
                 y_df = main_df[main_df['v_dt'].dt.year == sel_y]
                 
