@@ -547,7 +547,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
 
     col_img, col_txt = st.columns([0.3, 0.7])
     with col_img:
-        if img_url and str(img_url) != "None": st.image(img_url, use_container_width=True)
+        if img_url and str(img_url) != "None": st.image(img_url, width=110)
         
         memo_content = data_dict.get('img_url2', '')
         if pd.notna(memo_content) and str(memo_content).strip() not in ["", "None", "nan", "NaN"]:
@@ -703,6 +703,23 @@ if IS_ADMIN and tab_w:
     # ==============================
     # WEEKLY : 7일 달력
     # ==============================
+    st.markdown("""<style>
+    /* WEEKLY 내부 버튼의 높이/폭을 고정해 긴 제목에 따른 레이아웃 흔들림 방지 */
+    div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"] button {
+        min-height: 42px !important;
+        height: 42px !important;
+        box-sizing: border-box !important;
+        width: 100% !important;
+        overflow: hidden !important;
+        white-space: normal !important;
+        overflow-wrap: anywhere !important;
+        line-height: 1.15 !important;
+        transform: none !important;
+    }
+    div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"] button:hover {
+        transform: none !important;
+    }
+    </style>""", unsafe_allow_html=True)
     st.markdown("### 📅 WEEKLY")
 
     nav_left, nav_center, nav_right = st.columns([0.12, 0.76, 0.12])
@@ -774,7 +791,7 @@ if IS_ADMIN and tab_w:
             st.caption(current_day.strftime("%m.%d"))
 
             # 하루 칸의 높이를 일정하게 유지
-            with st.container(height=320, border=True):
+            with st.container(height=210, border=True):
                 if not day_items:
                     st.caption("계획 없음")
                 else:
@@ -793,13 +810,15 @@ if IS_ADMIN and tab_w:
 
                         if img_url and img_url != "None":
                             try:
-                                st.image(img_url, use_container_width=True)
+                                st.image(img_url, width=110)
                             except Exception:
                                 st.markdown(f"{emoji} 이미지 불러오기 실패")
                         else:
                             st.markdown(f"### {emoji}")
 
                         st.caption(category)
+                        # 제목 버튼은 모든 요일에서 동일한 높이로 고정해
+                        # 긴 제목 때문에 특정 요일의 텍스트가 좌우로 흔들리지 않게 한다.
                         if st.button(
                             title,
                             key=f"w_card_btn_{item['id']}",
