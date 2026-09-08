@@ -892,6 +892,8 @@ if IS_ADMIN and tab_w:
                         else:
                             if st.button(emoji, key=f"weekly_noimg_{item_id}", use_container_width=True):
                                 show_plan_details(item)
+                else:
+                    st.markdown("<div style='min-height: 120px;'></div>", unsafe_allow_html=True)
 
     st.markdown("<div style='height:18px;'></div>", unsafe_allow_html=True)
 
@@ -1286,7 +1288,7 @@ elif not tab_w:
                 for day_idx, day in enumerate(week):
                     with cols[day_idx]:
                         if day == 0:
-                            st.markdown("<div style='min-height: 20px;'></div>", unsafe_allow_html=True)
+                            st.markdown("<div style='min-height: 120px;'></div>", unsafe_allow_html=True)
                         else:
                             st.markdown(f"<div style='text-align: left; font-size: 0.78rem; font-weight: 700; color: #CBD5E1; margin-bottom: 2px;'>{day}</div>", unsafe_allow_html=True)
                             if day in m_items_by_day:
@@ -1299,6 +1301,8 @@ elif not tab_w:
                                         top_badge=row["category"],
                                     ):
                                         show_details(row)
+                            else:
+                                st.markdown("<div style='min-height: 100px;'></div>", unsafe_allow_html=True)
 
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
