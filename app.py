@@ -1266,7 +1266,7 @@ elif not tab_w:
                 st.markdown(
                     f"<div style='text-align:center; padding:8px 0; font-weight:800; color:#F1F5F9; font-size:1.1rem;'>"
                     f"🗓️ {view_y}년 {view_m}월 "
-                    f"<span style='color:#818CF8; font-size:0.9rem;'>(기록 {len(m_data)}개)</span>"
+                    f"<span style='color:#818CF8; font-size:0.9rem;'>({len(m_data)})</span>"
                     f"</div>",
                     unsafe_allow_html=True,
                 )
