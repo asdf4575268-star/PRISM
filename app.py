@@ -278,77 +278,68 @@ def search_books(query):
     except: return []
 
 def search_apple_music(query):
-    url = "https://itunes.apple.com/search"
-
-    params = {
-        "term": query,
-        "media": "music",
-        "entity": "album",
-        "country": "KR",
-        "limit": 50
-    }
+    """Apple/iTunes Search API에서 앨범 단위 결과를 안정적으로 가져온다."""
+    base_url = "https://itunes.apple.com/search"
+    query = str(query or "").strip()
+    if not query:
+        return []
 
     headers = {
-        "User-Agent": "Mozilla/5.0"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     }
+    countries = ["KR", "JP", "US"]
+    collected = {}
 
-    try:
-        res = requests.get(
-            url,
-            params=params,
-            headers=headers,
-            timeout=10
-        )
-
-        if res.status_code != 200:
-            print(f"Apple Music API 오류: {res.status_code}")
-            print(res.text[:500])
-            return []
-
-        data = res.json()
-
-        results = data.get("results", [])
-
-        formatted_res = []
-
-        for m in results:
-
-            # 앨범 결과만 확실하게 통과
-            if m.get("wrapperType") != "collection":
+    for country in countries:
+        try:
+            res = requests.get(
+                base_url,
+                params={
+                    "term": query,
+                    "media": "music",
+                    "entity": "album",
+                    "country": country,
+                    "limit": 50,
+                },
+                headers=headers,
+                timeout=10,
+            )
+            if res.status_code != 200:
                 continue
 
-            if m.get("collectionType") != "Album":
-                continue
+            for m in res.json().get("results", []):
+                if m.get("wrapperType") != "collection" or m.get("collectionType") != "Album":
+                    continue
 
-            title = m.get("collectionName", "").strip()
-            artist = m.get("artistName", "").strip()
+                title = str(m.get("collectionName", "")).strip()
+                artist = str(m.get("artistName", "")).strip()
+                collection_id = m.get("collectionId")
+                if not title or not collection_id:
+                    continue
 
-            if not title:
-                continue
+                key = str(collection_id)
+                if key in collected:
+                    continue
 
-            artwork = m.get("artworkUrl100", "")
-            artwork = artwork.replace("100x100bb", "800x800bb")
+                artwork = str(m.get("artworkUrl100", "") or "")
+                artwork = artwork.replace("100x100bb", "1000x1000bb")
+                artwork = artwork.replace("100x100-75", "1000x1000-75")
 
-            formatted_res.append({
-                "display_name": f"📀 {title} - {artist}",
-                "title": title,
-                "creator": artist,
-                "date": m.get("releaseDate", "")[:10],
-                "img": artwork,
-                "venue": artist,
-                "collection_id": m.get("collectionId"),
-                "url": m.get("collectionViewUrl", "")
-            })
+                collected[key] = {
+                    "display_name": f"📀 {title} - {artist}",
+                    "title": title,
+                    "creator": artist,
+                    "date": str(m.get("releaseDate", ""))[:10],
+                    "img": artwork,
+                    "venue": artist,
+                    "collection_id": collection_id,
+                    "url": m.get("collectionViewUrl", ""),
+                    "country": country,
+                }
+        except (requests.RequestException, ValueError, TypeError):
+            continue
 
-        return formatted_res
-
-    except requests.exceptions.RequestException as e:
-        print(f"Apple Music 요청 오류: {e}")
-        return []
-
-    except Exception as e:
-        print(f"Apple Music 처리 오류: {e}")
-        return []
+    return list(collected.values())
 
 def search_tmdb(query, category):
     type_path = "movie" if category == "MOVIES" else "tv"
@@ -943,24 +934,26 @@ if IS_ADMIN and tab_w:
                     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
                     cid = m.get("collection_id")
                     if cid:
-                        try:
-                            lookup_res = requests.get(
-                                "https://itunes.apple.com/lookup",
-                                params={"id": cid, "entity": "song", "country": "kr"},
-                                headers=headers,
-                                timeout=5,
-                            ).json().get("results", [])
-                            tracks = [
-                                t["trackName"]
-                                for t in lookup_res
-                                if t.get("wrapperType") == "track"
-                            ]
-                            if tracks:
-                                tl_text = "💿 트랙리스트\n" + "\n".join(
-                                    [f"{i + 1}. {t}" for i, t in enumerate(tracks)]
-                                )
-                        except Exception:
-                            pass
+                        for lookup_country in [m.get("country", "KR"), "KR", "JP", "US"]:
+                            try:
+                                lookup_res = requests.get(
+                                    "https://itunes.apple.com/lookup",
+                                    params={"id": cid, "entity": "song", "country": lookup_country},
+                                    headers=headers,
+                                    timeout=7,
+                                ).json().get("results", [])
+                                tracks = [
+                                    t.get("trackName")
+                                    for t in lookup_res
+                                    if t.get("wrapperType") == "track" and t.get("trackName")
+                                ]
+                                if tracks:
+                                    tl_text = "💿 트랙리스트\n" + "\n".join(
+                                        f"{i + 1}. {t}" for i, t in enumerate(tracks)
+                                    )
+                                    break
+                            except Exception:
+                                continue
 
                     combined_summary = f"{m.get('url', '')}\n\n{tl_text}".strip()
                     st.session_state.update(
@@ -1141,7 +1134,7 @@ elif not tab_w:
     .cal-img-box { 
         position: relative; 
         width: 100%; 
-        aspect-ratio: 1/1.4; 
+        aspect-ratio: 1/1.32; 
         overflow: hidden; 
         border-radius: 12px; 
         margin-top: 8px; 
@@ -1158,7 +1151,7 @@ elif not tab_w:
         border-color: #6366F1; 
         box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.5); 
     }
-    .cal-img-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; } 
+    .cal-img-box img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.4s ease; } 
     .cal-img-box:hover img { transform: scale(1.04); }
     .music-tab-style { aspect-ratio: 1/1 !important; } 
     
@@ -1213,7 +1206,7 @@ elif not tab_w:
         tab_titles = [f"📅 ALL ({len(main_df)})"] + [f"{CAT_EMOJIS[c]} {c} ({len(main_df[main_df['category'] == c])})" for c in cat_order]
         if IS_ADMIN: tab_titles.append(f"🔐 SCRAP ({len(scrap_df)})")
         sub_tabs = st.tabs(tab_titles)
-        grid_cols = 5
+        grid_cols = 4
 
         with sub_tabs[0]:
             if years := sorted(main_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True):
