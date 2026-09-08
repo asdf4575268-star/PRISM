@@ -161,6 +161,15 @@ st.markdown("""
     div[role="radiogroup"] > label[data-checked="true"] p {
         color: #FFFFFF !important;
     }
+
+    /* 달력 셀 규격화 및 패딩 최적화 */
+    div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"] {
+        padding: 6px !important;
+        min-height: 110px !important;
+        border-color: #334155 !important;
+        background-color: #1E293B !important;
+        border-radius: 8px !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1289,21 +1298,21 @@ elif not tab_w:
                     with cols[day_idx]:
                         with st.container(border=True):
                             if day == 0:
-                                st.markdown("<div style='min-height: 100px;'></div>", unsafe_allow_html=True)
+                                st.markdown("<div style='min-height: 90px;'></div>", unsafe_allow_html=True)
                             else:
-                                st.markdown(f"<div style='text-align: left; font-size: 0.78rem; font-weight: 700; color: #CBD5E1; margin-bottom: 2px;'>{day}</div>", unsafe_allow_html=True)
+                                st.markdown(f"<div style='text-align: left; font-size: 0.78rem; font-weight: 700; color: #CBD5E1; margin-bottom: 4px;'>{day}</div>", unsafe_allow_html=True)
                                 if day in m_items_by_day:
                                     for row in m_items_by_day[day]:
                                         img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
                                         if image_button(
                                             img_u,
                                             f"cal_img_all_{view_y}_{view_m}_{day}_{row['id']}",
-                                            aspect_ratio="1/1.4" if row["category"] != "MUSIC" else "1/1",
+                                            aspect_ratio="1/1",
                                             top_badge=row["category"],
                                         ):
                                             show_details(row)
                                 else:
-                                    st.markdown("<div style='min-height: 80px;'></div>", unsafe_allow_html=True)
+                                    st.markdown("<div style='min-height: 70px;'></div>", unsafe_allow_html=True)
 
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
