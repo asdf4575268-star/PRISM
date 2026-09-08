@@ -865,7 +865,7 @@ if IS_ADMIN and tab_w:
             st.markdown(f"<div class='{title_class}'>{days_korean[i]}</div>", unsafe_allow_html=True)
             st.markdown(f"<div class='weekly-date'>{current_day.strftime('%m.%d')}</div>", unsafe_allow_html=True)
 
-            with st.container(border=True):
+            with st.container(border=False):
                 if day_items:
                     for item in day_items:
                         try:
@@ -1287,22 +1287,23 @@ elif not tab_w:
                 cols = st.columns(7)
                 for day_idx, day in enumerate(week):
                     with cols[day_idx]:
-                        if day == 0:
-                            st.markdown("<div style='min-height: 120px;'></div>", unsafe_allow_html=True)
-                        else:
-                            st.markdown(f"<div style='text-align: left; font-size: 0.78rem; font-weight: 700; color: #CBD5E1; margin-bottom: 2px;'>{day}</div>", unsafe_allow_html=True)
-                            if day in m_items_by_day:
-                                for row in m_items_by_day[day]:
-                                    img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
-                                    if image_button(
-                                        img_u,
-                                        f"cal_img_all_{view_y}_{view_m}_{day}_{row['id']}",
-                                        aspect_ratio="1/1.4" if row["category"] != "MUSIC" else "1/1",
-                                        top_badge=row["category"],
-                                    ):
-                                        show_details(row)
-                            else:
+                        with st.container(border=True):
+                            if day == 0:
                                 st.markdown("<div style='min-height: 100px;'></div>", unsafe_allow_html=True)
+                            else:
+                                st.markdown(f"<div style='text-align: left; font-size: 0.78rem; font-weight: 700; color: #CBD5E1; margin-bottom: 2px;'>{day}</div>", unsafe_allow_html=True)
+                                if day in m_items_by_day:
+                                    for row in m_items_by_day[day]:
+                                        img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
+                                        if image_button(
+                                            img_u,
+                                            f"cal_img_all_{view_y}_{view_m}_{day}_{row['id']}",
+                                            aspect_ratio="1/1.4" if row["category"] != "MUSIC" else "1/1",
+                                            top_badge=row["category"],
+                                        ):
+                                            show_details(row)
+                                else:
+                                    st.markdown("<div style='min-height: 80px;'></div>", unsafe_allow_html=True)
 
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
