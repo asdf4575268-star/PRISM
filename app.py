@@ -698,7 +698,6 @@ if IS_ADMIN:
 
 tab_w = (st.session_state.main_nav == "🖋️ WRITE")
 
-```python
 # ----------------- [WRITE 탭] -----------------
 if IS_ADMIN and tab_w:
 
