@@ -1315,6 +1315,7 @@ elif not tab_w:
                                         if image_button(
                                             row["img_url"],
                                             f"archive_img_all_{row['id']}",
+                                            width="88%",
                                             aspect_ratio="1/1.4" if row["category"] != "MUSIC" else "1/1",
                                             top_badge=row["category"],
                                             bottom_badge=f"{pd.to_datetime(row['view_date']).day}일",
@@ -1343,6 +1344,7 @@ elif not tab_w:
                                     if image_button(
                                         img_u,
                                         f"archive_img_{c_name}_{row['id']}",
+                                        width="88%",
                                         aspect_ratio="1/1" if c_name == "MUSIC" else "1/1.4",
                                         bottom_badge=str(row["view_date"]),
                                     ):
