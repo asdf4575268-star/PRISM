@@ -536,7 +536,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 
         st.divider()
 
-    col_img, col_txt = st.columns([0.42, 0.58])
+    col_img, col_txt = st.columns([0.3, 0.7])
     with col_img:
         if img_url and str(img_url) != "None":
             img_col_l, img_col_c, img_col_r = st.columns([0.5, 1, 0.5])
