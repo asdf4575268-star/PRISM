@@ -1239,7 +1239,7 @@ elif not tab_w:
                 for m in range(12, 0, -1):
                     m_data = y_df[y_df['v_dt'].dt.month == m]
                     if not m_data.empty:
-                        st.subheader(f"🗓 {m}월 ({len(m_data)})")
+                        st.subheader(f" {m}월 ({len(m_data)})")
                         items = m_data.to_dict('records')
                         for i in range(0, len(items), grid_cols):
                             cols = st.columns(grid_cols)
