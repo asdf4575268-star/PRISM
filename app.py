@@ -803,7 +803,7 @@ if IS_ADMIN and tab_w:
 
     st.markdown("### 📅 WEEKLY")
 
-    nav_left, nav_center, nav_right = st.columns([0.1, 0.8, 0.1])
+    nav_left, nav_center, nav_right = st.columns([0.15, 0.7, 0.15])
 
     with nav_left:
         if st.button("⬅️", use_container_width=True, key="w_prev_week"):
