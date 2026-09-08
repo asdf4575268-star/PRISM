@@ -428,7 +428,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
     if is_edit_mode:
         st.markdown("### ✏️ 수정 모드")
         with st.form(key=f"inline_edit_form_{table_name}_{item_id}"):
-            col_in1, col_in2 = st.columns([0.3, 0.7])
+            col_in1, col_in2 = st.columns([0.4, 0.6])
             with col_in1:
                 e_title = st.text_input("📌 제목", value=safe_str(data_dict.get('title')))
                 e_creator = st.text_input("👤 창작자", value=safe_str(data_dict.get('creator')))
@@ -536,10 +536,12 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 
         st.divider()
 
-    col_img, col_txt = st.columns([0.3, 0.7])
+    col_img, col_txt = st.columns([0.42, 0.58])
     with col_img:
         if img_url and str(img_url) != "None":
-            st.image(img_url, width=300)
+            img_col_l, img_col_c, img_col_r = st.columns([0.5, 1, 0.5])
+            with img_col_c:
+                st.image(img_url, width=180)
         
         memo_content = data_dict.get('img_url2', '')
         if pd.notna(memo_content) and str(memo_content).strip() not in ["", "None", "nan", "NaN"]:
@@ -550,8 +552,9 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 text_part = memo_content.replace(media_url, '').strip(' /|-')
                 if text_part: st.markdown(f'<div style="background-color: #0F172A; border-left: 4px solid #6366F1; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">📎 {text_part}</div>', unsafe_allow_html=True)
                 if re.search(r'\.(jpg|jpeg|png|webp|gif)', media_url, re.IGNORECASE) or "image.tmdb.org" in media_url:
-                    img_col_c:
-                    st.image(media_url, width=180)
+                    img_col_l, img_col_c, img_col_r = st.columns([0.5, 1, 0.5])
+                    with img_col_c:
+                        st.image(media_url, width=180)
                 else:
                     try: st.video(media_url)
                     except: st.markdown(f"**[🔗 첨부 링크 보러가기]({media_url})**")
