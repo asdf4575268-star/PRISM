@@ -35,12 +35,6 @@ FORM_KEYS = ['f_title', 'f_creator', 'f_date', 'f_venue', 'f_img', 'f_video', 'f
 def get_kst_today():
     return (datetime.utcnow() + timedelta(hours=9)).date()
 
-def get_year_month_from_offset(base_date, offset):
-    total_months = base_date.year * 12 + (base_date.month - 1) + offset
-    y = total_months // 12
-    m = (total_months % 12) + 1
-    return y, m
-
 # ==========================================
 # 2. STATE INITIALIZATION (상태 중앙 관리)
 # ==========================================
@@ -66,9 +60,6 @@ if "selected_tag" not in st.session_state:
 
 if "week_offset" not in st.session_state:
     st.session_state.week_offset = 0
-
-if "archive_month_offset" not in st.session_state:
-    st.session_state.archive_month_offset = 0
 
 if "should_clear_form" not in st.session_state:
     st.session_state.should_clear_form = False
@@ -1240,73 +1231,57 @@ elif not tab_w:
         grid_cols = 6
 
         # ==========================================
-        # 📂 ARCHIVE - ALL 탭 (월 네비게이션 달력형 렌더링)
+        # 📂 ARCHIVE - ALL 탭 (월간 달력형 렌더링)
         # ==========================================
         with sub_tabs[0]:
-            target_year, target_month = get_year_month_from_offset(get_kst_today(), st.session_state.archive_month_offset)
+            if years := sorted(main_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True):
+                sel_y = st.selectbox("📅 YEAR", options=years, format_func=lambda y: f"{y} 년도 ({len(main_df[main_df['v_dt'].dt.year == y])})", key="archive_year_sel")
+                st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
+                y_df = main_df[main_df['v_dt'].dt.year == sel_y]
+                
+                for m in range(12, 0, -1):
+                    m_data = y_df[y_df['v_dt'].dt.month == m]
+                    if not m_data.empty:
+                        st.subheader(f"🗓 {m}월 ({len(m_data)})")
+                        
+                        # 요일 헤더 (월 ~ 일)
+                        days_header = ["월", "화", "수", "목", "금", "토", "일"]
+                        h_cols = st.columns(7)
+                        for idx, h in enumerate(days_header):
+                            h_cols[idx].markdown(f"<div style='text-align: center; font-weight: bold; color: #94A3B8; font-size: 0.85rem;'>{h}</div>", unsafe_allow_html=True)
+                        
+                        # 해당 월의 주 단위 일자 배치를 위한 행렬 생성
+                        cal_matrix = calendar.monthcalendar(sel_y, m)
+                        
+                        # 날짜별 아카이브 아이템 매핑
+                        m_items_by_day = {}
+                        for item in m_data.to_dict('records'):
+                            try:
+                                d_num = pd.to_datetime(item['view_date']).day
+                                m_items_by_day.setdefault(d_num, []).append(item)
+                            except:
+                                pass
 
-            m_nav_left, m_nav_center, m_nav_right = st.columns([0.12, 0.76, 0.12])
-
-            with m_nav_left:
-                if st.button("⬅️", use_container_width=True, key="m_prev_month"):
-                    st.session_state.archive_month_offset -= 1
-                    st.rerun()
-
-            m_data = main_df[(main_df['v_dt'].dt.year == target_year) & (main_df['v_dt'].dt.month == target_month)]
-
-            with m_nav_center:
-                st.markdown(
-                    f"<div style='text-align:center; padding:8px 0; font-weight:800; color:#F1F5F9; font-size:1.1rem;'>"
-                    f"🗓️ {target_year}년 {target_month}월 &nbsp; <span style='color:#818CF8;'>({len(m_data)})</span>"
-                    f"</div>",
-                    unsafe_allow_html=True,
-                )
-
-            with m_nav_right:
-                if st.button("➡️", use_container_width=True, key="m_next_month"):
-                    st.session_state.archive_month_offset += 1
-                    st.rerun()
-
-            st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
-
-            # 요일 헤더 (월 ~ 일)
-            days_header = ["월", "화", "수", "목", "금", "토", "일"]
-            h_cols = st.columns(7)
-            for idx, h in enumerate(days_header):
-                h_cols[idx].markdown(f"<div style='text-align: center; font-weight: bold; color: #94A3B8; font-size: 0.85rem;'>{h}</div>", unsafe_allow_html=True)
-
-            # 해당 월의 주 단위 일자 배치를 위한 행렬 생성
-            cal_matrix = calendar.monthcalendar(target_year, target_month)
-
-            # 날짜별 아카이브 아이템 매핑
-            m_items_by_day = {}
-            if not m_data.empty:
-                for item in m_data.to_dict('records'):
-                    try:
-                        d_num = pd.to_datetime(item['view_date']).day
-                        m_items_by_day.setdefault(d_num, []).append(item)
-                    except:
-                        pass
-
-            # 주 단위 달력 셀 렌더링
-            for week in cal_matrix:
-                cols = st.columns(7)
-                for day_idx, day in enumerate(week):
-                    with cols[day_idx]:
-                        if day == 0:
-                            st.markdown("<div style='min-height: 20px;'></div>", unsafe_allow_html=True)
-                        else:
-                            st.markdown(f"<div style='text-align: left; font-size: 0.78rem; font-weight: 700; color: #CBD5E1; margin-bottom: 2px;'>{day}</div>", unsafe_allow_html=True)
-                            if day in m_items_by_day:
-                                for row in m_items_by_day[day]:
-                                    img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
-                                    if image_button(
-                                        img_u,
-                                        f"cal_img_all_{target_year}_{target_month}_{day}_{row['id']}",
-                                        aspect_ratio="1/1.4" if row["category"] != "MUSIC" else "1/1",
-                                        top_badge=row["category"],
-                                    ):
-                                        show_details(row)
+                        # 주 단위 달력 셀 렌더링
+                        for week in cal_matrix:
+                            cols = st.columns(7)
+                            for day_idx, day in enumerate(week):
+                                with cols[day_idx]:
+                                    if day == 0:
+                                        st.markdown("<div style='min-height: 20px;'></div>", unsafe_allow_html=True)
+                                    else:
+                                        st.markdown(f"<div style='text-align: left; font-size: 0.78rem; font-weight: 700; color: #CBD5E1; margin-bottom: 2px;'>{day}</div>", unsafe_allow_html=True)
+                                        if day in m_items_by_day:
+                                            for row in m_items_by_day[day]:
+                                                img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
+                                                if image_button(
+                                                    img_u,
+                                                    f"cal_img_all_{sel_y}_{m}_{day}_{row['id']}",
+                                                    aspect_ratio="1/1.4" if row["category"] != "MUSIC" else "1/1",
+                                                    top_badge=row["category"],
+                                                ):
+                                                    show_details(row)
+                        st.markdown("<hr style='margin: 1.5em 0; border: 0; border-top: 1px solid #334155;'>", unsafe_allow_html=True)
 
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
