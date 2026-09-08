@@ -536,7 +536,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 
         st.divider()
 
-    col_img, col_txt = st.columns([0.4, 0.6])
+    col_img, col_txt = st.columns([0.3, 0.7])
     with col_img:
         if img_url and str(img_url) != "None":
             img_col_l, img_col_c, img_col_r = st.columns([0.5, 1, 0.5])
@@ -554,7 +554,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 if re.search(r'\.(jpg|jpeg|png|webp|gif)', media_url, re.IGNORECASE) or "image.tmdb.org" in media_url:
                     img_col_l, img_col_c, img_col_r = st.columns([0.5, 1, 0.5])
                     with img_col_c:
-                        st.image(media_url, width=300)
+                        st.image(media_url, width=200)
                 else:
                     try: st.video(media_url)
                     except: st.markdown(f"**[🔗 첨부 링크 보러가기]({media_url})**")
