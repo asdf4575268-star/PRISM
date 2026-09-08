@@ -876,10 +876,8 @@ if IS_ADMIN and tab_w:
             st.markdown(f"<div class='weekly-date'>{current_day.strftime('%m.%d')}</div>", unsafe_allow_html=True)
 
             # 내용에 맞춰 작게 유지되는 달력 칸
-            with st.container(border=True):
-                if not day_items:
-                    st.markdown("<div style='color:#64748B; font-size:0.8rem; padding-top:8px;'>계획 없음</div>", unsafe_allow_html=True)
-                else:
+            with st.containerborder=False):
+                if day_items:
                     for item in day_items:
                         try:
                             memo = json.loads(item.get("memo", "{}"))
