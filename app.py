@@ -876,7 +876,7 @@ if IS_ADMIN and tab_w:
             st.markdown(f"<div class='weekly-date'>{current_day.strftime('%m.%d')}</div>", unsafe_allow_html=True)
 
             # 내용에 맞춰 작게 유지되는 달력 칸
-            with st.containerborder=False):
+            with st.container(border=False):
                 if day_items:
                     for item in day_items:
                         try:
