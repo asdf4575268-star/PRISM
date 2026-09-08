@@ -1091,15 +1091,15 @@ if IS_ADMIN and tab_w:
 
         with cr:
             if category == "SCRAP":
-                st.text_area("📰 QUOTE(url)", key="f_summary", height=120)
-                st.text_area("✍️ HANDWRITE(brief)", key="f_note", height=120)
-                st.text_input("🎯 CONTEXT(argument)", key="f_brief")
-                st.text_area("💡 EXAMPLS(evidences)/STRUCTURE", key="f_highlights", height=100)
+                st.text_area("📰원문", key="f_summary", height=120)
+                st.text_area("✍️BRIEF", key="f_note", height=120)
+                st.text_input("🎯CONTEXT", key="f_brief")
+                st.text_area("🎯핵심사례", key="f_highlights", height=100)
             else:
-                st.text_input("💎 DRIP", key="f_brief")
-                st.text_area("🖋️ PRISM", key="f_note", height=240)
-                st.text_area("💡BRIEF", key="f_summary", height=100)
-                st.text_area("🔖 POINT", key="f_highlights", height=100)
+                st.text_input("💎DRIP(한 줄 요약)", key="f_brief")
+                st.text_area("🖋️PRISM", key="f_note", height=240)
+                st.text_area("💡BRIEF(요약)", key="f_summary", height=100)
+                st.text_area("🔖POINT(인상 깊은 부분)", key="f_highlights", height=100)
 
         st.markdown("<br>", unsafe_allow_html=True)
         cb1, cb2 = st.columns([0.75, 0.25])
@@ -1315,9 +1315,9 @@ elif not tab_w:
                                     elif row['summary']: 
                                         st.markdown(f"**📰 기사:**<br>{str(row['summary']).replace(chr(10), '<br>')}", unsafe_allow_html=True)
                                     
-                                    if row['note']: st.markdown(f"**✍️ HANDWRITE(brief):**<br>{row['note'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
-                                    if row['brief']: st.write(f"**🎯 CONTEXT(argument):** {row['brief']}")
-                                    if row['highlights']: st.markdown(f"**💡 EXAMPLS(evidences)/STRUCTURE:**<br>{row['highlights'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
+                                    if row['note']: st.markdown(f"**✍️BRIEF:**<br>{row['note'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
+                                    if row['brief']: st.write(f"**🎯CONTEXT:** {row['brief']}")
+                                    if row['highlights']: st.markdown(f"**🎯핵심사례:**<br>{row['highlights'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
                                     
                                     if st.button("✏️ 수정", key=f"scr_btn_{row['id']}"): show_details(row)
                     else: st.info("해당 태그나 검색어에 맞는 SCRAP이 없습니다.")
