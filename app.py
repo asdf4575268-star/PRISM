@@ -801,9 +801,9 @@ if IS_ADMIN and tab_w:
     }
     </style>""", unsafe_allow_html=True)
 
-    st.markdown("#### 📅 WEEKLY")
+    st.markdown("### 📅 WEEKLY")
 
-    nav_left, nav_center, nav_right = st.columns([0.15, 0.7, 0.15])
+    nav_left, nav_center, nav_right = st.columns([0.12, 0.76, 0.12])
 
     with nav_left:
         if st.button("⬅️", use_container_width=True, key="w_prev_week"):
@@ -895,7 +895,7 @@ if IS_ADMIN and tab_w:
     # ==============================
     # SEARCH
     # ==============================
-    st.markdown("#### 🔍 SEARCH")
+    st.markdown("### 🔍 SEARCH")
 
     category = st.radio(
         "📂 CATEGORY",
@@ -1091,15 +1091,15 @@ if IS_ADMIN and tab_w:
 
         with cr:
             if category == "SCRAP":
-                st.text_area("📰원문", key="f_summary", height=120)
-                st.text_area("✍️요약", key="f_note", height=120)
-                st.text_input("🎯중심맥락", key="f_brief")
-                st.text_area("🎯핵심사례", key="f_highlights", height=100)
+                st.text_area("📰 QUOTE(url)", key="f_summary", height=120)
+                st.text_area("✍️ HANDWRITE(brief)", key="f_note", height=120)
+                st.text_input("🎯 CONTEXT(argument)", key="f_brief")
+                st.text_area("💡 EXAMPLS(evidences)/STRUCTURE", key="f_highlights", height=100)
             else:
-                st.text_input("💎DRIP(한 줄 요약)", key="f_brief")
-                st.text_area("🖋️PRISM", key="f_note", height=240)
-                st.text_area("💡BRIEF(요약)", key="f_summary", height=100)
-                st.text_area("🔖POINT(인상 깊은 부분)", key="f_highlights", height=100)
+                st.text_input("💎 DRIP", key="f_brief")
+                st.text_area("🖋️ PRISM", key="f_note", height=240)
+                st.text_area("💡BRIEF", key="f_summary", height=100)
+                st.text_area("🔖 POINT", key="f_highlights", height=100)
 
         st.markdown("<br>", unsafe_allow_html=True)
         cb1, cb2 = st.columns([0.75, 0.25])
@@ -1217,7 +1217,7 @@ elif not tab_w:
     all_df = get_all_data()
 
     if not all_df.empty:
-        if search_query_archive := st.text_input("🔍통합 검색", key="global_search"):
+        if search_query_archive := st.text_input("🔍 아카이브 내 실시간 통합 검색", key="global_search"):
             mask = (all_df['title'].str.contains(search_query_archive, case=False, na=False) | all_df['creator'].str.contains(search_query_archive, case=False, na=False) | all_df['summary'].str.contains(search_query_archive, case=False, na=False) | all_df['note'].str.contains(search_query_archive, case=False, na=False) | all_df['venue'].str.contains(search_query_archive, case=False, na=False))
             all_df = all_df[mask]; st.markdown(f"**'{search_query_archive}'** 검색 결과 ({len(all_df)})"); st.divider()
 
@@ -1230,31 +1230,58 @@ elif not tab_w:
         sub_tabs = st.tabs(tab_titles)
         grid_cols = 6
 
+        # ==========================================
+        # 📂 ARCHIVE - ALL 탭 (월간 달력형 렌더링)
+        # ==========================================
         with sub_tabs[0]:
             if years := sorted(main_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True):
-                sel_y = st.selectbox("📅 YEAR", options=years, format_func=lambda y: f"{y} ({len(main_df[main_df['v_dt'].dt.year == y])})", key="archive_year_sel")
+                sel_y = st.selectbox("📅 YEAR", options=years, format_func=lambda y: f"{y} 년도 ({len(main_df[main_df['v_dt'].dt.year == y])})", key="archive_year_sel")
                 st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
                 y_df = main_df[main_df['v_dt'].dt.year == sel_y]
                 
                 for m in range(12, 0, -1):
                     m_data = y_df[y_df['v_dt'].dt.month == m]
                     if not m_data.empty:
-                        st.subheader(f" {m}월 ({len(m_data)})")
-                        items = m_data.to_dict('records')
-                        for i in range(0, len(items), grid_cols):
-                            cols = st.columns(grid_cols)
-                            for j in range(grid_cols):
-                                if i+j < len(items):
-                                    row = items[i+j]
-                                    with cols[j]:
-                                        if image_button(
-                                            row["img_url"],
-                                            f"archive_img_all_{row['id']}",
-                                            aspect_ratio="1/1.4" if row["category"] != "MUSIC" else "1/1",
-                                            top_badge=row["category"],
-                                            bottom_badge=f"{pd.to_datetime(row['view_date']).day}일",
-                                        ):
-                                            show_details(row)
+                        st.subheader(f"🗓 {m}월 ({len(m_data)})")
+                        
+                        # 요일 헤더 (월 ~ 일)
+                        days_header = ["월", "화", "수", "목", "금", "토", "일"]
+                        h_cols = st.columns(7)
+                        for idx, h in enumerate(days_header):
+                            h_cols[idx].markdown(f"<div style='text-align: center; font-weight: bold; color: #94A3B8; font-size: 0.85rem;'>{h}</div>", unsafe_allow_html=True)
+                        
+                        # 해당 월의 주 단위 일자 배치를 위한 행렬 생성
+                        cal_matrix = calendar.monthcalendar(sel_y, m)
+                        
+                        # 날짜별 아카이브 아이템 매핑
+                        m_items_by_day = {}
+                        for item in m_data.to_dict('records'):
+                            try:
+                                d_num = pd.to_datetime(item['view_date']).day
+                                m_items_by_day.setdefault(d_num, []).append(item)
+                            except:
+                                pass
+
+                        # 주 단위 달력 셀 렌더링
+                        for week in cal_matrix:
+                            cols = st.columns(7)
+                            for day_idx, day in enumerate(week):
+                                with cols[day_idx]:
+                                    if day == 0:
+                                        st.markdown("<div style='min-height: 20px;'></div>", unsafe_allow_html=True)
+                                    else:
+                                        st.markdown(f"<div style='text-align: left; font-size: 0.78rem; font-weight: 700; color: #CBD5E1; margin-bottom: 2px;'>{day}</div>", unsafe_allow_html=True)
+                                        if day in m_items_by_day:
+                                            for row in m_items_by_day[day]:
+                                                img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
+                                                if image_button(
+                                                    img_u,
+                                                    f"cal_img_all_{sel_y}_{m}_{day}_{row['id']}",
+                                                    aspect_ratio="1/1.4" if row["category"] != "MUSIC" else "1/1",
+                                                    top_badge=row["category"],
+                                                ):
+                                                    show_details(row)
+                        st.markdown("<hr style='margin: 1.5em 0; border: 0; border-top: 1px solid #334155;'>", unsafe_allow_html=True)
 
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
@@ -1315,9 +1342,9 @@ elif not tab_w:
                                     elif row['summary']: 
                                         st.markdown(f"**📰 기사:**<br>{str(row['summary']).replace(chr(10), '<br>')}", unsafe_allow_html=True)
                                     
-                                    if row['note']: st.markdown(f"**✍️BRIEF:**<br>{row['note'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
-                                    if row['brief']: st.write(f"**🎯CONTEXT:** {row['brief']}")
-                                    if row['highlights']: st.markdown(f"**🎯핵심사례:**<br>{row['highlights'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
+                                    if row['note']: st.markdown(f"**✍️ HANDWRITE(brief):**<br>{row['note'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
+                                    if row['brief']: st.write(f"**🎯 CONTEXT(argument):** {row['brief']}")
+                                    if row['highlights']: st.markdown(f"**💡 EXAMPLS(evidences)/STRUCTURE:**<br>{row['highlights'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
                                     
                                     if st.button("✏️ 수정", key=f"scr_btn_{row['id']}"): show_details(row)
                     else: st.info("해당 태그나 검색어에 맞는 SCRAP이 없습니다.")
