@@ -701,25 +701,56 @@ tab_w = (st.session_state.main_nav == "🖋️ WRITE")
 # ----------------- [WRITE 탭] -----------------
 if IS_ADMIN and tab_w:
     # ==============================
-    # WEEKLY : 7일 달력
+    # WEEKLY : 간결한 7일 달력
     # ==============================
     st.markdown("""<style>
-    /* WEEKLY 내부 버튼의 높이/폭을 고정해 긴 제목에 따른 레이아웃 흔들림 방지 */
-    div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"] button {
-        min-height: 42px !important;
-        height: 42px !important;
-        box-sizing: border-box !important;
-        width: 100% !important;
-        overflow: hidden !important;
-        white-space: normal !important;
-        overflow-wrap: anywhere !important;
-        line-height: 1.15 !important;
-        transform: none !important;
+    .weekly-day-title {
+        text-align: center;
+        font-weight: 800;
+        font-size: 1rem;
+        color: #F1F5F9;
+        padding: 2px 0 4px 0;
     }
-    div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"] button:hover {
-        transform: none !important;
+    .weekly-day-title.today {
+        color: #FFFFFF;
+        background: #4F46E5;
+        border-radius: 8px;
+        padding: 4px 0;
+    }
+    .weekly-date {
+        text-align: center;
+        color: #94A3B8;
+        font-size: 0.78rem;
+        margin-bottom: 7px;
+    }
+    .weekly-card-image {
+        display: block;
+        width: 100px;
+        height: 135px;
+        object-fit: cover;
+        margin: 0 auto 7px auto;
+        border-radius: 8px;
+    }
+    .weekly-card-link {
+        display: block;
+        text-decoration: none !important;
+    }
+    .weekly-card-title {
+        text-align: center;
+        color: #F8FAFC;
+        font-size: 0.82rem;
+        line-height: 1.25;
+        font-weight: 700;
+        padding: 0 4px;
+    }
+    .weekly-card-category {
+        text-align: center;
+        color: #94A3B8;
+        font-size: 0.68rem;
+        margin-bottom: 5px;
     }
     </style>""", unsafe_allow_html=True)
+
     st.markdown("### 📅 WEEKLY")
 
     nav_left, nav_center, nav_right = st.columns([0.12, 0.76, 0.12])
@@ -751,10 +782,7 @@ if IS_ADMIN and tab_w:
             st.session_state.week_offset += 1
             st.rerun()
 
-    plan_df = pd.read_sql_query(
-        "SELECT * FROM plan ORDER BY plan_date ASC",
-        get_connection(),
-    )
+    plan_df = pd.read_sql_query("SELECT * FROM plan ORDER BY plan_date ASC", get_connection())
 
     if not plan_df.empty:
         plan_df["p_dt"] = pd.to_datetime(plan_df["plan_date"], errors="coerce")
@@ -765,35 +793,43 @@ if IS_ADMIN and tab_w:
     else:
         week_data = pd.DataFrame()
 
+    # 이미지 클릭으로 상세 정보 열기
+    plan_id_param = st.query_params.get("plan_id")
+    if plan_id_param and not plan_df.empty:
+        try:
+            selected_plan = plan_df[plan_df["id"].astype(str) == str(plan_id_param)]
+            if not selected_plan.empty:
+                show_plan_details(selected_plan.iloc[0].to_dict())
+            del st.query_params["plan_id"]
+        except Exception:
+            try:
+                del st.query_params["plan_id"]
+            except Exception:
+                pass
+
     days_korean = ["월", "화", "수", "목", "금", "토", "일"]
     day_cols = st.columns(7, gap="small")
 
-    # 달력 전체를 동일한 높이의 셀로 구성
     for i, day_col in enumerate(day_cols):
         current_day = view_monday + pd.Timedelta(days=i)
         is_today = current_day.date() == get_kst_today()
 
-        day_items = []
         if not week_data.empty:
             day_items = week_data[
                 week_data["p_dt"].dt.date == current_day.date()
             ].to_dict("records")
+        else:
+            day_items = []
 
         with day_col:
-            # 날짜 헤더
-            if is_today:
-                st.markdown(
-                    f"**🔵 {days_korean[i]}**  ",
-                    help="오늘",
-                )
-            else:
-                st.markdown(f"**{days_korean[i]}**")
-            st.caption(current_day.strftime("%m.%d"))
+            title_class = "weekly-day-title today" if is_today else "weekly-day-title"
+            st.markdown(f"<div class='{title_class}'>{days_korean[i]}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='weekly-date'>{current_day.strftime('%m.%d')}</div>", unsafe_allow_html=True)
 
-            # 하루 칸의 높이를 일정하게 유지
-            with st.container(height=210, border=True):
+            # 내용에 맞춰 작게 유지되는 달력 칸
+            with st.container(height=225, border=True):
                 if not day_items:
-                    st.caption("계획 없음")
+                    st.markdown("<div style='color:#64748B; font-size:0.8rem; padding-top:8px;'>계획 없음</div>", unsafe_allow_html=True)
                 else:
                     for item in day_items:
                         try:
@@ -804,29 +840,29 @@ if IS_ADMIN and tab_w:
                             memo = {}
 
                         img_url = str(memo.get("img_url", "") or "").strip()
-                        category = item.get("category", "")
-                        emoji = CAT_EMOJIS.get(category, "📌")
+                        category = str(item.get("category", ""))
                         title = str(item.get("title", ""))
+                        item_id = item.get("id")
+                        emoji = CAT_EMOJIS.get(category, "📌")
 
                         if img_url and img_url != "None":
-                            try:
-                                st.image(img_url, width=110)
-                            except Exception:
-                                st.markdown(f"{emoji} 이미지 불러오기 실패")
+                            safe_url = img_url.replace("&", "&amp;").replace('"', "&quot;")
+                            st.markdown(
+                                f"<a class='weekly-card-link' href='?plan_id={item_id}'>"
+                                f"<img class='weekly-card-image' src='{safe_url}'>"
+                                f"</a>",
+                                unsafe_allow_html=True,
+                            )
                         else:
-                            st.markdown(f"### {emoji}")
+                            st.markdown(
+                                f"<div style='text-align:center; font-size:1.8rem; padding:18px 0 10px;'>{emoji}</div>",
+                                unsafe_allow_html=True,
+                            )
 
-                        st.caption(category)
-                        # 제목 버튼은 모든 요일에서 동일한 높이로 고정해
-                        # 긴 제목 때문에 특정 요일의 텍스트가 좌우로 흔들리지 않게 한다.
-                        if st.button(
-                            title,
-                            key=f"w_card_btn_{item['id']}",
-                            use_container_width=True,
-                        ):
-                            show_plan_details(item)
+                        st.markdown(f"<div class='weekly-card-category'>{category}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='weekly-card-title'>{title}</div>", unsafe_allow_html=True)
 
-    st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:18px;'></div>", unsafe_allow_html=True)
 
     # ==============================
     # SEARCH
