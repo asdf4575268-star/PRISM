@@ -801,9 +801,9 @@ if IS_ADMIN and tab_w:
     }
     </style>""", unsafe_allow_html=True)
 
-    st.markdown("### 📅 WEEKLY")
+    st.markdown("#### 📅 WEEKLY")
 
-    nav_left, nav_center, nav_right = st.columns([0.12, 0.76, 0.12])
+    nav_left, nav_center, nav_right = st.columns([0.15, 0.7, 0.15])
 
     with nav_left:
         if st.button("⬅️", use_container_width=True, key="w_prev_week"):
@@ -895,7 +895,7 @@ if IS_ADMIN and tab_w:
     # ==============================
     # SEARCH
     # ==============================
-    st.markdown("### 🔍 SEARCH")
+    st.markdown("#### 🔍 SEARCH")
 
     category = st.radio(
         "📂 CATEGORY",
@@ -1091,15 +1091,15 @@ if IS_ADMIN and tab_w:
 
         with cr:
             if category == "SCRAP":
-                st.text_area("📰 QUOTE(url)", key="f_summary", height=120)
-                st.text_area("✍️ HANDWRITE(brief)", key="f_note", height=120)
-                st.text_input("🎯 CONTEXT(argument)", key="f_brief")
-                st.text_area("💡 EXAMPLS(evidences)/STRUCTURE", key="f_highlights", height=100)
+                st.text_area("📰원문", key="f_summary", height=120)
+                st.text_area("✍️요약", key="f_note", height=120)
+                st.text_input("🎯중심맥락", key="f_brief")
+                st.text_area("🎯핵심사례", key="f_highlights", height=100)
             else:
-                st.text_input("💎 DRIP", key="f_brief")
-                st.text_area("🖋️ PRISM", key="f_note", height=240)
-                st.text_area("💡BRIEF", key="f_summary", height=100)
-                st.text_area("🔖 POINT", key="f_highlights", height=100)
+                st.text_input("💎DRIP(한 줄 요약)", key="f_brief")
+                st.text_area("🖋️PRISM", key="f_note", height=240)
+                st.text_area("💡BRIEF(요약)", key="f_summary", height=100)
+                st.text_area("🔖POINT(인상 깊은 부분)", key="f_highlights", height=100)
 
         st.markdown("<br>", unsafe_allow_html=True)
         cb1, cb2 = st.columns([0.75, 0.25])
@@ -1217,7 +1217,7 @@ elif not tab_w:
     all_df = get_all_data()
 
     if not all_df.empty:
-        if search_query_archive := st.text_input("🔍 아카이브 내 실시간 통합 검색", key="global_search"):
+        if search_query_archive := st.text_input("🔍통합 검색", key="global_search"):
             mask = (all_df['title'].str.contains(search_query_archive, case=False, na=False) | all_df['creator'].str.contains(search_query_archive, case=False, na=False) | all_df['summary'].str.contains(search_query_archive, case=False, na=False) | all_df['note'].str.contains(search_query_archive, case=False, na=False) | all_df['venue'].str.contains(search_query_archive, case=False, na=False))
             all_df = all_df[mask]; st.markdown(f"**'{search_query_archive}'** 검색 결과 ({len(all_df)})"); st.divider()
 
@@ -1230,254 +1230,31 @@ elif not tab_w:
         sub_tabs = st.tabs(tab_titles)
         grid_cols = 6
 
-# ==========================================
-# 📂 ARCHIVE - ALL 탭 (월간 달력형 렌더링)
-# ==========================================
-with sub_tabs[0]:
-
-    # ------------------------------------------
-    # 현재 보고 있는 월 상태
-    # ------------------------------------------
-    if "archive_month_offset" not in st.session_state:
-        st.session_state.archive_month_offset = 0
-
-    today = pd.Timestamp(get_kst_today())
-
-    # offset을 이용해 현재 월 계산
-    current_month = (
-        today.replace(day=1)
-        + pd.DateOffset(months=st.session_state.archive_month_offset)
-    )
-
-    # ------------------------------------------
-    # 월 이동
-    # ------------------------------------------
-    nav_left, nav_center, nav_right = st.columns([0.12, 0.76, 0.12])
-
-    with nav_left:
-        if st.button(
-            "⬅️",
-            use_container_width=True,
-            key="archive_prev_month"
-        ):
-            st.session_state.archive_month_offset -= 1
-            st.rerun()
-
-    with nav_center:
-        month_count = len(
-            main_df[
-                (main_df["v_dt"].dt.year == current_month.year)
-                & (main_df["v_dt"].dt.month == current_month.month)
-            ]
-        )
-
-        st.markdown(
-            f"""
-            <div style="
-                text-align:center;
-                padding:8px 0;
-                font-weight:800;
-                color:#F1F5F9;
-                font-size:1.05rem;
-            ">
-                {current_month.strftime('%Y년 %m월')}
-                <span style="
-                    color:#818CF8;
-                    font-size:0.85rem;
-                    margin-left:8px;
-                ">
-                    ({month_count})
-                </span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    with nav_right:
-        if st.button(
-            "➡️",
-            use_container_width=True,
-            key="archive_next_month"
-        ):
-            st.session_state.archive_month_offset += 1
-            st.rerun()
-
-    st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
-
-    # ------------------------------------------
-    # 현재 월 데이터
-    # ------------------------------------------
-    month_data = main_df[
-        (main_df["v_dt"].dt.year == current_month.year)
-        & (main_df["v_dt"].dt.month == current_month.month)
-    ].copy()
-
-    # ------------------------------------------
-    # 요일 헤더
-    # ------------------------------------------
-    days_header = ["월", "화", "수", "목", "금", "토", "일"]
-
-    h_cols = st.columns(7, gap="small")
-
-    for idx, day_name in enumerate(days_header):
-        with h_cols[idx]:
-            st.markdown(
-                f"""
-                <div style="
-                    text-align:center;
-                    font-weight:800;
-                    color:#94A3B8;
-                    font-size:0.85rem;
-                    padding:4px 0 8px 0;
-                ">
-                    {day_name}
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-    # ------------------------------------------
-    # 날짜별 데이터 매핑
-    # ------------------------------------------
-    items_by_day = {}
-
-    if not month_data.empty:
-        for item in month_data.to_dict("records"):
-            try:
-                dt = pd.to_datetime(item["view_date"], errors="coerce")
-
-                if pd.notna(dt):
-                    day_num = dt.day
-                    items_by_day.setdefault(day_num, []).append(item)
-
-            except Exception:
-                pass
-
-    # ------------------------------------------
-    # 달력 생성
-    # ------------------------------------------
-    cal_matrix = calendar.monthcalendar(
-        current_month.year,
-        current_month.month
-    )
-
-    # ------------------------------------------
-    # 달력 행
-    # ------------------------------------------
-    for week_idx, week in enumerate(cal_matrix):
-
-        cols = st.columns(7, gap="small")
-
-        for day_idx, day in enumerate(week):
-
-            with cols[day_idx]:
-
-                # 빈 날짜
-                if day == 0:
-
-                    # ★ 빈 칸도 동일한 높이를 유지
-                    st.markdown(
-                        """
-                        <div style="
-                            min-height:150px;
-                            border:1px solid transparent;
-                            border-radius:10px;
-                            margin-bottom:10px;
-                        ">
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-                    continue
-
-                # 오늘 여부
-                is_today = (
-                    day == today.day
-                    and current_month.year == today.year
-                    and current_month.month == today.month
-                )
-
-                day_color = "#FFFFFF" if is_today else "#CBD5E1"
-                day_bg = "#4F46E5" if is_today else "transparent"
-
-                # --------------------------------------
-                # 날짜 영역
-                # --------------------------------------
-                st.markdown(
-                    f"""
-                    <div style="
-                        font-size:0.78rem;
-                        font-weight:800;
-                        color:{day_color};
-                        background:{day_bg};
-                        border-radius:7px;
-                        padding:3px 7px;
-                        width:fit-content;
-                        margin-bottom:5px;
-                    ">
-                        {day}
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-
-                # --------------------------------------
-                # 날짜 셀
-                # ★ 데이터가 없어도 높이 유지
-                # --------------------------------------
-                day_items = items_by_day.get(day, [])
-
-                cell_html = """
-                <div style="
-                    min-height:115px;
-                    border:1px solid #1E293B;
-                    background:#111827;
-                    border-radius:10px;
-                    padding:6px;
-                    margin-bottom:10px;
-                ">
-                """
-
-                st.markdown(
-                    cell_html,
-                    unsafe_allow_html=True
-                )
-
-                # --------------------------------------
-                # 아카이브 이미지
-                # --------------------------------------
-                if day_items:
-
-                    for row in day_items:
-
-                        img_u = (
-                            row["img_url"]
-                            if row["img_url"]
-                            and str(row["img_url"]) != "None"
-                            else ""
-                        )
-
-                        category = row["category"]
-
-                        if image_button(
-                            img_u,
-                            f"cal_img_{current_month.year}_{current_month.month}_{day}_{row['id']}",
-                            aspect_ratio=(
-                                "1/1"
-                                if category == "MUSIC"
-                                else "1/1.4"
-                            ),
-                            top_badge=category,
-                        ):
-                            show_details(row)
-
-                # --------------------------------------
-                # 닫는 셀
-                # --------------------------------------
-                st.markdown(
-                    "</div>",
-                    unsafe_allow_html=True
-                )
+        with sub_tabs[0]:
+            if years := sorted(main_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True):
+                sel_y = st.selectbox("📅 YEAR", options=years, format_func=lambda y: f"{y} ({len(main_df[main_df['v_dt'].dt.year == y])})", key="archive_year_sel")
+                st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
+                y_df = main_df[main_df['v_dt'].dt.year == sel_y]
+                
+                for m in range(12, 0, -1):
+                    m_data = y_df[y_df['v_dt'].dt.month == m]
+                    if not m_data.empty:
+                        st.subheader(f" {m}월 ({len(m_data)})")
+                        items = m_data.to_dict('records')
+                        for i in range(0, len(items), grid_cols):
+                            cols = st.columns(grid_cols)
+                            for j in range(grid_cols):
+                                if i+j < len(items):
+                                    row = items[i+j]
+                                    with cols[j]:
+                                        if image_button(
+                                            row["img_url"],
+                                            f"archive_img_all_{row['id']}",
+                                            aspect_ratio="1/1.4" if row["category"] != "MUSIC" else "1/1",
+                                            top_badge=row["category"],
+                                            bottom_badge=f"{pd.to_datetime(row['view_date']).day}일",
+                                        ):
+                                            show_details(row)
 
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
@@ -1538,9 +1315,9 @@ with sub_tabs[0]:
                                     elif row['summary']: 
                                         st.markdown(f"**📰 기사:**<br>{str(row['summary']).replace(chr(10), '<br>')}", unsafe_allow_html=True)
                                     
-                                    if row['note']: st.markdown(f"**✍️ HANDWRITE(brief):**<br>{row['note'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
-                                    if row['brief']: st.write(f"**🎯 CONTEXT(argument):** {row['brief']}")
-                                    if row['highlights']: st.markdown(f"**💡 EXAMPLS(evidences)/STRUCTURE:**<br>{row['highlights'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
+                                    if row['note']: st.markdown(f"**✍️BRIEF:**<br>{row['note'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
+                                    if row['brief']: st.write(f"**🎯CONTEXT:** {row['brief']}")
+                                    if row['highlights']: st.markdown(f"**🎯핵심사례:**<br>{row['highlights'].replace(chr(10), '<br>')}", unsafe_allow_html=True)
                                     
                                     if st.button("✏️ 수정", key=f"scr_btn_{row['id']}"): show_details(row)
                     else: st.info("해당 태그나 검색어에 맞는 SCRAP이 없습니다.")
