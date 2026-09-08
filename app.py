@@ -551,7 +551,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 if text_part: st.markdown(f'<div style="background-color: #0F172A; border-left: 4px solid #6366F1; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">📎 {text_part}</div>', unsafe_allow_html=True)
                 if re.search(r'\.(jpg|jpeg|png|webp|gif)', media_url, re.IGNORECASE) or "image.tmdb.org" in media_url:
                     img_col_c:
-                        st.image(media_url, width=180)
+                    st.image(media_url, width=180)
                 else:
                     try: st.video(media_url)
                     except: st.markdown(f"**[🔗 첨부 링크 보러가기]({media_url})**")
