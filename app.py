@@ -801,7 +801,7 @@ if IS_ADMIN and tab_w:
     }
     </style>""", unsafe_allow_html=True)
 
-    st.markdown("### 📅 WEEKLY")
+    st.markdown("#### 📅 WEEKLY")
 
     nav_left, nav_center, nav_right = st.columns([0.15, 0.7, 0.15])
 
@@ -895,7 +895,7 @@ if IS_ADMIN and tab_w:
     # ==============================
     # SEARCH
     # ==============================
-    st.markdown("### 🔍 SEARCH")
+    st.markdown("#### 🔍 SEARCH")
 
     category = st.radio(
         "📂 CATEGORY",
