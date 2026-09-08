@@ -806,7 +806,7 @@ if IS_ADMIN and tab_w:
     nav_left, nav_center, nav_right = st.columns([0.12, 0.76, 0.12])
 
     with nav_left:
-        if st.button("⬅️", use_container_width=False, key="w_prev_week"):
+        if st.button("⬅️", use_container_width=True, key="w_prev_week"):
             st.session_state.week_offset -= 1
             st.rerun()
 
@@ -828,7 +828,7 @@ if IS_ADMIN and tab_w:
         )
 
     with nav_right:
-        if st.button("➡️", use_container_width=False, key="w_next_week"):
+        if st.button("➡️", use_container_width=True, key="w_next_week"):
             st.session_state.week_offset += 1
             st.rerun()
 
