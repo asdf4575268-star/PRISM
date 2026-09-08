@@ -612,10 +612,10 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 time.sleep(0.8)
                 st.rerun()
 
-@st.dialog("📋 ARCHIVE", width="large")
+@st.dialog("📋 ARCHIVE", width="MEDIUM")
 def show_details(item): render_item_details(item if isinstance(item, dict) else item.to_dict(), item['id'], is_plan=False)
 
-@st.dialog("🗓️ 상세 정보", width="large")
+@st.dialog("🗓️ 상세 정보", width="MEDIUM")
 def show_plan_details(item):
     item_dict = item if isinstance(item, dict) else item.to_dict()
     try: rich_data = json.loads(item_dict['memo'])
