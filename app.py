@@ -278,7 +278,6 @@ def search_books(query):
     except: return []
 
 def search_apple_music(query):
-    """Apple/iTunes Search API에서 앨범 단위 결과를 안정적으로 가져온다."""
     base_url = "https://itunes.apple.com/search"
     query = str(query or "").strip()
     if not query:
@@ -539,8 +538,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
     col_img, col_txt = st.columns([0.35, 0.65])
     with col_img:
         if img_url and str(img_url) != "None":
-            img_left, img_center, img_right = st.columns([0.1, 0.8, 0.1])
-            st.image(img_url, width=300)
+            st.image(img_url, use_container_width=True)
         
         memo_content = data_dict.get('img_url2', '')
         if pd.notna(memo_content) and str(memo_content).strip() not in ["", "None", "nan", "NaN"]:
@@ -551,7 +549,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 text_part = memo_content.replace(media_url, '').strip(' /|-')
                 if text_part: st.markdown(f'<div style="background-color: #0F172A; border-left: 4px solid #6366F1; padding: 10px 15px; border-radius: 4px; color: #fff; font-weight: bold; margin-bottom: 10px;">📎 {text_part}</div>', unsafe_allow_html=True)
                 if re.search(r'\.(jpg|jpeg|png|webp|gif)', media_url, re.IGNORECASE) or "image.tmdb.org" in media_url:
-                    st.image(media_url, width=180)
+                    st.image(media_url, use_container_width=True)
                 else:
                     try: st.video(media_url)
                     except: st.markdown(f"**[🔗 첨부 링크 보러가기]({media_url})**")
@@ -635,7 +633,6 @@ def get_base64(path):
     except: return ""
 
 def image_button(image_url, key, *, aspect_ratio=None, width="100%", height=None, border_radius=12, top_badge=None, bottom_badge=None):
-    """이미지를 st.button 자체의 배경으로 만들어 일반 버튼과 동일한 클릭 흐름을 사용한다."""
     if not image_url or str(image_url) == "None":
         return st.button("🖼️", key=key, use_container_width=True)
 
@@ -648,7 +645,7 @@ def image_button(image_url, key, *, aspect_ratio=None, width="100%", height=None
         .replace("\r", "")
     )
 
-    size_css = f"width:{width} !important; max-width: 130px !important;"
+    size_css = f"width:{width} !important; max-width: 100% !important;"
     if aspect_ratio:
         size_css += f"aspect-ratio:{aspect_ratio} !important;height:auto !important;"
     if height:
@@ -782,9 +779,6 @@ tab_w = (st.session_state.main_nav == "🖋️ WRITE")
 
 # ----------------- [WRITE 탭] -----------------
 if IS_ADMIN and tab_w:
-    # ==============================
-    # WEEKLY : 간결한 7일 달력
-    # ==============================
     st.markdown("""<style>
     .weekly-day-title {
         text-align: center;
@@ -868,7 +862,6 @@ if IS_ADMIN and tab_w:
             st.markdown(f"<div class='{title_class}'>{days_korean[i]}</div>", unsafe_allow_html=True)
             st.markdown(f"<div class='weekly-date'>{current_day.strftime('%m.%d')}</div>", unsafe_allow_html=True)
 
-            # 내용에 맞춰 작게 유지되는 달력 칸
             with st.container(border=False):
                 if day_items:
                     for item in day_items:
@@ -896,7 +889,6 @@ if IS_ADMIN and tab_w:
                         else:
                             if st.button(emoji, key=f"weekly_noimg_{item_id}", use_container_width=True):
                                 show_plan_details(item)
-
 
     st.markdown("<div style='height:18px;'></div>", unsafe_allow_html=True)
 
@@ -1181,53 +1173,40 @@ elif not tab_w:
         border: none !important;
         color: #E2E8F0 !important;
         padding: 2px 0px !important;
-        text-align: left !important;
+        text-align: center !important;
         font-weight: 600 !important;
         font-size: 0.70rem !important;
         line-height: 1.1 !important;
+        width: 100% !important;
     }
     div[data-testid="stColumn"] button:hover {
         color: #6366F1 !important;
     }
     
-    /* 모바일 세로모드에서도 st.columns(5)가 줄바꿈 없이 1행 5열 가로 배치를 유지하도록 강제 */
-    @media (max-width: 992px) {
+    /* 반응형 레이아웃 오버라이드 */
+    @media (max-width: 768px) {
         div[data-testid="stHorizontalBlock"] {
             display: flex !important;
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            align-items: flex-start !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            gap: 4px !important;
+            flex-wrap: wrap !important;
+            gap: 8px !important;
         }
 
         div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
-            flex: 1 1 0% !important;
-            min-width: 0 !important;
-            max-width: none !important;
-            width: auto !important;
+            flex: 1 1 calc(33.333% - 8px) !important;
+            min-width: calc(33.333% - 8px) !important;
+            max-width: calc(33.333% - 8px) !important;
             margin: 0 !important;
             padding: 0 !important;
         }
-
-        div[data-testid="stHorizontalBlock"] > div[data-testid="column"] > div {
-            max-width: 100% !important;
-            min-width: 0 !important;
-        }
-
-        div[data-testid="stHorizontalBlock"] > div[data-testid="column"] button {
-            max-width: 100% !important;
-        }
     }
 
-    @media (min-width: 993px) {
+    @media (min-width: 769px) {
         div[data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-wrap: nowrap !important;
-            gap: 10px !important;
+            gap: 12px !important;
         }
-        div[data-testid="column"] {
+        div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
             flex: 1 1 0% !important;
             min-width: 0 !important;
         }
@@ -1302,7 +1281,7 @@ elif not tab_w:
                                         show_details(row)
                                     st.markdown(
                                         f"<div style='text-align:center; color:#E2E8F0; font-size:0.7rem; line-height:1.1; font-weight:600; padding-top:2px; word-break:break-all;'>"
-                                        f"{row['title'][:15] + '...' if len(row['title']) > 15 else row['title']}</div>",
+                                        f"{row['title'][:15] + '...' if len(row['title']) > 20 else row['title']}</div>",
                                         unsafe_allow_html=True,
                                     )
 
