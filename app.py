@@ -648,7 +648,7 @@ def image_button(image_url, key, *, aspect_ratio=None, width="100%", height=None
         .replace("\r", "")
     )
 
-    size_css = f"width:{width} !important;"
+    size_css = f"width:{width} !important; max-width: 130px !important;"
     if aspect_ratio:
         size_css += f"aspect-ratio:{aspect_ratio} !important;height:auto !important;"
     if height:
@@ -660,15 +660,15 @@ def image_button(image_url, key, *, aspect_ratio=None, width="100%", height=None
         div[data-testid="stColumn"] .st-key-{key} button::before {{
             content: "{str(top_badge).replace('\\', '\\\\').replace('"', '\\"')}";
             position: absolute;
-            top: 5px;
-            left: 5px;
+            top: 4px;
+            left: 4px;
             z-index: 2;
             background: rgba(15,23,42,.88);
             color: #FBBF24;
-            padding: 1px 6px;
-            border-radius: 12px;
-            font-size: 9px;
-            line-height: 1.4;
+            padding: 1px 5px;
+            border-radius: 10px;
+            font-size: 8px;
+            line-height: 1.3;
             font-weight: 700;
         }}"""
     bottom_badge_css = ""
@@ -677,15 +677,15 @@ def image_button(image_url, key, *, aspect_ratio=None, width="100%", height=None
         div[data-testid="stColumn"] .st-key-{key} button::after {{
             content: "{str(bottom_badge).replace('\\', '\\\\').replace('"', '\\"')}";
             position: absolute;
-            right: 5px;
-            bottom: 5px;
+            right: 4px;
+            bottom: 4px;
             z-index: 2;
             background: rgba(15,23,42,.88);
             color: #E2E8F0;
-            padding: 1px 6px;
-            border-radius: 12px;
-            font-size: 9px;
-            line-height: 1.4;
+            padding: 1px 5px;
+            border-radius: 10px;
+            font-size: 8px;
+            line-height: 1.3;
             font-weight: 600;
         }}"""
 
@@ -804,14 +804,6 @@ if IS_ADMIN and tab_w:
         color: #94A3B8;
         font-size: 0.78rem;
         margin-bottom: 7px;
-    }
-    .weekly-card-image {
-        display: block;
-        width: 100px;
-        height: 135px;
-        object-fit: cover;
-        margin: 0 auto 7px auto;
-        border-radius: 8px;
     }
     </style>""", unsafe_allow_html=True)
 
@@ -1184,31 +1176,6 @@ if IS_ADMIN and tab_w:
 # ----------------- [ARCHIVE 탭] -----------------
 elif not tab_w:
     st.markdown("""<style>
-    .cal-img-box { 
-        position: relative; 
-        width: 10%; 
-        aspect-ratio: 1/1.4; 
-        overflow: hidden; 
-        border-radius: 12px; 
-        margin-top: 8px; 
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3); 
-        background: #1E293B; 
-        display: flex; 
-        align-items: center; 
-        justify-content: center; 
-        border: 1px solid #334155; 
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
-    } 
-    .cal-img-box:hover { 
-        transform: translateY(-5px); 
-        border-color: #6366F1; 
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.5); 
-    }
-    .music-tab-style { aspect-ratio: 1/1 !important; } 
-    
-    .badge-cat { position: absolute; top: 4px; left: 4px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); color: #FBBF24; padding: 1px 6px; border-radius: 12px; font-size: 9px; font-weight: 700; z-index: 10; border: 1px solid rgba(255,255,255,0.05); } 
-    .badge-date { position: absolute; bottom: 4px; right: 4px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px); color: #E2E8F0; padding: 1px 6px; border-radius: 12px; font-size: 9px; font-weight: 600; z-index: 10; border: 1px solid rgba(255,255,255,0.05); } 
-    
     div[data-testid="stColumn"] button {
         background-color: transparent !important;
         border: none !important;
@@ -1216,29 +1183,25 @@ elif not tab_w:
         padding: 2px 0px !important;
         text-align: left !important;
         font-weight: 600 !important;
-        font-size: 0.75rem !important;
-        line-height: 1.2 !important;
+        font-size: 0.70rem !important;
+        line-height: 1.1 !important;
     }
     div[data-testid="stColumn"] button:hover {
         color: #6366F1 !important;
     }
     
-    /* 모바일 세로모드에서도 st.columns가 세로로 쌓이지 않고
-       데스크톱과 동일한 가로 그리드 구조를 유지하도록 강제 */
+    /* 모바일 세로모드에서도 st.columns(5)가 줄바꿈 없이 1행 5열 가로 배치를 유지하도록 강제 */
     @media (max-width: 992px) {
-        /* 모든 Streamlit column row를 가로 배치 */
         div[data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-direction: row !important;
             flex-wrap: nowrap !important;
-            align-items: stretch !important;
+            align-items: flex-start !important;
             width: 100% !important;
             max-width: 100% !important;
-            gap: 6px !important;
+            gap: 4px !important;
         }
 
-        /* ARCHIVE 5열 / WEEKLY 7열 모두 실제로 한 줄 유지
-           : 각 column의 기본 min-width를 제거하는 것이 핵심 */
         div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
             flex: 1 1 0% !important;
             min-width: 0 !important;
@@ -1248,31 +1211,23 @@ elif not tab_w:
             padding: 0 !important;
         }
 
-        /* column 내부 콘텐츠가 column 폭을 넘어가며 전체 레이아웃을
-           다시 세로로 밀어내지 않도록 */
         div[data-testid="stHorizontalBlock"] > div[data-testid="column"] > div {
             max-width: 100% !important;
             min-width: 0 !important;
         }
 
-        /* 이미지 버튼도 각 column 폭을 그대로 사용 */
         div[data-testid="stHorizontalBlock"] > div[data-testid="column"] button {
             max-width: 100% !important;
-        }
-
-        /* 모바일에서는 카드 제목도 폭에 맞춰 자연스럽게 줄바꿈 */
-        .cal-img-box {
-            width: 100% !important;
         }
     }
 
     @media (min-width: 993px) {
-        [data-testid="stHorizontalBlock"] {
+        div[data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-wrap: nowrap !important;
-            gap: 12px !important;
+            gap: 10px !important;
         }
-        [data-testid="column"] {
+        div[data-testid="column"] {
             flex: 1 1 0% !important;
             min-width: 0 !important;
         }
@@ -1310,7 +1265,6 @@ elif not tab_w:
                             for j in range(grid_cols):
                                 if i+j < len(items):
                                     row = items[i+j]
-                                    img_style = 'style="height: auto; aspect-ratio: 1/1;"' if row["category"] == "MUSIC" else ""
                                     with cols[j]:
                                         if image_button(
                                             row["img_url"],
@@ -1321,8 +1275,8 @@ elif not tab_w:
                                         ):
                                             show_details(row)
                                         st.markdown(
-                                            f"<div style='text-align:center; color:#E2E8F0; font-size:0.75rem; line-height:1.2; font-weight:600; padding-top:4px;'>"
-                                            f"{row['title'][:19] + '...' if len(row['title']) > 19 else row['title']}</div>",
+                                            f"<div style='text-align:center; color:#E2E8F0; font-size:0.7rem; line-height:1.1; font-weight:600; padding-top:2px; word-break:break-all;'>"
+                                            f"{row['title'][:15] + '...' if len(row['title']) > 15 else row['title']}</div>",
                                             unsafe_allow_html=True,
                                         )
 
@@ -1332,7 +1286,6 @@ elif not tab_w:
                 if c_data.empty: st.info(f"검색 결과 없음: {c_name}" if search_query_archive else f"데이터 없음: {c_name}")
                 else:
                     items = c_data.to_dict('records')
-                    music_cls = "music-tab-style" if c_name == "MUSIC" else ""
                     for i in range(0, len(items), grid_cols):
                         cols = st.columns(grid_cols)
                         for j in range(grid_cols):
@@ -1348,8 +1301,8 @@ elif not tab_w:
                                     ):
                                         show_details(row)
                                     st.markdown(
-                                        f"<div style='text-align:center; color:#E2E8F0; font-size:0.75rem; line-height:1.2; font-weight:600; padding-top:4px;'>"
-                                        f"{row['title'][:20] + '...' if len(row['title']) > 20 else row['title']}</div>",
+                                        f"<div style='text-align:center; color:#E2E8F0; font-size:0.7rem; line-height:1.1; font-weight:600; padding-top:2px; word-break:break-all;'>"
+                                        f"{row['title'][:15] + '...' if len(row['title']) > 15 else row['title']}</div>",
                                         unsafe_allow_html=True,
                                     )
 
