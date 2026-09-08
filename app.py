@@ -538,7 +538,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
 
     col_img, col_txt = st.columns([0.3, 0.7])
     with col_img:
-        if img_url and str(img_url) != "None": st.image(img_url, width=110)
+        if img_url and str(img_url) != "None": st.image(img_url, use_container_width=True)
         
         memo_content = data_dict.get('img_url2', '')
         if pd.notna(memo_content) and str(memo_content).strip() not in ["", "None", "nan", "NaN"]:
@@ -1134,7 +1134,7 @@ elif not tab_w:
     .cal-img-box { 
         position: relative; 
         width: 100%; 
-        aspect-ratio: 1/1.32; 
+        aspect-ratio: 1/1.4; 
         overflow: hidden; 
         border-radius: 12px; 
         margin-top: 8px; 
@@ -1151,7 +1151,9 @@ elif not tab_w:
         border-color: #6366F1; 
         box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.5); 
     }
-    .cal-img-box img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.4s ease; } 
+    .archive-img-link { display: block; text-decoration: none !important; }
+    .archive-img-link:focus { outline: none !important; }
+    .cal-img-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; } 
     .cal-img-box:hover img { transform: scale(1.04); }
     .music-tab-style { aspect-ratio: 1/1 !important; } 
     
@@ -1194,6 +1196,21 @@ elif not tab_w:
     </style>""", unsafe_allow_html=True)
     all_df = get_all_data()
 
+    # ARCHIVE 탭에서는 이미지 클릭으로만 상세 정보 열기
+    # (WEEKLY의 plan_id와 분리해서 ARCHIVE에서만 동작)
+    archive_id_param = st.query_params.get("archive_id")
+    if archive_id_param and not all_df.empty:
+        try:
+            selected_archive = all_df[all_df["id"].astype(str) == str(archive_id_param)]
+            if not selected_archive.empty:
+                show_details(selected_archive.iloc[0].to_dict())
+            del st.query_params["archive_id"]
+        except Exception:
+            try:
+                del st.query_params["archive_id"]
+            except Exception:
+                pass
+
     if not all_df.empty:
         if search_query_archive := st.text_input("🔍 아카이브 내 실시간 통합 검색", key="global_search"):
             mask = (all_df['title'].str.contains(search_query_archive, case=False, na=False) | all_df['creator'].str.contains(search_query_archive, case=False, na=False) | all_df['summary'].str.contains(search_query_archive, case=False, na=False) | all_df['note'].str.contains(search_query_archive, case=False, na=False) | all_df['venue'].str.contains(search_query_archive, case=False, na=False))
@@ -1206,7 +1223,7 @@ elif not tab_w:
         tab_titles = [f"📅 ALL ({len(main_df)})"] + [f"{CAT_EMOJIS[c]} {c} ({len(main_df[main_df['category'] == c])})" for c in cat_order]
         if IS_ADMIN: tab_titles.append(f"🔐 SCRAP ({len(scrap_df)})")
         sub_tabs = st.tabs(tab_titles)
-        grid_cols = 4
+        grid_cols = 5
 
         with sub_tabs[0]:
             if years := sorted(main_df['v_dt'].dt.year.dropna().unique().astype(int), reverse=True):
@@ -1226,7 +1243,7 @@ elif not tab_w:
                                     row = items[i+j]
                                     img_style = 'style="height: auto; aspect-ratio: 1/1;"' if row["category"] == "MUSIC" else ""
                                     with cols[j]:
-                                        st.markdown(f'<div class="cal-img-box"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}" {img_style}></div>', unsafe_allow_html=True)
+                                        st.markdown(f'<a class="archive-img-link" href="?archive_id={row["id"]}"><div class="cal-img-box"><div class="badge-cat">{row["category"]}</div><div class="badge-date">{pd.to_datetime(row["view_date"]).day}일</div><img src="{row["img_url"]}" {img_style}></div></a>', unsafe_allow_html=True)
                                         if st.button(row['title'][:19] + "..." if len(row['title']) > 19 else row['title'], key=f"all_btn_{row['id']}", use_container_width=True): show_details(row)
 
         for idx, c_name in enumerate(cat_order):
@@ -1243,7 +1260,7 @@ elif not tab_w:
                                 row = items[i+j]
                                 with cols[j]:
                                     img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
-                                    st.markdown(f'<div class="cal-img-box {music_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{img_u}"></div>', unsafe_allow_html=True)
+                                    st.markdown(f'<a class="archive-img-link" href="?archive_id={row["id"]}"><div class="cal-img-box {music_cls}"><div class="badge-date">{row["view_date"]}</div><img src="{img_u}"></div></a>', unsafe_allow_html=True)
                                     if st.button(row['title'][:20] + "..." if len(row['title']) > 20 else row['title'], key=f"cat_btn_{c_name}_{row['id']}", use_container_width=True): show_details(row)
 
         if IS_ADMIN:
