@@ -1304,7 +1304,7 @@ elif not tab_w:
                 for day_idx, day in enumerate(week):
                     with cols[day_idx]:
 
-                        with st.container(border=True):
+                        with st.container(border=False):
 
                             # ------------------------------
                             # 빈 날짜
