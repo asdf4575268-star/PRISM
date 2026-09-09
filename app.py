@@ -1325,6 +1325,7 @@ elif not tab_w:
                     unsafe_allow_html=True,
                 )
 
+            days_header = ["월", "화", "수", "목", "금", "토", "일"]
             h_cols = st.columns(7)
             for idx, h in enumerate(days_header):
                 header_color = "#EF4444" if idx >= 5 else "#94A3B8"
