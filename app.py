@@ -84,6 +84,8 @@ if st.session_state.user_password == st.secrets["ADMIN_PASSWORD"]:
     st.session_state.is_logged_in = True
 IS_ADMIN = st.session_state.is_logged_in
 
+tab_w = (st.session_state.main_nav == "🖋️ WRITE") if IS_ADMIN else False
+
 # ==========================================
 # 3. GLOBAL DESIGN SYSTEM INJECTION (디자인 시스템 정의)
 # ==========================================
@@ -117,7 +119,7 @@ st.markdown("""
         box-shadow: 0 0 0 1px #6366F1 !important;
     }
     
-    /* [최적화] 네비게이션용 라디오 그룹 고급 세그먼트화 및 가로 스크롤(스크롤 버튼형) 적용 */
+    /* 네비게이션용 라디오 그룹 고급 세그먼트화 및 가로 스크롤(스크롤 버튼형) 적용 */
     div[data-testid="stRadio"] > div[role="radiogroup"] {
         background-color: #1E293B !important;
         padding: 6px !important;
@@ -126,12 +128,12 @@ st.markdown("""
         gap: 6px !important;
         display: flex !important;
         flex-direction: row !important;
-        flex-wrap: nowrap !important; /* 줄바꿈 방지 */
-        overflow-x: auto !important;  /* 가로 스크롤 활성화 */
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important; 
         white-space: nowrap !important;
     }
     div[data-testid="stRadio"] > div[role="radiogroup"]::-webkit-scrollbar {
-        height: 6px; /* 얇은 가로 스크롤바 */
+        height: 6px; 
     }
     div[data-testid="stRadio"] > div[role="radiogroup"]::-webkit-scrollbar-track {
         background: #0F172A;
@@ -151,7 +153,7 @@ st.markdown("""
         font-size: 0.95rem !important;
         transition: all 0.2s ease !important;
         border: none !important;
-        flex-shrink: 0 !important; /* 축소 방지 */
+        flex-shrink: 0 !important; 
     }
     div[role="radiogroup"] > label[data-checked="true"] {
         background: linear-gradient(135deg, #4F46E5 0%, #3B82F6 100%) !important;
@@ -198,7 +200,6 @@ init_db()
 def get_all_data():
     conn = get_connection()
     df = pd.read_sql_query("SELECT * FROM archive ORDER BY view_date DESC", conn)
-    # [최적화] 캐싱 단계에서 미리 datetime 변환을 마쳐 매번 연산하는 병목 제거
     df['v_dt'] = pd.to_datetime(df['view_date'], errors='coerce')
     return df
 
@@ -643,21 +644,31 @@ with st.sidebar:
         st.button("📤 클라우드 백업", key="backup_2", on_click=migrate_to_supabase, use_container_width=True)
         st.button("📥 클라우드 복구", key="restore_2", on_click=restore_from_supabase, use_container_width=True)
 
-st.markdown(f"""
-<div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding: 12px 0; border-bottom: 1px solid #334155;">
-    <img src="data:image/png;base64,{get_base64('logo.png')}" width="75" style="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
-    <div>
-        <h1 style="margin: 0; font-size: 2.1rem; font-weight: 800; letter-spacing: -1px; background: linear-gradient(45deg, #FFFFFF, #94A3B8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">PRISM ARCHIVE</h1>
-        <p style="margin: 0; color: #64748B; font-size: 0.85rem; font-weight: 500;">all right reserved by FLASHMAN</p>
+# 헤더 영역 레이아웃 분할 (타이틀과 검색창 분리)
+head_col1, head_col2 = st.columns([0.75, 0.25], vertical_alignment="bottom")
+
+with head_col1:
+    st.markdown(f"""
+    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px;">
+        <img src="data:image/png;base64,{get_base64('logo.png')}" width="75" style="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
+        <div>
+            <h1 style="margin: 0; font-size: 2.1rem; font-weight: 800; letter-spacing: -1px; background: linear-gradient(45deg, #FFFFFF, #94A3B8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">PRISM ARCHIVE</h1>
+            <p style="margin: 0; color: #64748B; font-size: 0.85rem; font-weight: 500;">all right reserved by FLASHMAN</p>
+        </div>
     </div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+
+search_query_archive = ""
+with head_col2:
+    if not tab_w:
+        st.markdown("<div style='margin-bottom: 25px;'></div>", unsafe_allow_html=True) # 로고 높이에 맞춤 정렬
+        search_query_archive = st.text_input("🔍", placeholder="🔍 아카이브 통합 검색", label_visibility="collapsed", key="global_search")
+
+st.markdown("<hr style='margin: 0 0 20px 0; border: 0; border-top: 1px solid #334155;'>", unsafe_allow_html=True)
 
 if IS_ADMIN:
     st.radio("메뉴", ["🖋️ WRITE", "📂 ARCHIVE"], horizontal=True, label_visibility="collapsed", key="main_nav")
     st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
-
-tab_w = (st.session_state.main_nav == "🖋️ WRITE")
 
 # ----------------- [WRITE 탭] -----------------
 if IS_ADMIN and tab_w:
@@ -729,7 +740,7 @@ if IS_ADMIN and tab_w:
     st.markdown("<div style='height:18px;'></div>", unsafe_allow_html=True)
 
     # SEARCH 기능
-    st.markdown("#### 🔍 SEARCH")
+    st.markdown("#### 🔍 API DATA FETCH")
     category = st.radio("📂 CATEGORY", CATEGORIES, horizontal=True, key="main_category_radio")
     search_query = st.text_input(f"🔍 {category} 검색")
 
@@ -855,16 +866,23 @@ elif not tab_w:
     all_df = get_all_data()
 
     if not all_df.empty:
+        # 통합 검색어 처리
+        if search_query_archive:
+            mask = (all_df['title'].str.contains(search_query_archive, case=False, na=False) | 
+                    all_df['creator'].str.contains(search_query_archive, case=False, na=False) | 
+                    all_df['summary'].str.contains(search_query_archive, case=False, na=False) | 
+                    all_df['note'].str.contains(search_query_archive, case=False, na=False) | 
+                    all_df['venue'].str.contains(search_query_archive, case=False, na=False))
+            all_df = all_df[mask]
+            st.markdown(f"**'{search_query_archive}'** 검색 결과 ({len(all_df)})")
+            st.divider()
+
         main_df, scrap_df = all_df[all_df['category'] != "SCRAP"], all_df[all_df['category'] == "SCRAP"]
         cat_order = CATEGORIES[:-1]
-        if search_query_archive := st.text_input("🔍 통합 검색", key="global_search"):
-            mask = (all_df['title'].str.contains(search_query_archive, case=False, na=False) | all_df['creator'].str.contains(search_query_archive, case=False, na=False) | all_df['summary'].str.contains(search_query_archive, case=False, na=False) | all_df['note'].str.contains(search_query_archive, case=False, na=False) | all_df['venue'].str.contains(search_query_archive, case=False, na=False))
-            all_df = all_df[mask]; st.markdown(f"**'{search_query_archive}'** 검색 결과 ({len(all_df)})"); st.divider()
         
         tab_titles = [f"📅 ALL ({len(main_df)})"] + [f"{CAT_EMOJIS[c]} {c} ({len(main_df[main_df['category'] == c])})" for c in cat_order]
         if IS_ADMIN: tab_titles.append(f"🔐 SCRAP ({len(scrap_df)})")
         
-        # [최적화] st.tabs 대신 스크롤 버튼형 st.radio를 사용해 렌더링 성능 극대화 (한 번에 1개의 카테고리 뷰만 생성)
         selected_tab = st.radio("카테고리 선택", tab_titles, horizontal=True, label_visibility="collapsed", key="archive_main_radio")
         
         # 탭 변경 시 더보기(페이지네이션) 수치 초기화
@@ -878,38 +896,27 @@ elif not tab_w:
         # 📂 ARCHIVE - ALL 탭 (연간 리스트 및 월간 달력)
         # ==========================================
         if selected_tab.startswith("📅 ALL"):
-            st.markdown("#### 📅 연간 모아보기")
-            year_counts = main_df['v_dt'].dt.year.dropna().astype(int).value_counts().sort_index(ascending=False)
-            year_options = ["달력 보기"] + [f"{y} ({c})" for y, c in year_counts.items()]
-            
-            # [최적화] 주입된 CSS에 의해 이 라디오 버튼들도 가로로 쫙 펴진 '스크롤 버튼형' UI로 자동 렌더링됩니다.
-            selected_view = st.radio("보기 모드", year_options, horizontal=True, label_visibility="collapsed", key="year_view_radio")
+            view_mode = st.toggle("🗓️ 연간 리스트 모드 켜기", value=False)
             st.divider()
 
-            if selected_view != "달력 보기":
-                sel_year = int(selected_view.split(' ')[0])
-                year_df = main_df[main_df['v_dt'].dt.year == sel_year]
+            if view_mode:
+                year_counts = main_df['v_dt'].dt.year.dropna().astype(int).value_counts().sort_index(ascending=False)
                 
-                st.markdown(f"### 🗓️ {sel_year}년 아카이브")
-                
-                items = year_df.to_dict('records')
-                # [최적화] 페이지네이션 리미트 적용
-                display_items = items[:st.session_state.max_items]
-                
-                for i in range(0, len(display_items), grid_cols):
-                    cols = st.columns(grid_cols)
-                    for j in range(grid_cols):
-                        if i + j < len(display_items):
-                            row = display_items[i + j]
-                            with cols[j]:
-                                img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
-                                if image_button(img_u, f"archive_img_year_{sel_year}_{row['id']}", aspect_ratio="1/1.4", top_badge=row["category"], bottom_badge=str(row["view_date"])[5:]):
-                                    show_details(row)
-                                    
-                if len(items) > st.session_state.max_items:
-                    if st.button("🔽 더보기 (Load More)", use_container_width=True):
-                        st.session_state.max_items += 60
-                        st.rerun()
+                for sel_year, count in year_counts.items():
+                    # Expander로 연도별 토글 처리
+                    with st.expander(f"📁 {sel_year}년 아카이브 ({count}개)", expanded=(sel_year == year_counts.index[0])):
+                        year_df = main_df[main_df['v_dt'].dt.year == sel_year]
+                        items = year_df.to_dict('records')
+                        
+                        for i in range(0, len(items), grid_cols):
+                            cols = st.columns(grid_cols)
+                            for j in range(grid_cols):
+                                if i + j < len(items):
+                                    row = items[i + j]
+                                    with cols[j]:
+                                        img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
+                                        if image_button(img_u, f"archive_img_year_{sel_year}_{row['id']}", aspect_ratio="1/1.4", top_badge=row["category"], bottom_badge=str(row["view_date"])[5:]):
+                                            show_details(row)
             else:
                 nav_l, nav_c, nav_r = st.columns([0.12, 0.76, 0.12])
                 with nav_l:
@@ -1008,7 +1015,6 @@ elif not tab_w:
                 if not display_scrap_df.empty:
                     display_scrap_df['year_week'] = display_scrap_df['v_dt'].dt.isocalendar().year.astype(str) + "-" + display_scrap_df['v_dt'].dt.isocalendar().week.astype(str).str.zfill(2)
                     
-                    # [최적화] 스크랩 리스트 제한 적용
                     grouped_weeks = sorted(display_scrap_df['year_week'].dropna().unique(), reverse=True)
                     displayed_count = 0
                     
@@ -1049,7 +1055,6 @@ elif not tab_w:
                 st.info(f"검색 결과 없음: {c_name}" if search_query_archive else f"데이터 없음: {c_name}")
             else:
                 items = c_data.to_dict('records')
-                # [최적화] 리미트 적용
                 display_items = items[:st.session_state.max_items]
                 
                 for i in range(0, len(display_items), grid_cols):
