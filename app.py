@@ -1355,7 +1355,7 @@ elif not tab_w:
                     with cols[day_idx]:
                         if day == 0:
                             # 날짜가 없는 날은 컨테이너 구조 생략
-                            st.markdown("<div style='min-height: 200px;'></div>", unsafe_allow_html=True)
+                            st.markdown("<div style='min-height: 300px;'></div>", unsafe_allow_html=True)
                         else:
                             is_weekend = (day_idx >= 5)
                             items_on_day = m_items_by_day.get(day, [])
