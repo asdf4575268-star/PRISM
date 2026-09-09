@@ -662,7 +662,7 @@ search_query_archive = ""
 with head_col2:
     if not tab_w:
         st.markdown("<div style='margin-bottom: 25px;'></div>", unsafe_allow_html=True) # 로고 높이에 맞춤 정렬
-        search_query_archive = st.text_input("🔍", placeholder="🔍 아카이브 통합 검색", label_visibility="collapsed", key="global_search")
+        search_query_archive = st.text_input("🔍", placeholder="🔍 검색", label_visibility="collapsed", key="global_search")
 
 st.markdown("<hr style='margin: 0 0 20px 0; border: 0; border-top: 1px solid #334155;'>", unsafe_allow_html=True)
 
@@ -904,7 +904,7 @@ elif not tab_w:
                 
                 for sel_year, count in year_counts.items():
                     # Expander로 연도별 토글 처리
-                    with st.expander(f"📁 {sel_year}년 아카이브 ({count}개)", expanded=(sel_year == year_counts.index[0])):
+                    with st.expander(f"📁 {sel_year}년 ({count})", expanded=(sel_year == year_counts.index[0])):
                         year_df = main_df[main_df['v_dt'].dt.year == sel_year]
                         items = year_df.to_dict('records')
                         
