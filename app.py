@@ -165,13 +165,17 @@ st.markdown("""
 /* 달력 셀 규격화 및 패딩 최적화 */
 div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"] {
     padding: 6px !important;
+
     height: 150px !important;
     min-height: 150px !important;
     max-height: 150px !important;
+
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+
     border-color: #334155 !important;
     background-color: #1E293B !important;
     border-radius: 8px !important;
-    overflow: hidden !important;
 }
 </style>
 """, unsafe_allow_html=True)
