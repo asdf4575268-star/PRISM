@@ -541,7 +541,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
 
         if IS_ADMIN and is_plan:
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("✅ 작성 완료 (아카이브로 이동)", key=f"to_archive_{item_id}", use_container_width=True, type="primary"):
+            if st.button("✅ 작성 완료", key=f"to_archive_{item_id}", use_container_width=True, type="primary"):
                 conn = get_connection()
                 new_record = {
                     "category": cat, "title": data_dict['title'], "creator": data_dict.get("creator", ""), 
@@ -559,7 +559,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 st.cache_data.clear()
                 try: supabase.table("plan").delete().eq("id", item_id).execute()
                 except: pass
-                st.success("🎉 최종 작성이 완료되어 아카이브로 안전하게 이동되었습니다!")
+                st.success("🎉 아카이브 이동!")
                 time.sleep(0.8); st.rerun()
 
 @st.dialog("📋 ARCHIVE", width="large")
@@ -855,7 +855,7 @@ elif not tab_w:
     all_df = get_all_data()
 
     if not all_df.empty:
-        if search_query_archive := st.text_input("🔍 아카이브 내 실시간 통합 검색", key="global_search"):
+        if search_query_archive := st.text_input("🔍 통합 검색", key="global_search"):
             mask = (all_df['title'].str.contains(search_query_archive, case=False, na=False) | all_df['creator'].str.contains(search_query_archive, case=False, na=False) | all_df['summary'].str.contains(search_query_archive, case=False, na=False) | all_df['note'].str.contains(search_query_archive, case=False, na=False) | all_df['venue'].str.contains(search_query_archive, case=False, na=False))
             all_df = all_df[mask]; st.markdown(f"**'{search_query_archive}'** 검색 결과 ({len(all_df)})"); st.divider()
 
