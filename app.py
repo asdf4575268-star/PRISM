@@ -855,12 +855,11 @@ elif not tab_w:
     all_df = get_all_data()
 
     if not all_df.empty:
+        main_df, scrap_df = all_df[all_df['category'] != "SCRAP"], all_df[all_df['category'] == "SCRAP"]
+        cat_order = CATEGORIES[:-1]
         if search_query_archive := st.text_input("🔍 통합 검색", key="global_search"):
             mask = (all_df['title'].str.contains(search_query_archive, case=False, na=False) | all_df['creator'].str.contains(search_query_archive, case=False, na=False) | all_df['summary'].str.contains(search_query_archive, case=False, na=False) | all_df['note'].str.contains(search_query_archive, case=False, na=False) | all_df['venue'].str.contains(search_query_archive, case=False, na=False))
             all_df = all_df[mask]; st.markdown(f"**'{search_query_archive}'** 검색 결과 ({len(all_df)})"); st.divider()
-
-        main_df, scrap_df = all_df[all_df['category'] != "SCRAP"], all_df[all_df['category'] == "SCRAP"]
-        cat_order = CATEGORIES[:-1]
         
         tab_titles = [f"📅 ALL ({len(main_df)})"] + [f"{CAT_EMOJIS[c]} {c} ({len(main_df[main_df['category'] == c])})" for c in cat_order]
         if IS_ADMIN: tab_titles.append(f"🔐 SCRAP ({len(scrap_df)})")
