@@ -874,7 +874,7 @@ if IS_ADMIN and tab_w:
             st.markdown(f"<div class='{title_class}'>{days_korean[i]}</div>", unsafe_allow_html=True)
             st.markdown(f"<div class='weekly-date'>{current_day.strftime('%m.%d')}</div>", unsafe_allow_html=True)
 
-            with st.container(border=True):
+            with st.container(border=False):
                 if day_items:
                     for item in day_items:
                         try:
@@ -1296,7 +1296,7 @@ elif not tab_w:
                 cols = st.columns(7)
                 for day_idx, day in enumerate(week):
                     with cols[day_idx]:
-                        with st.container(border=False):
+                        with st.container(border=True):
                             if day == 0:
                                 st.markdown("<div style='min-height: 90px;'></div>", unsafe_allow_html=True)
                             else:
