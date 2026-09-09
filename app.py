@@ -1282,7 +1282,7 @@ elif not tab_w:
                 sel_year = int(selected_view.split('(')[0])
                 year_df = main_df[main_df['v_dt'].dt.year == sel_year]
                 
-                st.markdown(f"### 🗓️ {sel_year}년 아카이브")
+                st.markdown(f"### 🗓️ {sel_year}")
                 
                 items = year_df.to_dict('records')
                 for i in range(0, len(items), grid_cols):
