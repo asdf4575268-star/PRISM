@@ -162,14 +162,17 @@ st.markdown("""
         color: #FFFFFF !important;
     }
 
-    /* 달력 셀 규격화 및 패딩 최적화 */
-    div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"] {
-        padding: 6px !important;
-        min-height: 110px !important;
-        border-color: #334155 !important;
-        background-color: #1E293B !important;
-        border-radius: 8px !important;
-    }
+/* 달력 셀 규격화 및 패딩 최적화 */
+div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"] {
+    padding: 6px !important;
+    height: 150px !important;
+    min-height: 150px !important;
+    max-height: 150px !important;
+    border-color: #334155 !important;
+    background-color: #1E293B !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1292,27 +1295,116 @@ elif not tab_w:
                     except:
                         pass
 
+            # ==========================================
+            # 📅 MONTHLY CALENDAR
+            # ==========================================
             for week in cal_matrix:
                 cols = st.columns(7)
+
                 for day_idx, day in enumerate(week):
                     with cols[day_idx]:
+
                         with st.container(border=True):
+
+                            # ------------------------------
+                            # 빈 날짜
+                            # ------------------------------
                             if day == 0:
-                                st.markdown("<div style='min-height: 90px;'></div>", unsafe_allow_html=True)
+                                st.markdown(
+                                    "<div style='height: 125px;'></div>",
+                                    unsafe_allow_html=True
+                                )
+                                continue
+
+                            # ------------------------------
+                            # 날짜 표시
+                            # ------------------------------
+                            st.markdown(
+                                f"""
+                                <div style="
+                                    text-align: left;
+                                    font-size: 0.78rem;
+                                    font-weight: 700;
+                                    color: #CBD5E1;
+                                    margin-bottom: 5px;
+                                    height: 18px;
+                                ">
+                                    {day}
+                                </div>
+                                """,
+                                unsafe_allow_html=True
+                            )
+
+                            day_items = m_items_by_day.get(day, [])
+
+                            # ------------------------------
+                            # 콘텐츠 없음
+                            # ------------------------------
+                            if not day_items:
+                                st.markdown(
+                                    "<div style='height: 95px;'></div>",
+                                    unsafe_allow_html=True
+                                )
+                                continue
+
+                            # ==================================================
+                            # 콘텐츠 1개
+                            # → 기존 이미지 썸네일
+                            # ==================================================
+                            if len(day_items) == 1:
+
+                                row = day_items[0]
+
+                                img_u = (
+                                    row["img_url"]
+                                    if row.get("img_url")
+                                    and str(row["img_url"]) != "None"
+                                    else ""
+                                )
+
+                                if image_button(
+                                    img_u,
+                                    f"cal_img_all_{view_y}_{view_m}_{day}_{row['id']}",
+                                    aspect_ratio="1/1",
+                                    top_badge=row["category"],
+                                ):
+                                    show_details(row)
+
+                            # ==================================================
+                            # 콘텐츠 2개 이상
+                            # → 이미지 대신 제목 목록
+                            # → 각각 클릭하면 상세보기
+                            # ==================================================
                             else:
-                                st.markdown(f"<div style='text-align: left; font-size: 0.78rem; font-weight: 700; color: #CBD5E1; margin-bottom: 4px;'>{day}</div>", unsafe_allow_html=True)
-                                if day in m_items_by_day:
-                                    for row in m_items_by_day[day]:
-                                        img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
-                                        if image_button(
-                                            img_u,
-                                            f"cal_img_all_{view_y}_{view_m}_{day}_{row['id']}",
-                                            aspect_ratio="1/1",
-                                            top_badge=row["category"],
-                                        ):
-                                            show_details(row)
-                                else:
-                                    st.markdown("<div style='min-height: 70px;'></div>", unsafe_allow_html=True)
+
+                                for row in day_items:
+
+                                    title = str(
+                                        row.get("title", "제목 없음")
+                                    ).strip()
+
+                                    if not title:
+                                        title = "제목 없음"
+
+                                    category = str(
+                                        row.get("category", "")
+                                    ).strip()
+
+                                    emoji = CAT_EMOJIS.get(
+                                        category,
+                                        "📌"
+                                    )
+
+                                    if st.button(
+                                        f"{emoji} {title}",
+                                        key=(
+                                            f"cal_title_all_"
+                                            f"{view_y}_{view_m}_"
+                                            f"{day}_{row['id']}"
+                                        ),
+                                        use_container_width=True,
+                                    ):
+                                        show_details(row)
 
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
