@@ -589,7 +589,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
 
         if IS_ADMIN and is_plan:
             st.markdown("<br>", unsafe_allow_html=True)
-            btn_label = "✅ 작성 완료"
+            btn_label = "✅ 작성 완료 (아카이브로 이동)"
             if st.button(btn_label, key=f"to_archive_{item_id}", use_container_width=True, type="primary"):
                 conn = get_connection()
                 
@@ -620,7 +620,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 try: supabase.table("plan").delete().eq("id", item_id).execute()
                 except: pass
                 
-                st.success("🎉 최종 작성 완료!")
+                st.success("🎉 최종 작성이 완료되어 아카이브로 안전하게 이동되었습니다!")
                 time.sleep(0.8)
                 st.rerun()
 
@@ -1227,11 +1227,33 @@ elif not tab_w:
             min-width: 0 !important;
         }
     }
+    
+    /* 다중 아이템 목록 버튼 전용 CSS */
+    .cal-list-btn button {
+        padding: 4px 6px !important;
+        font-size: 0.75rem !important;
+        text-align: left !important;
+        height: auto !important;
+        min-height: 28px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        display: block !important;
+        width: 100% !important;
+        margin-bottom: 4px !important;
+        background-color: #334155 !important;
+        border-radius: 6px !important;
+        transition: background-color 0.2s ease !important;
+    }
+    .cal-list-btn button:hover {
+        background-color: #4F46E5 !important;
+        color: #FFFFFF !important;
+    }
     </style>""", unsafe_allow_html=True)
     all_df = get_all_data()
 
     if not all_df.empty:
-        if search_query_archive := st.text_input("🔍 통합 검색", key="global_search"):
+        if search_query_archive := st.text_input("🔍 아카이브 내 실시간 통합 검색", key="global_search"):
             mask = (all_df['title'].str.contains(search_query_archive, case=False, na=False) | all_df['creator'].str.contains(search_query_archive, case=False, na=False) | all_df['summary'].str.contains(search_query_archive, case=False, na=False) | all_df['note'].str.contains(search_query_archive, case=False, na=False) | all_df['venue'].str.contains(search_query_archive, case=False, na=False))
             all_df = all_df[mask]; st.markdown(f"**'{search_query_archive}'** 검색 결과 ({len(all_df)})"); st.divider()
 
@@ -1245,64 +1267,100 @@ elif not tab_w:
         grid_cols = 6
 
         # ==========================================
-        # 📂 ARCHIVE - ALL 탭 (월간 달력 슬라이드 네비게이션)
+        # 📂 ARCHIVE - ALL 탭 (연간 리스트 및 월간 달력)
         # ==========================================
         with sub_tabs[0]:
-            nav_l, nav_c, nav_r = st.columns([0.12, 0.76, 0.12])
+            st.markdown("#### 📅 연간 모아보기")
+            # 연도별 카운트 산출 및 라디오 버튼 활용
+            year_counts = main_df['v_dt'].dt.year.dropna().astype(int).value_counts().sort_index(ascending=False)
+            year_options = ["달력 보기"] + [f"{y}({c})" for y, c in year_counts.items()]
+            
+            selected_view = st.radio("보기 모드", year_options, horizontal=True, label_visibility="collapsed")
+            st.divider()
 
-            with nav_l:
-                if st.button("⬅️", use_container_width=True, key="archive_m_prev"):
-                    st.session_state.archive_month_offset -= 1
-                    st.rerun()
+            if selected_view != "달력 보기":
+                sel_year = int(selected_view.split('(')[0])
+                year_df = main_df[main_df['v_dt'].dt.year == sel_year]
+                
+                st.markdown(f"### 🗓️ {sel_year}년 아카이브")
+                
+                items = year_df.to_dict('records')
+                for i in range(0, len(items), grid_cols):
+                    cols = st.columns(grid_cols)
+                    for j in range(grid_cols):
+                        if i + j < len(items):
+                            row = items[i + j]
+                            with cols[j]:
+                                img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
+                                if image_button(
+                                    img_u,
+                                    f"archive_img_year_{sel_year}_{row['id']}",
+                                    aspect_ratio="1/1.4",
+                                    top_badge=row["category"],
+                                    bottom_badge=str(row["view_date"])[5:],
+                                ):
+                                    show_details(row)
+            else:
+                nav_l, nav_c, nav_r = st.columns([0.12, 0.76, 0.12])
 
-            today_dt = get_kst_today()
-            total_m = today_dt.year * 12 + (today_dt.month - 1) + st.session_state.archive_month_offset
-            view_y = total_m // 12
-            view_m = (total_m % 12) + 1
+                with nav_l:
+                    if st.button("⬅️", use_container_width=True, key="archive_m_prev"):
+                        st.session_state.archive_month_offset -= 1
+                        st.rerun()
 
-            m_data = main_df[(main_df['v_dt'].dt.year == view_y) & (main_df['v_dt'].dt.month == view_m)]
+                today_dt = get_kst_today()
+                total_m = today_dt.year * 12 + (today_dt.month - 1) + st.session_state.archive_month_offset
+                view_y = total_m // 12
+                view_m = (total_m % 12) + 1
 
-            with nav_c:
-                st.markdown(
-                    f"<div style='text-align:center; padding:8px 0; font-weight:800; color:#F1F5F9; font-size:1.1rem;'>"
-                    f"🗓️ {view_y}년 {view_m}월 "
-                    f"<span style='color:#818CF8; font-size:0.9rem;'>({len(m_data)})</span>"
-                    f"</div>",
-                    unsafe_allow_html=True,
-                )
+                m_data = main_df[(main_df['v_dt'].dt.year == view_y) & (main_df['v_dt'].dt.month == view_m)]
 
-            with nav_r:
-                if st.button("➡️", use_container_width=True, key="archive_m_next"):
-                    st.session_state.archive_month_offset += 1
-                    st.rerun()
+                with nav_c:
+                    st.markdown(
+                        f"<div style='text-align:center; padding:8px 0; font-weight:800; color:#F1F5F9; font-size:1.1rem;'>"
+                        f"🗓️ {view_y}년 {view_m}월 "
+                        f"<span style='color:#818CF8; font-size:0.9rem;'>({len(m_data)})</span>"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
 
-            days_header = ["월", "화", "수", "목", "금", "토", "일"]
-            h_cols = st.columns(7)
-            for idx, h in enumerate(days_header):
-                h_cols[idx].markdown(f"<div style='text-align: center; font-weight: bold; color: #94A3B8; font-size: 0.85rem;'>{h}</div>", unsafe_allow_html=True)
+                with nav_r:
+                    if st.button("➡️", use_container_width=True, key="archive_m_next"):
+                        st.session_state.archive_month_offset += 1
+                        st.rerun()
 
-            cal_matrix = calendar.monthcalendar(view_y, view_m)
+                days_header = ["월", "화", "수", "목", "금", "토", "일"]
+                h_cols = st.columns(7)
+                for idx, h in enumerate(days_header):
+                    h_cols[idx].markdown(f"<div style='text-align: center; font-weight: bold; color: #94A3B8; font-size: 0.85rem;'>{h}</div>", unsafe_allow_html=True)
 
-            m_items_by_day = {}
-            if not m_data.empty:
-                for item in m_data.to_dict('records'):
-                    try:
-                        d_num = pd.to_datetime(item['view_date']).day
-                        m_items_by_day.setdefault(d_num, []).append(item)
-                    except:
-                        pass
+                cal_matrix = calendar.monthcalendar(view_y, view_m)
 
-            for week in cal_matrix:
-                cols = st.columns(7)
-                for day_idx, day in enumerate(week):
-                    with cols[day_idx]:
-                        with st.container(border=False):
-                            if day == 0:
-                                st.markdown("<div style='min-height: 90px;'></div>", unsafe_allow_html=True)
-                            else:
-                                st.markdown(f"<div style='text-align: left; font-size: 0.78rem; font-weight: 700; color: #CBD5E1; margin-bottom: 4px;'>{day}</div>", unsafe_allow_html=True)
-                                if day in m_items_by_day:
-                                    for row in m_items_by_day[day]:
+                m_items_by_day = {}
+                if not m_data.empty:
+                    for item in m_data.to_dict('records'):
+                        try:
+                            d_num = pd.to_datetime(item['view_date']).day
+                            m_items_by_day.setdefault(d_num, []).append(item)
+                        except:
+                            pass
+
+                for week in cal_matrix:
+                    cols = st.columns(7)
+                    for day_idx, day in enumerate(week):
+                        with cols[day_idx]:
+                            with st.container(border=False):
+                                if day == 0:
+                                    st.markdown("<div style='min-height: 90px;'></div>", unsafe_allow_html=True)
+                                else:
+                                    st.markdown(f"<div style='text-align: left; font-size: 0.78rem; font-weight: 700; color: #CBD5E1; margin-bottom: 4px;'>{day}</div>", unsafe_allow_html=True)
+                                    
+                                    day_items = m_items_by_day.get(day, [])
+                                    
+                                    if not day_items:
+                                        st.markdown("<div style='min-height: 70px;'></div>", unsafe_allow_html=True)
+                                    elif len(day_items) == 1:
+                                        row = day_items[0]
                                         img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
                                         if image_button(
                                             img_u,
@@ -1311,8 +1369,25 @@ elif not tab_w:
                                             top_badge=row["category"],
                                         ):
                                             show_details(row)
-                                else:
-                                    st.markdown("<div style='min-height: 70px;'></div>", unsafe_allow_html=True)
+                                    else:
+                                        st.markdown("<div class='cal-list-btn'>", unsafe_allow_html=True)
+                                        for idx, row in enumerate(day_items):
+                                            if idx < 3:
+                                                emoji = CAT_EMOJIS.get(row['category'], "📌")
+                                                # 말줄임표 처리는 위에서 정의된 CSS 클래스(cal-list-btn)가 담당
+                                                if st.button(f"{emoji} {row['title']}", key=f"cal_list_{view_y}_{view_m}_{day}_{row['id']}", help=row['title']):
+                                                    show_details(row)
+                                            elif idx == 3:
+                                                rest_items = day_items[3:]
+                                                hover_tooltip = "\n".join([f"- {r['title']}" for r in rest_items])
+                                                
+                                                with st.popover(f"... 더보기 (+{len(rest_items)})", help=hover_tooltip, use_container_width=True):
+                                                    for r in rest_items:
+                                                        e = CAT_EMOJIS.get(r['category'], "📌")
+                                                        if st.button(f"{e} {r['title']}", key=f"cal_list_pop_{view_y}_{view_m}_{day}_{r['id']}", use_container_width=True):
+                                                            show_details(r)
+                                                break
+                                        st.markdown("</div>", unsafe_allow_html=True)
 
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
