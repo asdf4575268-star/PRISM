@@ -162,18 +162,6 @@ st.markdown("""
         color: #FFFFFF !important;
     }
 
-    /* 달력 셀 규격화 및 패딩 최적화 */
-    div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"] {
-        padding: 6px !important;
-        height: 160px !important;       /* 1개 이미지 기준 틀 고정 */
-        min-height: 160px !important;
-        max-height: 160px !important;
-        overflow: hidden !important;    /* 삐져나가는 항목 숨김 처리 */
-        border-color: #475569 !important;
-        background-color: #334155 !important; /* 배경 회색 */
-        border-radius: 8px !important;
-    }
-
     /* 2개 이상일 때 리스트 형태의 버튼 디자인 오버라이드 */
     div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"] button {
         text-align: left !important;
@@ -774,38 +762,118 @@ def get_img_and_cat(row, is_plan=False):
         cat = str(row.get("category", ""))
     return img_u, cat
 
-def render_calendar_cell(items, view_id_prefix, is_plan=False, date_text=None, is_weekend=False):
+def render_calendar_cell(
+    items,
+    view_id_prefix,
+    is_plan=False,
+    date_text=None,
+    is_weekend=False
+):
     clicked_row = None
-    
+
+    # ------------------------------------------
+    # 날짜 표시
+    # ------------------------------------------
     if date_text is not None:
         day_color = "#EF4444" if is_weekend else "#F1F5F9"
-        st.markdown(f"<div style='font-size: 0.8rem; font-weight: 800; color: {day_color}; text-align: right; margin-bottom: 4px;'>{date_text}</div>", unsafe_allow_html=True)
-    
+
+        st.markdown(
+            f"""
+            <div style="
+                height: 20px;
+                line-height: 20px;
+                font-size: 0.8rem;
+                font-weight: 800;
+                color: {day_color};
+                text-align: right;
+                margin-bottom: 4px;
+            ">
+                {date_text}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    # ------------------------------------------
+    # 콘텐츠 없음
+    # → 이미지 영역과 동일한 공간 확보
+    # ------------------------------------------
     if not items:
-        # 데이터가 없는 날의 여백 채우기
-        st.markdown("<div style='height: 110px;'></div>", unsafe_allow_html=True)
+        st.markdown(
+            """
+            <div style="
+                height: 110px;
+                width: 100%;
+            "></div>
+            """,
+            unsafe_allow_html=True
+        )
         return None
 
+    # ==========================================
+    # 콘텐츠 1개
+    # → 항상 동일한 110px 이미지 영역 사용
+    # ==========================================
     if len(items) == 1:
+
         row = items[0]
+
         img_u, cat = get_img_and_cat(row, is_plan)
+
         if img_u and img_u != "None":
-            if image_button(img_u, f"{view_id_prefix}_{row['id']}", aspect_ratio="1/1.4", height="110px", top_badge=cat):
+
+            if image_button(
+                img_u,
+                f"{view_id_prefix}_{row['id']}",
+                width="110px",
+                height="110px",
+                top_badge=cat,
+            ):
                 clicked_row = row
+
         else:
+
             emoji = CAT_EMOJIS.get(cat, "📌")
-            if st.button(f"{emoji} {row['title']}", key=f"{view_id_prefix}_noimg_{row['id']}", help=row['title']):
+
+            if st.button(
+                f"{emoji} {row['title']}",
+                key=f"{view_id_prefix}_noimg_{row['id']}",
+                help=row['title'],
+                use_container_width=True,
+            ):
                 clicked_row = row
+
+    # ==========================================
+    # 콘텐츠 2개 이상
+    # → 이미지 대신 제목 리스트
+    # ==========================================
     else:
+
         for idx, row in enumerate(items):
-            if idx < 4:
-                emoji = CAT_EMOJIS.get(row.get('category', ''), "▪")
-                if st.button(f"{emoji} {row['title']}", key=f"{view_id_prefix}_list_{row['id']}", help=row['title']):
-                    clicked_row = row
-            elif idx == 4:
-                tooltip_text = "&#10;".join([f"{CAT_EMOJIS.get(r.get('category',''), '▪')} {r['title']}" for r in items[4:]])
-                st.markdown(f"<div title='{tooltip_text}' style='color: #818CF8; font-size: 0.75rem; font-weight: bold; text-align: center; cursor: pointer; margin-top: 2px;'>... 더보기 ({len(items)-4})</div>", unsafe_allow_html=True)
-                break
+
+            emoji = CAT_EMOJIS.get(
+                row.get("category", ""),
+                "▪"
+            )
+
+            title = str(
+                row.get("title", "제목 없음")
+            ).strip()
+
+            if not title:
+                title = "제목 없음"
+
+            if st.button(
+                f"{emoji} {title}",
+                key=(
+                    f"{view_id_prefix}_list_"
+                    f"{row['id']}"
+                ),
+                help=title,
+                use_container_width=True,
+            ):
+                clicked_row = row
+
     return clicked_row
 
 
@@ -1351,18 +1419,42 @@ elif not tab_w:
 
             for week in cal_matrix:
                 cols = st.columns(7)
+
                 for day_idx, day in enumerate(week):
+
                     with cols[day_idx]:
-                        if day == 0:
-                            # 날짜가 없는 날은 컨테이너 구조 생략
-                            st.markdown("<div style='min-height: 160px;'></div>", unsafe_allow_html=True)
-                        else:
+
+                        with st.container(border=True):
+
+                            if day == 0:
+                                st.markdown(
+                                    """
+                                    <div style="
+                                        height: 130px;
+                                        width: 100%;
+                                    "></div>
+                                    """,
+                                    unsafe_allow_html=True
+                                )
+                                continue
+
                             is_weekend = (day_idx >= 5)
-                            items_on_day = m_items_by_day.get(day, [])
-                            with st.container(border=True):
-                                clicked_item = render_calendar_cell(items_on_day, f"month_{view_y}_{view_m}_{day}", is_plan=False, date_text=day, is_weekend=is_weekend)
-                                if clicked_item:
-                                    show_details(clicked_item)
+
+                            items_on_day = m_items_by_day.get(
+                                day,
+                                []
+                             )
+
+                            clicked_item = render_calendar_cell(
+                                items_on_day,
+                                f"month_{view_y}_{view_m}_{day}",
+                                is_plan=False,
+                                date_text=day,
+                                is_weekend=is_weekend,
+                            )
+
+                            if clicked_item:
+                                show_details(clicked_item)
 
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
