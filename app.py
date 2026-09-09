@@ -165,40 +165,10 @@ st.markdown("""
     /* 달력 셀 규격화 및 패딩 최적화 */
     div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"] {
         padding: 6px !important;
-        height: 160px !important;       /* 1개 이미지 기준 틀 고정 */
-        min-height: 160px !important;
-        max-height: 160px !important;
-        overflow: hidden !important;    /* 삐져나가는 항목 숨김 처리 */
-        border-color: #475569 !important;
-        background-color: #334155 !important; /* 배경 회색 */
+        min-height: 110px !important;
+        border-color: #334155 !important;
+        background-color: #1E293B !important;
         border-radius: 8px !important;
-    }
-
-    /* 2개 이상일 때 리스트 형태의 버튼 디자인 오버라이드 */
-    div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"] button {
-        text-align: left !important;
-        padding: 2px 4px !important;
-        margin-bottom: 2px !important;
-        border-radius: 4px !important;
-        background-color: transparent; 
-        border: none; 
-    }
-
-    /* st.button 내부 텍스트(P 태그) 생략(ellipsis) 처리 */
-    div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"] button p {
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-        font-size: 0.75rem !important;
-        font-weight: 600 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        text-align: left !important;
-        color: #F1F5F9 !important;
-    }
-    
-    div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"] button:hover {
-        background-color: #475569 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -619,7 +589,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
 
         if IS_ADMIN and is_plan:
             st.markdown("<br>", unsafe_allow_html=True)
-            btn_label = "✅ 작성 완료"
+            btn_label = "✅ 작성 완료 (아카이브로 이동)"
             if st.button(btn_label, key=f"to_archive_{item_id}", use_container_width=True, type="primary"):
                 conn = get_connection()
                 
@@ -650,7 +620,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 try: supabase.table("plan").delete().eq("id", item_id).execute()
                 except: pass
                 
-                st.success("🎉 최종 작성 완료!")
+                st.success("🎉 최종 작성이 완료되어 아카이브로 안전하게 이동되었습니다!")
                 time.sleep(0.8)
                 st.rerun()
 
@@ -761,53 +731,6 @@ def image_button(image_url, key, *, aspect_ratio=None, width="100%", height=None
         unsafe_allow_html=True,
     )
     return st.button("", key=key, use_container_width=(width == "100%"))
-
-def get_img_and_cat(row, is_plan=False):
-    if is_plan:
-        try: memo = json.loads(row.get("memo", "{}"))
-        except: memo = {}
-        if not isinstance(memo, dict): memo = {}
-        img_u = str(memo.get("img_url", "") or "").strip()
-        cat = str(row.get("category", ""))
-    else:
-        img_u = str(row.get("img_url", "") or "").strip()
-        cat = str(row.get("category", ""))
-    return img_u, cat
-
-def render_calendar_cell(items, view_id_prefix, is_plan=False, date_text=None, is_weekend=False):
-    clicked_row = None
-    
-    if date_text is not None:
-        day_color = "#EF4444" if is_weekend else "#F1F5F9"
-        st.markdown(f"<div style='font-size: 0.8rem; font-weight: 800; color: {day_color}; text-align: right; margin-bottom: 4px;'>{date_text}</div>", unsafe_allow_html=True)
-    
-    if not items:
-        # 데이터가 없는 날의 여백 채우기
-        st.markdown("<div style='height: 110px;'></div>", unsafe_allow_html=True)
-        return None
-
-    if len(items) == 1:
-        row = items[0]
-        img_u, cat = get_img_and_cat(row, is_plan)
-        if img_u and img_u != "None":
-            if image_button(img_u, f"{view_id_prefix}_{row['id']}", aspect_ratio="1/1.4", height="110px", top_badge=cat):
-                clicked_row = row
-        else:
-            emoji = CAT_EMOJIS.get(cat, "📌")
-            if st.button(f"{emoji} {row['title']}", key=f"{view_id_prefix}_noimg_{row['id']}", help=row['title']):
-                clicked_row = row
-    else:
-        for idx, row in enumerate(items):
-            if idx < 4:
-                emoji = CAT_EMOJIS.get(row.get('category', ''), "▪")
-                if st.button(f"{emoji} {row['title']}", key=f"{view_id_prefix}_list_{row['id']}", help=row['title']):
-                    clicked_row = row
-            elif idx == 4:
-                tooltip_text = "&#10;".join([f"{CAT_EMOJIS.get(r.get('category',''), '▪')} {r['title']}" for r in items[4:]])
-                st.markdown(f"<div title='{tooltip_text}' style='color: #818CF8; font-size: 0.75rem; font-weight: bold; text-align: center; cursor: pointer; margin-top: 2px;'>... 더보기 ({len(items)-4})</div>", unsafe_allow_html=True)
-                break
-    return clicked_row
-
 
 with st.sidebar:
     st.markdown("### 🔐 관리자 접속")
@@ -931,12 +854,13 @@ if IS_ADMIN and tab_w:
         ]
     else:
         week_data = pd.DataFrame()
+
+    days_korean = ["월", "화", "수", "목", "금", "토", "일"]
     day_cols = st.columns(7, gap="small")
 
     for i, day_col in enumerate(day_cols):
         current_day = view_monday + pd.Timedelta(days=i)
         is_today = current_day.date() == get_kst_today()
-        is_weekend = (i >= 5)
 
         if not week_data.empty:
             day_items = week_data[
@@ -947,16 +871,38 @@ if IS_ADMIN and tab_w:
 
         with day_col:
             title_class = "weekly-day-title today" if is_today else "weekly-day-title"
-            header_color = "#EF4444" if is_weekend and not is_today else ("#FFFFFF" if is_today else "#F1F5F9")
-            date_color = "#EF4444" if is_weekend else "#94A3B8"
-            
-            st.markdown(f"<div class='{title_class}' style='color: {header_color};'>{days_korean[i]}</div>", unsafe_allow_html=True)
-            st.markdown(f"<div class='weekly-date' style='color: {date_color};'>{current_day.strftime('%m.%d')}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='{title_class}'>{days_korean[i]}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='weekly-date'>{current_day.strftime('%m.%d')}</div>", unsafe_allow_html=True)
 
-            with st.container(border=True):
-                clicked_item = render_calendar_cell(day_items, f"week_{i}", is_plan=True, is_weekend=is_weekend)
-                if clicked_item:
-                    show_plan_details(clicked_item)
+            with st.container(border=False):
+                if day_items:
+                    for item in day_items:
+                        try:
+                            memo = json.loads(item.get("memo", "{}"))
+                            if not isinstance(memo, dict):
+                                memo = {}
+                        except Exception:
+                            memo = {}
+
+                        img_url = str(memo.get("img_url", "") or "").strip()
+                        category = str(item.get("category", ""))
+                        item_id = item.get("id")
+                        emoji = CAT_EMOJIS.get(category, "📌")
+
+                        if img_url and img_url != "None":
+                            if image_button(
+                                img_url,
+                                f"weekly_img_{item_id}",
+                                aspect_ratio="1/1.4",
+                                width="100%",
+                                top_badge=category,
+                            ):
+                                show_plan_details(item)
+                        else:
+                            if st.button(emoji, key=f"weekly_noimg_{item_id}", use_container_width=True):
+                                show_plan_details(item)
+                else:
+                    st.markdown("<div style='min-height: 120px;'></div>", unsafe_allow_html=True)
 
     st.markdown("<div style='height:18px;'></div>", unsafe_allow_html=True)
 
@@ -1285,7 +1231,7 @@ elif not tab_w:
     all_df = get_all_data()
 
     if not all_df.empty:
-        if search_query_archive := st.text_input("🔍 통합 검색", key="global_search"):
+        if search_query_archive := st.text_input("🔍 아카이브 내 실시간 통합 검색", key="global_search"):
             mask = (all_df['title'].str.contains(search_query_archive, case=False, na=False) | all_df['creator'].str.contains(search_query_archive, case=False, na=False) | all_df['summary'].str.contains(search_query_archive, case=False, na=False) | all_df['note'].str.contains(search_query_archive, case=False, na=False) | all_df['venue'].str.contains(search_query_archive, case=False, na=False))
             all_df = all_df[mask]; st.markdown(f"**'{search_query_archive}'** 검색 결과 ({len(all_df)})"); st.divider()
 
@@ -1325,16 +1271,15 @@ elif not tab_w:
                     unsafe_allow_html=True,
                 )
 
-            days_header = ["월", "화", "수", "목", "금", "토", "일"]
-            h_cols = st.columns(7)
-            for idx, h in enumerate(days_header):
-                header_color = "#EF4444" if idx >= 5 else "#94A3B8"
-                h_cols[idx].markdown(f"<div style='text-align: center; font-weight: bold; color: {header_color}; font-size: 0.85rem;'>{h}</div>", unsafe_allow_html=True)
-
             with nav_r:
                 if st.button("➡️", use_container_width=True, key="archive_m_next"):
                     st.session_state.archive_month_offset += 1
                     st.rerun()
+
+            days_header = ["월", "화", "수", "목", "금", "토", "일"]
+            h_cols = st.columns(7)
+            for idx, h in enumerate(days_header):
+                h_cols[idx].markdown(f"<div style='text-align: center; font-weight: bold; color: #94A3B8; font-size: 0.85rem;'>{h}</div>", unsafe_allow_html=True)
 
             cal_matrix = calendar.monthcalendar(view_y, view_m)
 
@@ -1351,16 +1296,23 @@ elif not tab_w:
                 cols = st.columns(7)
                 for day_idx, day in enumerate(week):
                     with cols[day_idx]:
-                        if day == 0:
-                            # 날짜가 없는 날은 컨테이너 구조 생략
-                            st.markdown("<div style='min-height: 150px;'></div>", unsafe_allow_html=True)
-                        else:
-                            is_weekend = (day_idx >= 5)
-                            items_on_day = m_items_by_day.get(day, [])
-                            with st.container(border=False):
-                                clicked_item = render_calendar_cell(items_on_day, f"month_{view_y}_{view_m}_{day}", is_plan=False, date_text=day, is_weekend=is_weekend)
-                                if clicked_item:
-                                    show_details(clicked_item)
+                        with st.container(border=False):
+                            if day == 0:
+                                st.markdown("<div style='min-height: 90px;'></div>", unsafe_allow_html=True)
+                            else:
+                                st.markdown(f"<div style='text-align: left; font-size: 0.78rem; font-weight: 700; color: #CBD5E1; margin-bottom: 4px;'>{day}</div>", unsafe_allow_html=True)
+                                if day in m_items_by_day:
+                                    for row in m_items_by_day[day]:
+                                        img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
+                                        if image_button(
+                                            img_u,
+                                            f"cal_img_all_{view_y}_{view_m}_{day}_{row['id']}",
+                                            aspect_ratio="1/1",
+                                            top_badge=row["category"],
+                                        ):
+                                            show_details(row)
+                                else:
+                                    st.markdown("<div style='min-height: 70px;'></div>", unsafe_allow_html=True)
 
         for idx, c_name in enumerate(cat_order):
             with sub_tabs[idx + 1]:
