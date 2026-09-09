@@ -896,7 +896,7 @@ elif not tab_w:
         # 📂 ARCHIVE - ALL 탭 (연간 리스트 및 월간 달력)
         # ==========================================
         if selected_tab.startswith("📅 ALL"):
-            view_mode = st.toggle("🗓️ 연간 리스트 모드 켜기", value=False)
+            view_mode = st.toggle("🗓️ YEARLY LIST", value=False)
             st.divider()
 
             if view_mode:
