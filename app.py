@@ -164,22 +164,46 @@ st.markdown("""
 
 /* 달력 셀 규격화 및 패딩 최적화 */
 div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"] {
-    padding: 6px !important;
-
     height: 150px !important;
     min-height: 150px !important;
     max-height: 150px !important;
 
+    padding: 6px !important;
     box-sizing: border-box !important;
+
     overflow: hidden !important;
 
     border-color: #334155 !important;
     background-color: #1E293B !important;
     border-radius: 8px !important;
 }
+
+
+/* bordered container 내부의 실제 VerticalBlock */
+div[data-testid="stColumn"]
+> div[data-testid="stVerticalBlockBorderWrapper"]
+> div[data-testid="stVerticalBlock"] {
+
+    height: 138px !important;
+    min-height: 138px !important;
+    max-height: 138px !important;
+
+    overflow: hidden !important;
+}
+
+
+/* 내부의 block 자체가 콘텐츠 때문에 늘어나지 않도록 */
+div[data-testid="stColumn"]
+> div[data-testid="stVerticalBlockBorderWrapper"]
+> div[data-testid="stVerticalBlock"]
+> div[data-testid="stVerticalBlock"] {
+
+    max-height: 138px !important;
+    overflow: hidden !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
-
 # ==========================================
 # 4. DATABASE & CLOUD SYNC (데이터베이스)
 # ==========================================
@@ -1314,10 +1338,6 @@ elif not tab_w:
                             # 빈 날짜
                             # ------------------------------
                             if day == 0:
-                                st.markdown(
-                                    "<div style='height: 125px;'></div>",
-                                    unsafe_allow_html=True
-                                )
                                 continue
 
                             # ------------------------------
@@ -1345,10 +1365,6 @@ elif not tab_w:
                             # 콘텐츠 없음
                             # ------------------------------
                             if not day_items:
-                                st.markdown(
-                                    "<div style='height: 95px;'></div>",
-                                    unsafe_allow_html=True
-                                )
                                 continue
 
                             # ==================================================
