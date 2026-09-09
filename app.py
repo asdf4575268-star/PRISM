@@ -1355,11 +1355,11 @@ elif not tab_w:
                     with cols[day_idx]:
                         if day == 0:
                             # 날짜가 없는 날은 컨테이너 구조 생략
-                            st.markdown("<div style='min-height: 160px;'></div>", unsafe_allow_html=True)
+                            st.markdown("<div style='min-height: 200px;'></div>", unsafe_allow_html=True)
                         else:
                             is_weekend = (day_idx >= 5)
                             items_on_day = m_items_by_day.get(day, [])
-                            with st.container(border=True):
+                            with st.container(border=False):
                                 clicked_item = render_calendar_cell(items_on_day, f"month_{view_y}_{view_m}_{day}", is_plan=False, date_text=day, is_weekend=is_weekend)
                                 if clicked_item:
                                     show_details(clicked_item)
