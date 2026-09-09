@@ -879,13 +879,77 @@ elif not tab_w:
         # 📂 ARCHIVE - ALL 탭 (연간 리스트 및 월간 달력)
         # ==========================================
         if selected_tab.startswith("📅 ALL"):
-            st.markdown("#### 📅 연간 모아보기")
-            year_counts = main_df['v_dt'].dt.year.dropna().astype(int).value_counts().sort_index(ascending=False)
-            year_options = ["달력 보기"] + [f"{y} ({c})" for y, c in year_counts.items()]
-            
-            # [최적화] 주입된 CSS에 의해 이 라디오 버튼들도 가로로 쫙 펴진 '스크롤 버튼형' UI로 자동 렌더링됩니다.
-            selected_view = st.radio("보기 모드", year_options, horizontal=True, label_visibility="collapsed", key="year_view_radio")
-            st.divider()
+ # ==========================================
+# 연도별 모아보기
+# ==========================================
+with st.expander("📅 연간 모아보기", expanded=False):
+
+    year_counts = (
+        main_df['v_dt']
+        .dt.year
+        .dropna()
+        .astype(int)
+        .value_counts()
+        .sort_index(ascending=False)
+    )
+
+    available_years = year_counts.index.tolist()
+
+    if available_years:
+
+        for year in available_years:
+
+            count = year_counts[year]
+
+            # ------------------------------------------
+            # 연도 선택
+            # ------------------------------------------
+            if st.button(
+                f"{year} ({count})",
+                key=f"archive_year_{year}",
+                use_container_width=True,
+            ):
+
+                # 같은 연도를 다시 누르면 닫기
+                if st.session_state.get("selected_archive_year") == year:
+                    st.session_state.selected_archive_year = None
+
+                # 다른 연도를 누르면 해당 연도로 변경
+                else:
+                    st.session_state.selected_archive_year = year
+
+                st.rerun()
+
+            # ------------------------------------------
+            # 선택된 연도의 이미지 그리드
+            # ------------------------------------------
+            if st.session_state.get("selected_archive_year") == year:
+
+                year_df = (
+                    main_df[
+                        main_df['v_dt'].dt.year == year
+                    ]
+                    .sort_values(
+                        'v_dt',
+                        ascending=False
+                    )
+                )
+
+                cols = st.columns(grid_cols)
+
+                for i, (_, row) in enumerate(year_df.iterrows()):
+
+                    with cols[i % grid_cols]:
+
+                        image_button(
+                            row,
+                            key_prefix=f"archive_year_{year}"
+                        )
+
+                st.markdown(
+                    "<div style='height:12px;'></div>",
+                    unsafe_allow_html=True
+                )
 
             if selected_view != "달력 보기":
                 sel_year = int(selected_view.split(' ')[0])
