@@ -14,4 +14,4 @@ jobs:
         run: |
           curl --fail --silent --show-error \
             --max-time 30 \
-            "https://o7a9qsj6jmhu9nsacqsrsj.streamlit.app/?embed=true"
+            "https://o7a9qsj6jmhu9nsacqsrsj.streamlit.app/?embed=true"|| true
