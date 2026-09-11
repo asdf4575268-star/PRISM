@@ -164,13 +164,29 @@ st.markdown("""
         color: #FFFFFF !important;
     }
 
-    /* 달력 셀 규격화 및 패딩 최적화 */
+    /* 달력 셀 규격화 및 이미지 레퍼런스 스타일 적용 */
     div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"] {
-        padding: 6px !important;
-        min-height: 110px !important;
-        border-color: #334155 !important;
+        padding: 8px !important;
+        min-height: 140px !important;
+        border: 1px solid #334155 !important;
+        background-color: #1A2234 !important;
+        border-radius: 12px !important;
+        transition: all 0.2s ease-in-out !important;
+    }
+    div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+        border-color: #6366F1 !important;
         background-color: #1E293B !important;
-        border-radius: 8px !important;
+        box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15) !important;
+    }
+    .cal-date {
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: #F8FAFC;
+        margin-bottom: 8px;
+        display: block;
+    }
+    .cal-date.today {
+        color: #818CF8;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -590,8 +606,8 @@ def image_button(image_url, key, *, aspect_ratio=None, width="100%", height=None
     if aspect_ratio: size_css += f"aspect-ratio:{aspect_ratio} !important;height:auto !important;"
     if height: size_css += f"height:{height} !important;min-height:{height} !important;"
 
-    top_badge_css = f"""div[data-testid="stColumn"] .st-key-{key} button::before {{ content: "{str(top_badge).replace('\\', '\\\\').replace('"', '\\"')}"; position: absolute; top: 4px; left: 4px; z-index: 2; background: rgba(15,23,42,.88); color: #FBBF24; padding: 1px 5px; border-radius: 10px; font-size: 8px; line-height: 1.3; font-weight: 700; }}""" if top_badge else ""
-    bottom_badge_css = f"""div[data-testid="stColumn"] .st-key-{key} button::after {{ content: "{str(bottom_badge).replace('\\', '\\\\').replace('"', '\\"')}"; position: absolute; right: 4px; bottom: 4px; z-index: 2; background: rgba(15,23,42,.88); color: #E2E8F0; padding: 1px 5px; border-radius: 10px; font-size: 8px; line-height: 1.3; font-weight: 600; }}""" if bottom_badge else ""
+    top_badge_css = f"""div[data-testid="stColumn"] .st-key-{key} button::before {{ content: "{str(top_badge).replace('\\', '\\\\').replace('"', '\\"')}"; position: absolute; top: 4px; left: 4px; z-index: 2; background: rgba(15,23,42,.88); color: #FBBF24; padding: 1px 5px; border-radius: 6px; font-size: 9px; line-height: 1.3; font-weight: 700; }}""" if top_badge else ""
+    bottom_badge_css = f"""div[data-testid="stColumn"] .st-key-{key} button::after {{ content: "{str(bottom_badge).replace('\\', '\\\\').replace('"', '\\"')}"; position: absolute; right: 4px; bottom: 4px; z-index: 2; background: rgba(15,23,42,.88); color: #E2E8F0; padding: 1px 5px; border-radius: 6px; font-size: 9px; line-height: 1.3; font-weight: 600; }}""" if bottom_badge else ""
 
     st.markdown(f"""<style>
         div[data-testid="stColumn"] .st-key-{key} button {{
@@ -599,11 +615,11 @@ def image_button(image_url, key, *, aspect_ratio=None, width="100%", height=None
             border-radius: {border_radius}px !important; border: 1px solid #334155 !important;
             background-image: url("{css_url}") !important; background-size: cover !important;
             background-position: center !important; background-repeat: no-repeat !important;
-            background-color: #1E293B !important; box-shadow: 0 10px 15px -3px rgba(0,0,0,.4), 0 4px 6px -2px rgba(0,0,0,.3) !important;
+            background-color: #1E293B !important; box-shadow: 0 4px 6px -2px rgba(0,0,0,.3) !important;
             color: transparent !important; font-size: 0 !important; line-height: 0 !important;
             margin-left: auto !important; margin-right: auto !important; transition: all .2s ease !important;
         }}
-        div[data-testid="stColumn"] .st-key-{key} button:hover {{ border-color: #6366F1 !important; transform: translateY(-3px); box-shadow: 0 16px 24px -5px rgba(0,0,0,.55) !important; }}
+        div[data-testid="stColumn"] .st-key-{key} button:hover {{ border-color: #6366F1 !important; transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,.5) !important; }}
         {top_badge_css} {bottom_badge_css}
         </style>""", unsafe_allow_html=True)
     return st.button("", key=key, use_container_width=(width == "100%"))
@@ -953,38 +969,39 @@ elif not tab_w:
                         except: pass
 
                 for week in cal_matrix:
-                    cols = st.columns(7)
+                    cols = st.columns(7, gap="small")
                     for day_idx, day in enumerate(week):
                         with cols[day_idx]:
-                            with st.container(border=False):
-                                if day == 0:
-                                    st.markdown("<div style='min-height: 90px;'></div>", unsafe_allow_html=True)
-                                else:
-                                    st.markdown(f"<div style='text-align: left; font-size: 0.78rem; font-weight: 700; color: #CBD5E1; margin-bottom: 4px;'>{day}</div>", unsafe_allow_html=True)
+                            if day == 0:
+                                st.markdown("<div style='min-height: 140px;'></div>", unsafe_allow_html=True)
+                            else:
+                                # border=True인 st.container를 사용하면 위에서 정의한 CSS(.stVerticalBlockBorderWrapper)가 적용됩니다.
+                                with st.container(border=True):
+                                    is_today = (view_y == get_kst_today().year and view_m == get_kst_today().month and day == get_kst_today().day)
+                                    date_class = "cal-date today" if is_today else "cal-date"
+                                    
+                                    # 날짜 표시
+                                    st.markdown(f"<span class='{date_class}'>{day}</span>", unsafe_allow_html=True)
+                                    
                                     day_items = m_items_by_day.get(day, [])
-                                    if not day_items: st.markdown("<div style='min-height: 70px;'></div>", unsafe_allow_html=True)
-                                    elif len(day_items) == 1:
-                                        row = day_items[0]
-                                        img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
-                                        if image_button(img_u, f"cal_img_all_{view_y}_{view_m}_{day}_{row['id']}", aspect_ratio="1/1", top_badge=row["category"]):
-                                            show_details(row)
+                                    if not day_items: 
+                                        st.markdown("<div style='min-height: 80px;'></div>", unsafe_allow_html=True)
                                     else:
-                                        st.markdown("<div class='cal-list-btn'>", unsafe_allow_html=True)
                                         for idx, row in enumerate(day_items):
-                                            if idx < 3:
-                                                emoji = CAT_EMOJIS.get(row['category'], "📌")
-                                                if st.button(f"{emoji} {row['title']}", key=f"cal_list_{view_y}_{view_m}_{day}_{row['id']}", help=row['title']):
+                                            if idx < 2:
+                                                img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
+                                                # 이미지 썸네일을 레퍼런스(정방형 혹은 꽉 차는 형태)로 적용
+                                                if image_button(img_u, f"cal_img_all_{view_y}_{view_m}_{day}_{row['id']}_{idx}", aspect_ratio="1/1", top_badge=row["category"], border_radius=8):
                                                     show_details(row)
-                                            elif idx == 3:
-                                                rest_items = day_items[3:]
+                                            elif idx == 2:
+                                                rest_items = day_items[2:]
                                                 hover_tooltip = "\n".join([f"- {r['title']}" for r in rest_items])
-                                                with st.popover(f"... 더보기 (+{len(rest_items)})", help=hover_tooltip, use_container_width=True):
+                                                with st.popover(f"... +{len(rest_items)}", help=hover_tooltip, use_container_width=True):
                                                     for r in rest_items:
                                                         e = CAT_EMOJIS.get(r['category'], "📌")
                                                         if st.button(f"{e} {r['title']}", key=f"cal_list_pop_{view_y}_{view_m}_{day}_{r['id']}", use_container_width=True):
                                                             show_details(r)
                                                 break
-                                        st.markdown("</div>", unsafe_allow_html=True)
 
         # ==========================================
         # 🔐 SCRAP 탭
