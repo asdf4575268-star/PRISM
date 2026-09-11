@@ -164,14 +164,16 @@ st.markdown("""
         color: #FFFFFF !important;
     }
 
-    /* 달력 셀 규격화 및 이미지 레퍼런스 스타일 적용 */
+    /* 달력 셀 규격화: 높이를 고정(height)하여 콘텐츠 유무와 상관없이 동일한 크기 유지 */
     div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"] {
         padding: 8px !important;
-        min-height: 140px !important;
+        height: 160px !important; 
         border: 1px solid #334155 !important;
         background-color: #1A2234 !important;
         border-radius: 12px !important;
         transition: all 0.2s ease-in-out !important;
+        display: flex !important;
+        flex-direction: column !important;
     }
     div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"]:hover {
         border-color: #6366F1 !important;
@@ -589,6 +591,27 @@ def show_plan_details(item):
     except: rich_data = {"note": item_dict.get('memo', '')}
     render_item_details({**rich_data, "id": item_dict['id'], "category": item_dict['category'], "title": item_dict['title'], "plan_date": item_dict['plan_date']}, item_dict['id'], is_plan=True)
 
+# 해당 날짜에 복수 아이템이 있을 때 리스트를 띄우기 위한 새로운 다이얼로그 추가
+@st.dialog("일간 목록", width="large")
+def show_daily_list_dialog(items, date_str):
+    st.markdown(f"### 📅 {date_str}")
+    st.divider()
+    for row in items:
+        col_img, col_info = st.columns([0.2, 0.8])
+        with col_img:
+            img_u = row.get("img_url")
+            if img_u and str(img_u) != "None":
+                st.image(img_u, use_container_width=True)
+            else:
+                st.markdown(f"<div style='font-size: 30px; text-align: center; background-color: #334155; border-radius: 8px; padding: 20px;'>{CAT_EMOJIS.get(row.get('category', ''), '📌')}</div>", unsafe_allow_html=True)
+        with col_info:
+            st.markdown(f"**{row.get('title', '제목 없음')}**")
+            st.markdown(f"<span style='color:#94A3B8; font-size:0.9rem;'>{row.get('creator', '')}</span>", unsafe_allow_html=True)
+            st.markdown(f"<span style='color:#64748B; font-size:0.8rem;'>{row.get('view_date', '')}</span>", unsafe_allow_html=True)
+            if st.button("상세 정보 열기", key=f"btn_detail_daily_{row['id']}", use_container_width=True):
+                show_details(row)
+        st.markdown("<hr style='margin: 10px 0; border-top: 1px dashed #334155;'>", unsafe_allow_html=True)
+
 # ==========================================
 # 7. MAIN APPLICATION ROUTING & VIEWS
 # ==========================================
@@ -607,7 +630,9 @@ def image_button(image_url, key, *, aspect_ratio=None, width="100%", height=None
     if height: size_css += f"height:{height} !important;min-height:{height} !important;"
 
     top_badge_css = f"""div[data-testid="stColumn"] .st-key-{key} button::before {{ content: "{str(top_badge).replace('\\', '\\\\').replace('"', '\\"')}"; position: absolute; top: 4px; left: 4px; z-index: 2; background: rgba(15,23,42,.88); color: #FBBF24; padding: 1px 5px; border-radius: 6px; font-size: 9px; line-height: 1.3; font-weight: 700; }}""" if top_badge else ""
-    bottom_badge_css = f"""div[data-testid="stColumn"] .st-key-{key} button::after {{ content: "{str(bottom_badge).replace('\\', '\\\\').replace('"', '\\"')}"; position: absolute; right: 4px; bottom: 4px; z-index: 2; background: rgba(15,23,42,.88); color: #E2E8F0; padding: 1px 5px; border-radius: 6px; font-size: 9px; line-height: 1.3; font-weight: 600; }}""" if bottom_badge else ""
+    
+    # 우측 하단 숫자(또는 텍스트) 배지 스타일 적용
+    bottom_badge_css = f"""div[data-testid="stColumn"] .st-key-{key} button::after {{ content: "{str(bottom_badge).replace('\\', '\\\\').replace('"', '\\"')}"; position: absolute; right: 4px; bottom: 4px; z-index: 2; background: rgba(0,0,0,.7); color: #FFFFFF; padding: 2px 8px; border-radius: 4px; font-size: 11px; line-height: 1.3; font-weight: bold; }}""" if bottom_badge else ""
 
     st.markdown(f"""<style>
         div[data-testid="stColumn"] .st-key-{key} button {{
@@ -973,9 +998,9 @@ elif not tab_w:
                     for day_idx, day in enumerate(week):
                         with cols[day_idx]:
                             if day == 0:
-                                st.markdown("<div style='min-height: 140px;'></div>", unsafe_allow_html=True)
+                                st.markdown("<div style='min-height: 160px;'></div>", unsafe_allow_html=True)
                             else:
-                                # border=True인 st.container를 사용하면 위에서 정의한 CSS(.stVerticalBlockBorderWrapper)가 적용됩니다.
+                                # 컨테이너 높이가 160px로 고정됨
                                 with st.container(border=True):
                                     is_today = (view_y == get_kst_today().year and view_m == get_kst_today().month and day == get_kst_today().day)
                                     date_class = "cal-date today" if is_today else "cal-date"
@@ -985,23 +1010,20 @@ elif not tab_w:
                                     
                                     day_items = m_items_by_day.get(day, [])
                                     if not day_items: 
-                                        st.markdown("<div style='min-height: 80px;'></div>", unsafe_allow_html=True)
+                                        # 콘텐츠가 없는 빈칸의 경우에도 동일한 높이가 적용되도록 처리
+                                        pass
                                     else:
-                                        for idx, row in enumerate(day_items):
-                                            if idx < 2:
-                                                img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
-                                                # 이미지 썸네일을 레퍼런스(정방형 혹은 꽉 차는 형태)로 적용
-                                                if image_button(img_u, f"cal_img_all_{view_y}_{view_m}_{day}_{row['id']}_{idx}", aspect_ratio="1/1", top_badge=row["category"], border_radius=8):
-                                                    show_details(row)
-                                            elif idx == 2:
-                                                rest_items = day_items[2:]
-                                                hover_tooltip = "\n".join([f"- {r['title']}" for r in rest_items])
-                                                with st.popover(f"... +{len(rest_items)}", help=hover_tooltip, use_container_width=True):
-                                                    for r in rest_items:
-                                                        e = CAT_EMOJIS.get(r['category'], "📌")
-                                                        if st.button(f"{e} {r['title']}", key=f"cal_list_pop_{view_y}_{view_m}_{day}_{r['id']}", use_container_width=True):
-                                                            show_details(r)
-                                                break
+                                        # 병렬 배치 대신 첫 번째 아이템만 노출하고, 2개 이상일 경우 배지 추가
+                                        first_item = day_items[0]
+                                        img_u = first_item["img_url"] if first_item["img_url"] and str(first_item["img_url"]) != "None" else ""
+                                        badge_num = str(len(day_items)) if len(day_items) > 1 else None
+                                        
+                                        if image_button(img_u, f"cal_img_all_{view_y}_{view_m}_{day}", aspect_ratio="1/1", top_badge=first_item["category"], bottom_badge=badge_num, border_radius=8):
+                                            if len(day_items) == 1:
+                                                show_details(first_item)
+                                            else:
+                                                date_label = f"{view_y}. {view_m:02d}. {day:02d}"
+                                                show_daily_list_dialog(day_items, date_label)
 
         # ==========================================
         # 🔐 SCRAP 탭
