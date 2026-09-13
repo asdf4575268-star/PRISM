@@ -1005,7 +1005,7 @@ elif not tab_w:
                                 st.markdown("<div style='min-height: 160px;'></div>", unsafe_allow_html=True)
                             else:
                                 # 컨테이너 높이가 160px로 고정됨
-                                with st.container(border=False):
+                                with st.container(border=True):
                                     is_today = (view_y == get_kst_today().year and view_m == get_kst_today().month and day == get_kst_today().day)
                                     date_class = "cal-date today" if is_today else "cal-date"
                                     
