@@ -947,7 +947,7 @@ elif not tab_w:
                 main_df['year_month'] = main_df['v_dt'].dt.to_period('M')
                 months = sorted(main_df['year_month'].dropna().unique(), reverse=True)
                 
-                shelf_cols = 6
+                shelf_cols = 7
                 displayed_count = 0
                 
                 for ym in months:
