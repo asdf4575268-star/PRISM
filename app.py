@@ -168,6 +168,10 @@ st.markdown("""
     div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"] {
         padding: 8px !important;
         height: 160px !important; 
+        min-height: 160px !important; /* 최소 높이 절대 고정 */
+        max-height: 160px !important; /* 최대 높이 절대 고정 */
+        overflow-y: auto !important; /* 내용이 넘칠 경우 내부 스크롤 생성 */
+        
         border: 1px solid #334155 !important;
         background-color: #1A2234 !important;
         border-radius: 12px !important;
