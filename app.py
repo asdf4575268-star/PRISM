@@ -4,7 +4,7 @@ from PIL import Image
 import sqlite3
 import requests
 import pandas as pd
-from datetime import date, datetime, timedeltahttps://music.apple.com
+from datetime import date, datetime, timedelta
 import re
 import xml.etree.ElementTree as ET
 from supabase import create_client, Client
@@ -320,7 +320,7 @@ def search_apple_music(query):
     query = str(query or "").strip()
     if not query: return []
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-    countries = ["KR", "JP", "US"]
+    countries = ["KR", "US"]
     collected = {}
     for country in countries:
         try:
@@ -815,7 +815,7 @@ if IS_ADMIN and tab_w:
                     m = opts[sel]
                     tl_text, cid = "", m.get("collection_id")
                     if cid:
-                        for lookup_country in [m.get("country", "KR"), "KR", "US"]:
+                        for lookup_country in [m.get("country", "KR"), "KR", "JP", "US"]:
                             try:
                                 lookup_res = requests.get("https://itunes.apple.com/lookup", params={"id": cid, "entity": "song", "country": lookup_country}, headers={"User-Agent": "Mozilla/5.0"}, timeout=7).json().get("results", [])
                                 tracks = [t.get("trackName") for t in lookup_res if t.get("wrapperType") == "track" and t.get("trackName")]
