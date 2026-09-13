@@ -956,7 +956,7 @@ elif not tab_w:
                     m_data = main_df[main_df['year_month'] == ym]
                     
                     # 월별 헤더 출력
-                    st.markdown(f"#### 📁 {ym.year}년 {ym.month}월 ({len(m_data)})")
+                    st.markdown(f"<h4 style='font-size: 1.2rem; margin-bottom: 10px; margin-top: 20px;'>📁 {ym.year}년 {ym.month}월 ({len(m_data)})</h4>", unsafe_allow_html=True)
                     
                     items = m_data.to_dict('records')
                     
