@@ -861,10 +861,10 @@ if IS_ADMIN and tab_w:
 
         with cr:
             if category == "SCRAP":
-                st.text_area("📰 QUOTE(url)", key="f_summary", height=120)
-                st.text_area("✍️ HANDWRITE(brief)", key="f_note", height=120)
-                st.text_input("🎯 CONTEXT(argument)", key="f_brief")
-                st.text_area("💡 EXAMPLS(evidences)/STRUCTURE", key="f_highlights", height=100)
+                st.text_area("📰 원문", key="f_summary", height=120)
+                st.text_area("✍️ 5줄 요약", key="f_note", height=120)
+                st.text_input("🎯 중심맥락", key="f_brief")
+                st.text_area("💡 핵심사례/통계", key="f_highlights", height=100)
             else:
                 st.text_input("💎 DRIP", key="f_brief")
                 st.text_area("🖋️ PRISM", key="f_note", height=240)
