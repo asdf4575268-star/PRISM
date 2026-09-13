@@ -898,7 +898,8 @@ elif not tab_w:
     div[data-testid="stColumn"] button:hover { color: #6366F1 !important; }
     @media (max-width: 768px) {
         div[data-testid="stHorizontalBlock"] { display: flex !important; flex-wrap: wrap !important; gap: 8px !important; }
-        div[data-testid="stHorizontalBlock"] > div[data-testid="column"] { flex: 1 1 calc(25% - 8px) !important; min-width: calc(25% - 8px) !important; max-width: calc(25% - 8px) !important; margin: 0 !important; padding: 0 !important; }
+        /* 모바일에서는 선반을 5개씩 나누어 표시되도록 설정 */
+        div[data-testid="stHorizontalBlock"] > div[data-testid="column"] { flex: 1 1 calc(20% - 8px) !important; min-width: calc(20% - 8px) !important; max-width: calc(20% - 8px) !important; margin: 0 !important; padding: 0 !important; }
     }
     @media (min-width: 769px) {
         div[data-testid="stHorizontalBlock"] { display: flex !important; flex-wrap: nowrap !important; gap: 10px !important; }
@@ -934,100 +935,53 @@ elif not tab_w:
         if st.session_state.current_archive_tab != selected_tab:
             st.session_state.current_archive_tab = selected_tab
             st.session_state.max_items = 60
-            
-        grid_cols = 6
 
         # ==========================================
-        # 📂 ARCHIVE - ALL 탭 (연간 리스트 및 월간 달력)
+        # 📂 ARCHIVE - ALL 탭 (월별 선반 형태)
         # ==========================================
         if selected_tab.startswith("📅 ALL"):
-            view_mode = st.toggle("🗓️ YEARLY LIST", value=False)
             st.divider()
 
-            if view_mode:
-                year_counts = main_df['v_dt'].dt.year.dropna().astype(int).value_counts().sort_index(ascending=False)
+            if not main_df.empty:
+                # view_date 기준으로 연-월 묶음 생성 (내림차순)
+                main_df['year_month'] = main_df['v_dt'].dt.to_period('M')
+                months = sorted(main_df['year_month'].dropna().unique(), reverse=True)
                 
-                for sel_year, count in year_counts.items():
-                    # Expander로 연도별 토글 처리
-                    with st.expander(f"📁 {sel_year}년 ({count})", expanded=(sel_year == year_counts.index[0])):
-                        year_df = main_df[main_df['v_dt'].dt.year == sel_year]
-                        items = year_df.to_dict('records')
+                shelf_cols = 10
+                displayed_count = 0
+                
+                for ym in months:
+                    if displayed_count >= st.session_state.max_items: break
+                    
+                    m_data = main_df[main_df['year_month'] == ym]
+                    
+                    # 월별 헤더 출력
+                    st.subheader(f"📁 {ym.year}년 {ym.month}월 ({len(m_data)})")
+                    
+                    items = m_data.to_dict('records')
+                    
+                    # 한 줄에 10개씩(shelf_cols) 끊어서 렌더링
+                    for i in range(0, len(items), shelf_cols):
+                        if displayed_count >= st.session_state.max_items: break
                         
-                        for i in range(0, len(items), grid_cols):
-                            cols = st.columns(grid_cols)
-                            for j in range(grid_cols):
-                                if i + j < len(items):
-                                    row = items[i + j]
-                                    with cols[j]:
-                                        img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
-                                        if image_button(img_u, f"archive_img_year_{sel_year}_{row['id']}", aspect_ratio="1/1.4", top_badge=row["category"], bottom_badge=str(row["view_date"])[5:]):
-                                            show_details(row)
+                        cols = st.columns(shelf_cols)
+                        for j in range(shelf_cols):
+                            if i + j < len(items):
+                                row = items[i + j]
+                                with cols[j]:
+                                    img_u = row["img_url"] if row["img_url"] and str(row["img_url"]) != "None" else ""
+                                    if image_button(img_u, f"archive_img_all_{row['id']}", aspect_ratio="1/1.4", top_badge=row["category"], bottom_badge=str(row["view_date"])[5:]):
+                                        show_details(row)
+                                displayed_count += 1
+                                
+                    st.markdown("<br>", unsafe_allow_html=True) # 줄바꿈 간격 조절
+                    
+                if len(main_df) > st.session_state.max_items:
+                    if st.button("🔽 더보기 (Load More)", use_container_width=True):
+                        st.session_state.max_items += 60
+                        st.rerun()
             else:
-                nav_l, nav_c, nav_r = st.columns([0.12, 0.76, 0.12])
-                with nav_l:
-                    if st.button("⬅️", use_container_width=True, key="archive_m_prev"):
-                        st.session_state.archive_month_offset -= 1
-                        st.rerun()
-
-                today_dt = get_kst_today()
-                total_m = today_dt.year * 12 + (today_dt.month - 1) + st.session_state.archive_month_offset
-                view_y = total_m // 12
-                view_m = (total_m % 12) + 1
-
-                m_data = main_df[(main_df['v_dt'].dt.year == view_y) & (main_df['v_dt'].dt.month == view_m)]
-
-                with nav_c: st.markdown(f"<div style='text-align:center; padding:8px 0; font-weight:800; color:#F1F5F9; font-size:1.1rem;'>🗓️ {view_y}년 {view_m}월 <span style='color:#818CF8; font-size:0.9rem;'>({len(m_data)})</span></div>", unsafe_allow_html=True)
-
-                with nav_r:
-                    if st.button("➡️", use_container_width=True, key="archive_m_next"):
-                        st.session_state.archive_month_offset += 1
-                        st.rerun()
-
-                days_header = ["월", "화", "수", "목", "금", "토", "일"]
-                h_cols = st.columns(7)
-                for idx, h in enumerate(days_header):
-                    h_cols[idx].markdown(f"<div style='text-align: center; font-weight: bold; color: #94A3B8; font-size: 0.85rem;'>{h}</div>", unsafe_allow_html=True)
-
-                cal_matrix = calendar.monthcalendar(view_y, view_m)
-                m_items_by_day = {}
-                if not m_data.empty:
-                    for item in m_data.to_dict('records'):
-                        try:
-                            d_num = pd.to_datetime(item['view_date']).day
-                            m_items_by_day.setdefault(d_num, []).append(item)
-                        except: pass
-
-                for week in cal_matrix:
-                    cols = st.columns(7, gap="small")
-                    for day_idx, day in enumerate(week):
-                        with cols[day_idx]:
-                            if day == 0:
-                                st.markdown("<div style='min-height: 160px;'></div>", unsafe_allow_html=True)
-                            else:
-                                # 컨테이너 높이가 160px로 고정됨
-                                with st.container(border=False):
-                                    is_today = (view_y == get_kst_today().year and view_m == get_kst_today().month and day == get_kst_today().day)
-                                    date_class = "cal-date today" if is_today else "cal-date"
-                                    
-                                    # 날짜 표시
-                                    st.markdown(f"<span class='{date_class}'>{day}</span>", unsafe_allow_html=True)
-                                    
-                                    day_items = m_items_by_day.get(day, [])
-                                    if not day_items: 
-                                        # 콘텐츠가 없는 빈칸의 경우에도 동일한 높이가 적용되도록 처리
-                                        pass
-                                    else:
-                                        # 병렬 배치 대신 첫 번째 아이템만 노출하고, 2개 이상일 경우 배지 추가
-                                        first_item = day_items[0]
-                                        img_u = first_item["img_url"] if first_item["img_url"] and str(first_item["img_url"]) != "None" else ""
-                                        badge_num = str(len(day_items)) if len(day_items) > 1 else None
-                                        
-                                        if image_button(img_u, f"cal_img_all_{view_y}_{view_m}_{day}", aspect_ratio="1/1", top_badge=first_item["category"], bottom_badge=badge_num, border_radius=8):
-                                            if len(day_items) == 1:
-                                                show_details(first_item)
-                                            else:
-                                                date_label = f"{view_y}. {view_m:02d}. {day:02d}"
-                                                show_daily_list_dialog(day_items, date_label)
+                st.info("저장된 기록이 없습니다.")
 
         # ==========================================
         # 🔐 SCRAP 탭
@@ -1091,6 +1045,7 @@ elif not tab_w:
         # 🎬 일반 CATEGORY 탭 (BOOKS, MUSIC 등)
         # ==========================================
         else:
+            grid_cols = 6
             c_name = selected_tab.split(" ")[1]
             c_data = main_df[main_df['category'] == c_name]
             
