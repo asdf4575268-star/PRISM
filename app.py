@@ -784,7 +784,64 @@ if IS_ADMIN and tab_w:
 
     st.markdown("<div style='height:18px;'></div>", unsafe_allow_html=True)
 
-v
+    # SEARCH 기능
+    category = st.radio("📂 CATEGORY", CATEGORIES, horizontal=True, key="main_category_radio")
+    search_query = st.text_input(f"🔍 {category} 검색")
+
+    if search_query:
+        if category == "SCRAP":
+            if st.button("✨ 가져오기", use_container_width=True):
+                if s := scrape_url(search_query):
+                    st.session_state.update(edit_target_id=None, edit_source=None, f_title=s["title"], f_creator="", f_date="", f_view_date=get_kst_today(), f_img=s["img"], f_venue=s["venue"], f_summary=s["summary"], f_highlights="", f_note="", f_brief="", f_video="")
+                    st.rerun()
+                else: st.error("URL 정보를 가져올 수 없습니다.")
+        elif category == "BOOKS":
+            if res := search_books(search_query):
+                sel = st.selectbox("결과 선택", list((opts := {f"📚 {b['title']}": b for b in res}).keys()))
+                if st.button("✨ 가져오기", use_container_width=True):
+                    b = opts[sel]
+                    full_desc = b.get("contents", "")
+                    if b.get("url"):
+                        if scraped := scrape_url(b["url"]):
+                            if scraped.get("summary"):
+                                scraped_desc = scraped["summary"].replace(b["url"], "").strip()
+                                if len(scraped_desc) > len(full_desc): full_desc = scraped_desc
+                    st.session_state.update(edit_target_id=None, edit_source=None, f_title=b["title"], f_creator=", ".join(b["authors"]), f_date=b["datetime"][:10], f_img=b.get("thumbnail", "").replace("R120x174", "R400x0"), f_venue=b.get("publisher", ""), f_summary=full_desc, f_highlights="", f_note="", f_brief="", f_video="")
+                    st.rerun()
+        elif category == "MUSIC":
+            if res := search_apple_music(search_query):
+                sel = st.selectbox("결과 선택", list((opts := {m["display_name"]: m for m in res}).keys()))
+                if st.button("✨ 가져오기", use_container_width=True):
+                    m = opts[sel]
+                    tl_text, cid = "", m.get("collection_id")
+                    if cid:
+                        for lookup_country in [m.get("country", "KR"), "KR", "JP", "US"]:
+                            try:
+                                lookup_res = requests.get("https://itunes.apple.com/lookup", params={"id": cid, "entity": "song", "country": lookup_country}, headers={"User-Agent": "Mozilla/5.0"}, timeout=7).json().get("results", [])
+                                tracks = [t.get("trackName") for t in lookup_res if t.get("wrapperType") == "track" and t.get("trackName")]
+                                if tracks:
+                                    tl_text = "💿 트랙리스트\n" + "\n".join(f"{i + 1}. {t}" for i, t in enumerate(tracks))
+                                    break
+                            except: continue
+                    st.session_state.update(edit_target_id=None, edit_source=None, f_title=m["title"], f_creator=m["creator"], f_date=m["date"], f_img=m["img"], f_venue=m["venue"], f_summary=f"{m.get('url', '')}\n\n{tl_text}".strip(), f_highlights="", f_note="", f_brief="", f_video="")
+                    st.rerun()
+        elif category == "STAGE":
+            if res := search_kopis(search_query):
+                sel = st.selectbox("결과 선택", list((opts := {f"🎭 {s['title']} [{s['date']}~] ({s['venue']})": s for s in res}).keys()))
+                if st.button("✨ 가져오기", use_container_width=True):
+                    s = opts[sel]
+                    st.session_state.update(edit_target_id=None, edit_source=None, f_title=s["title"], f_creator=get_kopis_detail(s["id"]), f_date=s["date"], f_img=s["img"], f_venue=s["venue"], f_summary=f"https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?menuId=MNU_00020&mt20Id={s['id']}", f_highlights="", f_note="", f_brief="", f_video="")
+                    st.rerun()
+        else:
+            if res := search_tmdb(search_query, category):
+                t_key, d_key = (("title", "release_date") if category == "MOVIES" else ("name", "first_air_date"))
+                sel = st.selectbox("결과 선택", list((opts := {f"🎬 {r.get(t_key)} ({str(r.get(d_key))[:4]})": r for r in res}).keys()))
+                if st.button("✨ 가져오기", use_container_width=True):
+                    s = opts[sel]
+                    details = get_tmdb_details(s["id"], category)
+                    st.session_state.update(edit_target_id=None, edit_source=None, f_title=s.get(t_key, ""), f_creator=details["creator"], f_date=s.get(d_key, ""), f_img=f"https://image.tmdb.org/t/p/w500{s.get('poster_path')}", f_venue=details["venue"], f_summary=s.get("overview", ""), f_highlights="", f_note="", f_brief="", f_video="")
+                    st.rerun()
+
     st.divider()
 
     with st.form(key="prism_write_form", clear_on_submit=False):
