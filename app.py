@@ -785,7 +785,6 @@ if IS_ADMIN and tab_w:
     st.markdown("<div style='height:18px;'></div>", unsafe_allow_html=True)
 
     # SEARCH 기능
-    st.markdown("#### 🔍 API DATA FETCH")
     category = st.radio("📂 CATEGORY", CATEGORIES, horizontal=True, key="main_category_radio")
     search_query = st.text_input(f"🔍 {category} 검색")
 
