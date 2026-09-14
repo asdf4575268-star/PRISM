@@ -15,12 +15,11 @@ import extra_streamlit_components as stx
 import time
 
 # ==========================================
-# 1. CONSTANTS & CONFIGURATION (상수 및 설정)
+# 1. CONSTANTS & CONFIGURATION
 # ==========================================
 FAVICON = Image.open("logo.png").resize((64, 64), Image.LANCZOS)
 st.set_page_config(page_title="PRISM", page_icon=FAVICON, layout="wide", initial_sidebar_state="collapsed")
 
-# API Keys & DB
 TMDB_API_KEY = "6e7c55b6259b7731655033f783f3fc5b"
 DB_NAME = 'archive_prism_total_v5.db'
 KOPIS_KEY = "7a919bc272204f06bbca10e2af376dea"
@@ -28,7 +27,6 @@ ALADIN_API_KEY = "ttbckwntmd2101002"
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
-# Category Definitions
 CATEGORIES = ["BOOKS", "MUSIC", "MOVIES", "SERIES", "STAGE", "SCRAP"]
 CAT_EMOJIS = {"BOOKS": "📚", "MUSIC": "🎧", "MOVIES": "🎞️", "SERIES": "📽️", "STAGE": "🎭", "SCRAP": "📰"}
 FORM_KEYS = ['f_title', 'f_creator', 'f_date', 'f_venue', 'f_img', 'f_video', 'f_summary', 'f_brief', 'f_highlights', 'f_note']
@@ -37,14 +35,12 @@ def get_kst_today():
     return (datetime.utcnow() + timedelta(hours=9)).date()
 
 # ==========================================
-# 2. STATE INITIALIZATION (상태 중앙 관리)
+# 2. STATE INITIALIZATION
 # ==========================================
 cookie_manager = stx.CookieManager()
 
-# 로그인 상태 복구
 if "is_logged_in" not in st.session_state:
     login_cookie = cookie_manager.get(cookie="admin_logged_in")
-
     if login_cookie == "yes":
         st.session_state.is_logged_in = True
     else:
@@ -52,7 +48,6 @@ if "is_logged_in" not in st.session_state:
         login_cookie = cookie_manager.get(cookie="admin_logged_in")
         st.session_state.is_logged_in = (login_cookie == "yes")
 
-# 기타 세션 상태
 if "user_password" not in st.session_state: st.session_state.user_password = ""
 if "selected_tag" not in st.session_state: st.session_state.selected_tag = None
 if "week_offset" not in st.session_state: st.session_state.week_offset = 0
@@ -72,7 +67,6 @@ if "f_view_date" not in st.session_state:
 for k in FORM_KEYS:
     if k not in st.session_state: st.session_state[k] = ""
 
-# 초기화 버튼을 눌렀을 때 폼 비우기
 if st.session_state.should_clear_form:
     for k in FORM_KEYS: st.session_state[k] = ""
     st.session_state.f_view_date = get_kst_today()
@@ -84,122 +78,33 @@ if st.session_state.should_clear_form:
 if st.session_state.user_password == st.secrets["ADMIN_PASSWORD"]:
     st.session_state.is_logged_in = True
 IS_ADMIN = st.session_state.is_logged_in
-
 tab_w = (st.session_state.main_nav == "🖋️ WRITE") if IS_ADMIN else False
 
 # ==========================================
-# 3. GLOBAL DESIGN SYSTEM INJECTION (디자인 시스템 정의)
+# 3. GLOBAL DESIGN SYSTEM INJECTION
 # ==========================================
 st.markdown("""
 <style>
-    /* 전체 배경 톤 및 베이스 레이아웃 최적화 */
-    .stApp {
-        background-color: #0F172A !important;
-        color: #F1F5F9 !important;
-    }
-    
-    /* 폼 컨테이너 고급화 */
-    div[data-testid="stForm"] {
-        background-color: #1E293B !important;
-        border: 1px solid #334155 !important;
-        border-radius: 16px !important;
-        padding: 24px !important;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3) !important;
-    }
-    
-    /* 인풋 상자 테두리 가공 */
-    div[data-testid="stTextInput"] input, div[data-testid="stTextArea"] textarea, div[data-testid="stDateInput"] input {
-        background-color: #0F172A !important;
-        border: 1px solid #334155 !important;
-        border-radius: 8px !important;
-        color: #F1F5F9 !important;
-        transition: all 0.2s ease;
-    }
-    div[data-testid="stTextInput"] input:focus, div[data-testid="stTextArea"] textarea:focus {
-        border-color: #6366F1 !important;
-        box-shadow: 0 0 0 1px #6366F1 !important;
-    }
-    
-    /* 네비게이션용 라디오 그룹 고급 세그먼트화 및 가로 스크롤(스크롤 버튼형) 적용 */
-    div[data-testid="stRadio"] > div[role="radiogroup"] {
-        background-color: #1E293B !important;
-        padding: 6px !important;
-        border-radius: 12px !important;
-        border: 1px solid #334155 !important;
-        gap: 6px !important;
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        overflow-x: auto !important; 
-        white-space: nowrap !important;
-    }
-    div[data-testid="stRadio"] > div[role="radiogroup"]::-webkit-scrollbar {
-        height: 6px; 
-    }
-    div[data-testid="stRadio"] > div[role="radiogroup"]::-webkit-scrollbar-track {
-        background: #0F172A;
-        border-radius: 4px;
-    }
-    div[data-testid="stRadio"] > div[role="radiogroup"]::-webkit-scrollbar-thumb {
-        background-color: #4F46E5;
-        border-radius: 4px;
-    }
-    
-    div[role="radiogroup"] > label {
-        background: transparent !important;
-        color: #94A3B8 !important;
-        padding: 6px 16px !important;
-        border-radius: 8px !important;
-        font-weight: bold !important;
-        font-size: 0.95rem !important;
-        transition: all 0.2s ease !important;
-        border: none !important;
-        flex-shrink: 0 !important; 
-    }
-    div[role="radiogroup"] > label[data-checked="true"] {
-        background: linear-gradient(135deg, #4F46E5 0%, #3B82F6 100%) !important;
-        color: #FFFFFF !important;
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
-    }
-    div[role="radiogroup"] > label[data-checked="true"] p {
-        color: #FFFFFF !important;
-    }
-
-    /* 달력 셀 규격화: 높이를 고정(height)하여 콘텐츠 유무와 상관없이 동일한 크기 유지 */
-    div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"] {
-        padding: 8px !important;
-        height: 160px !important; 
-        min-height: 160px !important; /* 최소 높이 절대 고정 */
-        max-height: 160px !important; /* 최대 높이 절대 고정 */
-        overflow-y: auto !important; /* 내용이 넘칠 경우 내부 스크롤 생성 */
-        
-        border: 1px solid #334155 !important;
-        background-color: #1A2234 !important;
-        border-radius: 12px !important;
-        transition: all 0.2s ease-in-out !important;
-        display: flex !important;
-        flex-direction: column !important;
-    }
-    div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"]:hover {
-        border-color: #6366F1 !important;
-        background-color: #1E293B !important;
-        box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15) !important;
-    }
-    .cal-date {
-        font-size: 1.1rem;
-        font-weight: 800;
-        color: #F8FAFC;
-        margin-bottom: 8px;
-        display: block;
-    }
-    .cal-date.today {
-        color: #818CF8;
-    }
+    .stApp { background-color: #0F172A !important; color: #F1F5F9 !important; }
+    div[data-testid="stForm"] { background-color: #1E293B !important; border: 1px solid #334155 !important; border-radius: 16px !important; padding: 24px !important; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3) !important; }
+    div[data-testid="stTextInput"] input, div[data-testid="stTextArea"] textarea, div[data-testid="stDateInput"] input { background-color: #0F172A !important; border: 1px solid #334155 !important; border-radius: 8px !important; color: #F1F5F9 !important; transition: all 0.2s ease; }
+    div[data-testid="stTextInput"] input:focus, div[data-testid="stTextArea"] textarea:focus { border-color: #6366F1 !important; box-shadow: 0 0 0 1px #6366F1 !important; }
+    div[data-testid="stRadio"] > div[role="radiogroup"] { background-color: #1E293B !important; padding: 6px !important; border-radius: 12px !important; border: 1px solid #334155 !important; gap: 6px !important; display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; overflow-x: auto !important; white-space: nowrap !important; }
+    div[data-testid="stRadio"] > div[role="radiogroup"]::-webkit-scrollbar { height: 6px; }
+    div[data-testid="stRadio"] > div[role="radiogroup"]::-webkit-scrollbar-track { background: #0F172A; border-radius: 4px; }
+    div[data-testid="stRadio"] > div[role="radiogroup"]::-webkit-scrollbar-thumb { background-color: #4F46E5; border-radius: 4px; }
+    div[role="radiogroup"] > label { background: transparent !important; color: #94A3B8 !important; padding: 6px 16px !important; border-radius: 8px !important; font-weight: bold !important; font-size: 0.95rem !important; transition: all 0.2s ease !important; border: none !important; flex-shrink: 0 !important; }
+    div[role="radiogroup"] > label[data-checked="true"] { background: linear-gradient(135deg, #4F46E5 0%, #3B82F6 100%) !important; color: #FFFFFF !important; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important; }
+    div[role="radiogroup"] > label[data-checked="true"] p { color: #FFFFFF !important; }
+    div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"] { padding: 8px !important; height: 160px !important; min-height: 160px !important; max-height: 160px !important; overflow-y: auto !important; border: 1px solid #334155 !important; background-color: #1A2234 !important; border-radius: 12px !important; transition: all 0.2s ease-in-out !important; display: flex !important; flex-direction: column !important; }
+    div[data-testid="stColumn"] > div[data-testid="stVerticalBlockBorderWrapper"]:hover { border-color: #6366F1 !important; background-color: #1E293B !important; box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15) !important; }
+    .cal-date { font-size: 1.1rem; font-weight: 800; color: #F8FAFC; margin-bottom: 8px; display: block; }
+    .cal-date.today { color: #818CF8; }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 4. DATABASE & CLOUD SYNC (데이터베이스)
+# 4. DATABASE & CLOUD SYNC
 # ==========================================
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -209,12 +114,8 @@ def get_connection():
 
 def init_db():
     conn = get_connection()
-    conn.execute('''CREATE TABLE IF NOT EXISTS archive 
-                    (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, 
-                     rel_date TEXT, venue TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, 
-                     img_url TEXT, img_url2 TEXT, save_date TEXT, view_date TEXT)''')
-    conn.execute('''CREATE TABLE IF NOT EXISTS plan 
-                    (id INTEGER PRIMARY KEY AUTOINCREMENT, plan_date TEXT, category TEXT, title TEXT, memo TEXT)''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS archive (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, title TEXT, creator TEXT, rel_date TEXT, venue TEXT, summary TEXT, brief TEXT, highlights TEXT, note TEXT, img_url TEXT, img_url2 TEXT, save_date TEXT, view_date TEXT)''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS plan (id INTEGER PRIMARY KEY AUTOINCREMENT, plan_date TEXT, category TEXT, title TEXT, memo TEXT)''')
     conn.commit()
 
 init_db()
@@ -236,37 +137,12 @@ def migrate_to_supabase():
         
         local_data = [dict(row) for row in conn.execute("SELECT * FROM archive").fetchall()]
         if local_data:
-            formatted_archive = []
-            for item in local_data:
-                formatted_archive.append({
-                    "id": item.get("id"),
-                    "category": safe_str(item.get("category")),
-                    "title": safe_str(item.get("title")),
-                    "creator": safe_str(item.get("creator")),
-                    "rel_date": safe_str(item.get("rel_date")),
-                    "venue": safe_str(item.get("venue")),
-                    "summary": safe_str(item.get("summary")),
-                    "brief": safe_str(item.get("brief")),
-                    "highlights": safe_str(item.get("highlights")),
-                    "note": safe_str(item.get("note")),
-                    "img_url": safe_str(item.get("img_url")),
-                    "img_url2": safe_str(item.get("img_url2")),
-                    "save_date": safe_str(item.get("save_date")),
-                    "view_date": safe_str(item.get("view_date"))
-                })
+            formatted_archive = [{"id": i.get("id"), "category": safe_str(i.get("category")), "title": safe_str(i.get("title")), "creator": safe_str(i.get("creator")), "rel_date": safe_str(i.get("rel_date")), "venue": safe_str(i.get("venue")), "summary": safe_str(i.get("summary")), "brief": safe_str(i.get("brief")), "highlights": safe_str(i.get("highlights")), "note": safe_str(i.get("note")), "img_url": safe_str(i.get("img_url")), "img_url2": safe_str(i.get("img_url2")), "save_date": safe_str(i.get("save_date")), "view_date": safe_str(i.get("view_date"))} for i in local_data]
             supabase.table("archive").upsert(formatted_archive).execute() 
             
         local_plan = [dict(row) for row in conn.execute("SELECT * FROM plan").fetchall()]
         if local_plan:
-            formatted_plan = []
-            for item in local_plan:
-                formatted_plan.append({
-                    "id": item.get("id"),
-                    "plan_date": safe_str(item.get("plan_date")),
-                    "category": safe_str(item.get("category")),
-                    "title": safe_str(item.get("title")),
-                    "memo": safe_str(item.get("memo"))
-                })
+            formatted_plan = [{"id": i.get("id"), "plan_date": safe_str(i.get("plan_date")), "category": safe_str(i.get("category")), "title": safe_str(i.get("title")), "memo": safe_str(i.get("memo"))} for i in local_plan]
             supabase.table("plan").upsert(formatted_plan).execute()
         
         st.session_state.sync_msg = ("success", "✅ 클라우드 백업 완료!")
@@ -307,8 +183,18 @@ def auto_sync_on_startup():
 auto_sync_on_startup()
 
 # ==========================================
-# 5. API & SEARCH FUNCTIONS (외부 API 통신)
+# 5. API & SEARCH FUNCTIONS
 # ==========================================
+def clean_aladin_text(text):
+    """알라딘 API 응답의 HTML 태그를 정제합니다."""
+    if not text: return ""
+    # <br> 태그를 줄바꿈으로 변환
+    text = re.sub(r'(?i)<br\s*/?>', '\n', text)
+    # 나머지 HTML 태그 제거
+    text = re.sub(r'<[^>]+>', '', text)
+    # HTML 엔티티(&amp; 등) 디코딩
+    return html.unescape(text).strip()
+
 def search_books(query):
     url = "http://www.aladin.co.kr/ttb/api/ItemSearch.aspx"
     params = {
@@ -327,15 +213,15 @@ def search_books(query):
     except:
         return []
 
-def get_aladin_book_details(item_id):
+def get_aladin_book_details(item_id, is_isbn=False):
     url = "http://www.aladin.co.kr/ttb/api/ItemLookUp.aspx"
     params = {
         "ttbkey": ALADIN_API_KEY,
-        "itemIdType": "ItemId",
+        "itemIdType": "ISBN13" if is_isbn else "ItemId",
         "ItemId": item_id,
         "output": "js",
         "Version": "20131101",
-        "OptResult": "Toc,description"
+        "OptResult": "Toc" # 목차 조회 옵션
     }
     try:
         res = requests.get(url, params=params, timeout=10)
@@ -348,18 +234,15 @@ def search_apple_music(query):
     base_url = "https://itunes.apple.com/search"
     query = str(query or "").strip()
     if not query: return []
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-    countries = ["KR", "US", "JP"]
+    headers = {"User-Agent": "Mozilla/5.0"}
     collected = {}
-    for country in countries:
+    for country in ["KR", "US"]:
         try:
             res = requests.get(base_url, params={"term": query, "media": "music", "entity": "album", "country": country, "limit": 50}, headers=headers, timeout=10)
             if res.status_code != 200: continue
             for m in res.json().get("results", []):
                 if m.get("wrapperType") != "collection" or m.get("collectionType") != "Album": continue
-                title = str(m.get("collectionName", "")).strip()
-                artist = str(m.get("artistName", "")).strip()
-                collection_id = m.get("collectionId")
+                title, artist, collection_id = str(m.get("collectionName", "")).strip(), str(m.get("artistName", "")).strip(), m.get("collectionId")
                 if not title or not collection_id: continue
                 key = str(collection_id)
                 if key in collected: continue
@@ -435,7 +318,7 @@ def scrape_url(url):
     except: return None
 
 # ==========================================
-# 6. UI COMPONENTS (공통 다이얼로그 렌더링)
+# 6. UI COMPONENTS
 # ==========================================
 def set_dialog_edit_mode(key, val):
     st.session_state[key] = val
@@ -484,19 +367,13 @@ def render_item_details(data_dict, item_id, is_plan=False):
             if c_save.form_submit_button("💾 저장하기", type="primary", use_container_width=True):
                 conn = get_connection()
                 if is_plan:
-                    updated_dict = {
-                        "category": cat, "title": e_title.strip(), "creator": e_creator.strip(),
-                        "rel_date": e_rel_date.strip(), "venue": e_venue.strip(), "summary": e_summary.strip(),
-                        "brief": e_brief.strip(), "highlights": e_highlights.strip(), "note": e_note.strip(),
-                        "img_url": e_img_url.strip(), "img_url2": e_img_url2.strip()
-                    }
+                    updated_dict = {"category": cat, "title": e_title.strip(), "creator": e_creator.strip(), "rel_date": e_rel_date.strip(), "venue": e_venue.strip(), "summary": e_summary.strip(), "brief": e_brief.strip(), "highlights": e_highlights.strip(), "note": e_note.strip(), "img_url": e_img_url.strip(), "img_url2": e_img_url2.strip()}
                     memo_payload = json.dumps(updated_dict, ensure_ascii=False)
                     conn.execute("UPDATE plan SET category=?, title=?, plan_date=?, memo=? WHERE id=?", (cat, e_title.strip(), str(e_view_date), memo_payload, item_id))
                     try: supabase.table("plan").update({"category": cat, "title": e_title.strip(), "plan_date": str(e_view_date), "memo": memo_payload}).eq("id", item_id).execute()
                     except: pass
                 else:
-                    conn.execute("""UPDATE archive SET title=?, creator=?, rel_date=?, venue=?, summary=?, brief=?, highlights=?, note=?, img_url=?, img_url2=?, view_date=? WHERE id=?""",
-                                 (e_title.strip(), e_creator.strip(), e_rel_date.strip(), e_venue.strip(), e_summary.strip(), e_brief.strip(), e_highlights.strip(), e_note.strip(), e_img_url.strip(), e_img_url2.strip(), str(e_view_date), item_id))
+                    conn.execute("""UPDATE archive SET title=?, creator=?, rel_date=?, venue=?, summary=?, brief=?, highlights=?, note=?, img_url=?, img_url2=?, view_date=? WHERE id=?""", (e_title.strip(), e_creator.strip(), e_rel_date.strip(), e_venue.strip(), e_summary.strip(), e_brief.strip(), e_highlights.strip(), e_note.strip(), e_img_url.strip(), e_img_url2.strip(), str(e_view_date), item_id))
                     try: supabase.table("archive").update({"title": e_title.strip(), "creator": e_creator.strip(), "rel_date": e_rel_date.strip(), "venue": e_venue.strip(), "summary": e_summary.strip(), "brief": e_brief.strip(), "highlights": e_highlights.strip(), "note": e_note.strip(), "img_url": e_img_url.strip(), "img_url2": e_img_url2.strip(), "view_date": str(e_view_date)}).eq("id", item_id).execute()
                     except: pass
 
@@ -506,7 +383,6 @@ def render_item_details(data_dict, item_id, is_plan=False):
                 st.success("✅ 저장되었습니다!")
                 time.sleep(0.5)
                 st.rerun()
-
             if c_cancel.form_submit_button("❌ 취소", use_container_width=True, on_click=set_dialog_edit_mode, args=(edit_mode_key, False)): pass
         return
 
@@ -517,13 +393,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
     if img_url and str(img_url) != "None": share_text += f"🖼️ 커버 이미지: {img_url}\n"
     share_text += "\n"
     
-    sections = [
-        ("📰 HANDWRITE", "summary", "#334155"), ("✍️ BRIEF", "note", "#1E425E"),
-        ("🎯 TOPIC", "brief", "#0E6245"), ("💡 EXAMPLES", "highlights", "#7D5600")
-    ] if cat == "SCRAP" else [
-        ("💎 DRIP", "brief", "#E50914"), ("🖋️ PRISM", "note", "#1E425E"),
-        ("💡 BRIEF", "summary", "#0E6245"), ("🔖 POINT", "highlights", "#7D5600")
-    ]
+    sections = [("📰 HANDWRITE", "summary", "#334155"), ("✍️ BRIEF", "note", "#1E425E"), ("🎯 TOPIC", "brief", "#0E6245"), ("💡 EXAMPLES", "highlights", "#7D5600")] if cat == "SCRAP" else [("💎 DRIP", "brief", "#E50914"), ("🖋️ PRISM", "note", "#1E425E"), ("💡 BRIEF", "summary", "#0E6245"), ("🔖 POINT", "highlights", "#7D5600")]
     
     if cat == "SCRAP":
         for label, key, _ in sections:
@@ -549,7 +419,6 @@ def render_item_details(data_dict, item_id, is_plan=False):
             with st.popover("🔗 공유", use_container_width=True):
                 st.markdown("**아래 텍스트를 복사하세요!**")
                 st.code(share_text.strip(), language="markdown")
-                
         st.divider()
 
     col_img, col_txt = st.columns([0.35, 0.65])
@@ -595,14 +464,7 @@ def render_item_details(data_dict, item_id, is_plan=False):
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("✅ 작성 완료", key=f"to_archive_{item_id}", use_container_width=True, type="primary"):
                 conn = get_connection()
-                new_record = {
-                    "category": cat, "title": data_dict['title'], "creator": data_dict.get("creator", ""), 
-                    "rel_date": data_dict.get("rel_date", ""), "venue": data_dict.get("venue", ""), 
-                    "summary": data_dict.get("summary", ""), "brief": data_dict.get("brief", ""), 
-                    "highlights": data_dict.get("highlights", ""), "note": data_dict.get("note", ""), 
-                    "img_url": data_dict.get("img_url", ""), "img_url2": data_dict.get("img_url2", ""), 
-                    "save_date": str(get_kst_today()), "view_date": data_dict['plan_date']
-                }
+                new_record = {"category": cat, "title": data_dict['title'], "creator": data_dict.get("creator", ""), "rel_date": data_dict.get("rel_date", ""), "venue": data_dict.get("venue", ""), "summary": data_dict.get("summary", ""), "brief": data_dict.get("brief", ""), "highlights": data_dict.get("highlights", ""), "note": data_dict.get("note", ""), "img_url": data_dict.get("img_url", ""), "img_url2": data_dict.get("img_url2", ""), "save_date": str(get_kst_today()), "view_date": data_dict['plan_date']}
                 conn.execute("""INSERT INTO archive (category, title, creator, rel_date, venue, summary, brief, highlights, note, img_url, img_url2, save_date, view_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""", tuple(new_record.values()))
                 try: supabase.table("archive").upsert(new_record).execute()
                 except: pass
@@ -624,7 +486,6 @@ def show_plan_details(item):
     except: rich_data = {"note": item_dict.get('memo', '')}
     render_item_details({**rich_data, "id": item_dict['id'], "category": item_dict['category'], "title": item_dict['title'], "plan_date": item_dict['plan_date']}, item_dict['id'], is_plan=True)
 
-# 해당 날짜에 복수 아이템이 있을 때 리스트를 띄우기 위한 새로운 다이얼로그 추가
 @st.dialog("일간 목록", width="large")
 def show_daily_list_dialog(items, date_str):
     st.markdown(f"### 📅 {date_str}")
@@ -633,16 +494,13 @@ def show_daily_list_dialog(items, date_str):
         col_img, col_info = st.columns([0.2, 0.8])
         with col_img:
             img_u = row.get("img_url")
-            if img_u and str(img_u) != "None":
-                st.image(img_u, use_container_width=True)
-            else:
-                st.markdown(f"<div style='font-size: 30px; text-align: center; background-color: #334155; border-radius: 8px; padding: 20px;'>{CAT_EMOJIS.get(row.get('category', ''), '📌')}</div>", unsafe_allow_html=True)
+            if img_u and str(img_u) != "None": st.image(img_u, use_container_width=True)
+            else: st.markdown(f"<div style='font-size: 30px; text-align: center; background-color: #334155; border-radius: 8px; padding: 20px;'>{CAT_EMOJIS.get(row.get('category', ''), '📌')}</div>", unsafe_allow_html=True)
         with col_info:
             st.markdown(f"**{row.get('title', '제목 없음')}**")
             st.markdown(f"<span style='color:#94A3B8; font-size:0.9rem;'>{row.get('creator', '')}</span>", unsafe_allow_html=True)
             st.markdown(f"<span style='color:#64748B; font-size:0.8rem;'>{row.get('view_date', '')}</span>", unsafe_allow_html=True)
-            if st.button("상세 정보 열기", key=f"btn_detail_daily_{row['id']}", use_container_width=True):
-                show_details(row)
+            if st.button("상세 정보 열기", key=f"btn_detail_daily_{row['id']}", use_container_width=True): show_details(row)
         st.markdown("<hr style='margin: 10px 0; border-top: 1px dashed #334155;'>", unsafe_allow_html=True)
 
 # ==========================================
@@ -663,8 +521,6 @@ def image_button(image_url, key, *, aspect_ratio=None, width="100%", height=None
     if height: size_css += f"height:{height} !important;min-height:{height} !important;"
 
     top_badge_css = f"""div[data-testid="stColumn"] .st-key-{key} button::before {{ content: "{str(top_badge).replace('\\', '\\\\').replace('"', '\\"')}"; position: absolute; top: 4px; left: 4px; z-index: 2; background: rgba(15,23,42,.88); color: #FBBF24; padding: 1px 5px; border-radius: 6px; font-size: 9px; line-height: 1.3; font-weight: 700; }}""" if top_badge else ""
-    
-    # 우측 하단 숫자(또는 텍스트) 배지 스타일 적용
     bottom_badge_css = f"""div[data-testid="stColumn"] .st-key-{key} button::after {{ content: "{str(bottom_badge).replace('\\', '\\\\').replace('"', '\\"')}"; position: absolute; right: 4px; bottom: 4px; z-index: 2; background: rgba(0,0,0,.7); color: #FFFFFF; padding: 2px 8px; border-radius: 4px; font-size: 11px; line-height: 1.3; font-weight: bold; }}""" if bottom_badge else ""
 
     st.markdown(f"""<style>
@@ -718,7 +574,6 @@ with st.sidebar:
         st.button("📤 클라우드 백업", key="backup_2", on_click=migrate_to_supabase, use_container_width=True)
         st.button("📥 클라우드 복구", key="restore_2", on_click=restore_from_supabase, use_container_width=True)
 
-# 헤더 영역 레이아웃 분할 (타이틀과 검색창 분리)
 head_col1, head_col2 = st.columns([0.75, 0.25], vertical_alignment="bottom")
 
 with head_col1:
@@ -735,7 +590,7 @@ with head_col1:
 search_query_archive = ""
 with head_col2:
     if not tab_w:
-        st.markdown("<div style='margin-bottom: 25px;'></div>", unsafe_allow_html=True) # 로고 높이에 맞춤 정렬
+        st.markdown("<div style='margin-bottom: 25px;'></div>", unsafe_allow_html=True)
         search_query_archive = st.text_input("🔍", placeholder="🔍 검색", label_visibility="collapsed", key="global_search")
 
 st.markdown("<hr style='margin: 0 0 20px 0; border: 0; border-top: 1px solid #334155;'>", unsafe_allow_html=True)
@@ -813,7 +668,6 @@ if IS_ADMIN and tab_w:
 
     st.markdown("<div style='height:18px;'></div>", unsafe_allow_html=True)
 
-    # SEARCH 기능
     category = st.radio("📂 CATEGORY", CATEGORIES, horizontal=True, key="main_category_radio")
     search_query = st.text_input(f"🔍 {category} 검색")
 
@@ -829,10 +683,15 @@ if IS_ADMIN and tab_w:
                 sel = st.selectbox("결과 선택", list((opts := {f"📚 {b.get('title', '제목 없음')}": b for b in res}).keys()))
                 if st.button("✨ 가져오기", use_container_width=True):
                     b = opts[sel]
+                    
+                    # 더 정확한 API 조회를 위해 ISBN13 우선 사용
+                    isbn13 = b.get("isbn13")
                     item_id = b.get("itemId")
                     
-                    # 상세 조회 호출 (목차 가져오기 위함)
-                    details = get_aladin_book_details(item_id) if item_id else {}
+                    if isbn13:
+                        details = get_aladin_book_details(isbn13, is_isbn=True)
+                    else:
+                        details = get_aladin_book_details(item_id, is_isbn=False)
                     
                     title = b.get("title", "")
                     author = b.get("author", "")
@@ -841,8 +700,12 @@ if IS_ADMIN and tab_w:
                     cover_img = b.get("cover", "").replace("coversum", "cover500") 
                     link = b.get("link", "")
                     
-                    description = details.get("description", b.get("description", ""))
-                    toc = details.get("subInfo", {}).get("toc", "")
+                    # HTML 태그 제거 및 정제
+                    raw_desc = details.get("description") or b.get("description", "")
+                    description = clean_aladin_text(raw_desc)
+                    
+                    raw_toc = details.get("subInfo", {}).get("toc", "")
+                    toc = clean_aladin_text(raw_toc)
                     
                     full_desc = f"{link}\n\n{description}".strip()
                     
@@ -950,7 +813,6 @@ elif not tab_w:
     div[data-testid="stColumn"] button:hover { color: #6366F1 !important; }
     @media (max-width: 768px) {
         div[data-testid="stHorizontalBlock"] { display: flex !important; flex-wrap: wrap !important; gap: 8px !important; }
-        /* 모바일에서는 선반을 5개씩 나누어 표시되도록 설정 */
         div[data-testid="stHorizontalBlock"] > div[data-testid="column"] { flex: 1 1 calc(20% - 8px) !important; min-width: calc(20% - 8px) !important; max-width: calc(20% - 8px) !important; margin: 0 !important; padding: 0 !important; }
     }
     @media (min-width: 769px) {
@@ -964,7 +826,6 @@ elif not tab_w:
     all_df = get_all_data()
 
     if not all_df.empty:
-        # 통합 검색어 처리
         if search_query_archive:
             mask = (all_df['title'].str.contains(search_query_archive, case=False, na=False) | 
                     all_df['creator'].str.contains(search_query_archive, case=False, na=False) | 
@@ -983,19 +844,17 @@ elif not tab_w:
         
         selected_tab = st.radio("카테고리 선택", tab_titles, horizontal=True, label_visibility="collapsed", key="archive_main_radio")
         
-        # 탭 변경 시 더보기(페이지네이션) 수치 초기화
         if st.session_state.current_archive_tab != selected_tab:
             st.session_state.current_archive_tab = selected_tab
             st.session_state.max_items = 60
 
         # ==========================================
-        # 📂 ARCHIVE - ALL 탭 (월별 선반 형태)
+        # 📂 ARCHIVE - ALL 탭
         # ==========================================
         if selected_tab.startswith("📅 ALL"):
             st.divider()
 
             if not main_df.empty:
-                # view_date 기준으로 연-월 묶음 생성 (내림차순)
                 main_df['year_month'] = main_df['v_dt'].dt.to_period('M')
                 months = sorted(main_df['year_month'].dropna().unique(), reverse=True)
                 
@@ -1006,13 +865,9 @@ elif not tab_w:
                     if displayed_count >= st.session_state.max_items: break
                     
                     m_data = main_df[main_df['year_month'] == ym]
-                    
-                    # 월별 헤더 출력
                     st.markdown(f"<h4 style='font-size: 1.2rem; margin-bottom: 10px; margin-top: 20px;'>📁 {ym.year}년 {ym.month}월 ({len(m_data)})</h4>", unsafe_allow_html=True)
                     
                     items = m_data.to_dict('records')
-                    
-                    # 한 줄에 10개씩(shelf_cols) 끊어서 렌더링
                     for i in range(0, len(items), shelf_cols):
                         if displayed_count >= st.session_state.max_items: break
                         
@@ -1026,7 +881,7 @@ elif not tab_w:
                                         show_details(row)
                                 displayed_count += 1
                                 
-                    st.markdown("<br>", unsafe_allow_html=True) # 줄바꿈 간격 조절
+                    st.markdown("<br>", unsafe_allow_html=True) 
                     
                 if len(main_df) > st.session_state.max_items:
                     if st.button("🔽 더보기 (Load More)", use_container_width=True):
