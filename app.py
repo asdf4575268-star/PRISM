@@ -349,7 +349,7 @@ def search_apple_music(query):
     query = str(query or "").strip()
     if not query: return []
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-    countries = ["KR", "US"]
+    countries = ["KR", "US", "JP"]
     collected = {}
     for country in countries:
         try:
