@@ -24,6 +24,7 @@ st.set_page_config(page_title="PRISM", page_icon=FAVICON, layout="wide", initial
 TMDB_API_KEY = "6e7c55b6259b7731655033f783f3fc5b"
 DB_NAME = 'archive_prism_total_v5.db'
 KOPIS_KEY = "7a919bc272204f06bbca10e2af376dea"
+ALADIN_API_KEY = "ttbckwntmd2101002"
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
@@ -309,11 +310,39 @@ auto_sync_on_startup()
 # 5. API & SEARCH FUNCTIONS (외부 API 통신)
 # ==========================================
 def search_books(query):
-    headers = {"Authorization": "KakaoAK a356895a3aae4f0acf9f4ee884d90a6a"}
+    url = "http://www.aladin.co.kr/ttb/api/ItemSearch.aspx"
+    params = {
+        "ttbkey": ALADIN_API_KEY,
+        "Query": query,
+        "QueryType": "Keyword",
+        "MaxResults": 15,
+        "start": 1,
+        "SearchTarget": "Book",
+        "output": "js",
+        "Version": "20131101"
+    }
     try:
-        res = requests.get("https://dapi.kakao.com/v3/search/book", headers=headers, params={"query": query, "size": 15})
-        return res.json().get("documents", []) if res.status_code == 200 else []
-    except: return []
+        res = requests.get(url, params=params, timeout=10)
+        return res.json().get("item", [])
+    except:
+        return []
+
+def get_aladin_book_details(item_id):
+    url = "http://www.aladin.co.kr/ttb/api/ItemLookUp.aspx"
+    params = {
+        "ttbkey": ALADIN_API_KEY,
+        "itemIdType": "ItemId",
+        "ItemId": item_id,
+        "output": "js",
+        "Version": "20131101",
+        "OptResult": "Toc,description"
+    }
+    try:
+        res = requests.get(url, params=params, timeout=10)
+        items = res.json().get("item", [])
+        return items[0] if items else {}
+    except:
+        return {}
 
 def search_apple_music(query):
     base_url = "https://itunes.apple.com/search"
@@ -797,16 +826,40 @@ if IS_ADMIN and tab_w:
                 else: st.error("URL 정보를 가져올 수 없습니다.")
         elif category == "BOOKS":
             if res := search_books(search_query):
-                sel = st.selectbox("결과 선택", list((opts := {f"📚 {b['title']}": b for b in res}).keys()))
+                sel = st.selectbox("결과 선택", list((opts := {f"📚 {b.get('title', '제목 없음')}": b for b in res}).keys()))
                 if st.button("✨ 가져오기", use_container_width=True):
                     b = opts[sel]
-                    full_desc = b.get("contents", "")
-                    if b.get("url"):
-                        if scraped := scrape_url(b["url"]):
-                            if scraped.get("summary"):
-                                scraped_desc = scraped["summary"].replace(b["url"], "").strip()
-                                if len(scraped_desc) > len(full_desc): full_desc = scraped_desc
-                    st.session_state.update(edit_target_id=None, edit_source=None, f_title=b["title"], f_creator=", ".join(b["authors"]), f_date=b["datetime"][:10], f_img=b.get("thumbnail", "").replace("R120x174", "R400x0"), f_venue=b.get("publisher", ""), f_summary=full_desc, f_highlights="", f_note="", f_brief="", f_video="")
+                    item_id = b.get("itemId")
+                    
+                    # 상세 조회 호출 (목차 가져오기 위함)
+                    details = get_aladin_book_details(item_id) if item_id else {}
+                    
+                    title = b.get("title", "")
+                    author = b.get("author", "")
+                    pub_date = b.get("pubDate", "")[:10]
+                    publisher = b.get("publisher", "")
+                    cover_img = b.get("cover", "").replace("coversum", "cover500") 
+                    link = b.get("link", "")
+                    
+                    description = details.get("description", b.get("description", ""))
+                    toc = details.get("subInfo", {}).get("toc", "")
+                    
+                    full_desc = f"{link}\n\n{description}".strip()
+                    
+                    st.session_state.update(
+                        edit_target_id=None, 
+                        edit_source=None, 
+                        f_title=title, 
+                        f_creator=author, 
+                        f_date=pub_date, 
+                        f_img=cover_img, 
+                        f_venue=publisher, 
+                        f_summary=full_desc, 
+                        f_highlights=toc, 
+                        f_note="", 
+                        f_brief="", 
+                        f_video=""
+                    )
                     st.rerun()
         elif category == "MUSIC":
             if res := search_apple_music(search_query):
