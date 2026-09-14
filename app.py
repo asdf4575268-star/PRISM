@@ -236,7 +236,7 @@ def search_apple_music(query):
     if not query: return []
     headers = {"User-Agent": "Mozilla/5.0"}
     collected = {}
-    for country in ["KR", "US"]:
+    for country in ["KR", "JP", "US"]:
         try:
             res = requests.get(base_url, params={"term": query, "media": "music", "entity": "album", "country": country, "limit": 50}, headers=headers, timeout=10)
             if res.status_code != 200: continue
