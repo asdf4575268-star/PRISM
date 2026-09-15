@@ -739,7 +739,21 @@ if IS_ADMIN and tab_w:
                                     tl_text = "💿 트랙리스트\n" + "\n".join(f"{i + 1}. {t}" for i, t in enumerate(tracks))
                                     break
                             except: continue
-                    st.session_state.update(edit_target_id=None, edit_source=None, f_title=m["title"], f_creator=m["creator"], f_date=m["date"], f_img=m["img"], f_venue=m["venue"], f_summary=f"{m.get('url', '')}\n\n{tl_text}".strip(), f_highlights="", f_note="", f_brief="", f_video="")
+                    # f_summary에는 URL만 남기고, f_highlights(POINT)에 트랙리스트를 전달하도록 수정
+                    st.session_state.update(
+                        edit_target_id=None, 
+                        edit_source=None, 
+                        f_title=m["title"], 
+                        f_creator=m["creator"], 
+                        f_date=m["date"], 
+                        f_img=m["img"], 
+                        f_venue=m["venue"], 
+                        f_summary=m.get('url', ''), 
+                        f_highlights=tl_text, 
+                        f_note="", 
+                        f_brief="", 
+                        f_video=""
+                    )
                     st.rerun()
         elif category == "STAGE":
             if res := search_kopis(search_query):
